@@ -915,8 +915,8 @@ export default function Recipes() {
                             {selected ? (
                                 <>
                                     {/* 1. Minimalist Sticky Header */}
-                                    <div className="sticky top-0 left-0 right-0 z-[101] bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-zinc-100 dark:border-zinc-900 flex justify-between items-center px-6 h-16 transition-all">
-                                        <div className="w-20">
+                                    <div className="sticky top-0 left-0 right-0 z-[101] bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-zinc-100 dark:border-zinc-900 flex justify-between items-center px-4 md:px-6 h-16 transition-all">
+                                        <div className="flex-1 flex justify-start">
                                             <button
                                                 onClick={() => {
                                                     // Cleanup empty items on exit
@@ -940,7 +940,7 @@ export default function Recipes() {
                                             {syncError ? 'Falha' : syncing ? 'Sincronizando...' : 'Salvo'}
                                         </span>
 
-                                        <div className="w-16 flex justify-end">
+                                        <div className="flex-1 flex justify-end">
                                             <button
                                                 onClick={() => {
                                                     setConfirmModal({
@@ -978,7 +978,7 @@ export default function Recipes() {
                                                                 onClick={() => setZoomedImage(selected.image)}
                                                             />
                                                             {/* Edit Icon - Top Right */}
-                                                            <label className="absolute top-4 right-4 p-3 rounded-full bg-black/30 backdrop-blur-md text-white/90 hover:bg-black/50 hover:text-white transition-all cursor-pointer opacity-0 group-hover:opacity-100 hover:scale-105 active:scale-95 shadow-lg border border-white/10">
+                                                            <label className="absolute top-4 right-4 p-3 rounded-full bg-black/30 backdrop-blur-md text-white/90 hover:bg-black/50 hover:text-white transition-all cursor-pointer opacity-100 md:opacity-0 group-hover:opacity-100 hover:scale-105 active:scale-95 shadow-lg border border-white/10">
                                                                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
                                                                 {isUploading ? (
                                                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1038,7 +1038,7 @@ export default function Recipes() {
                                                     <textarea
                                                         value={selected.name}
                                                         onChange={e => updateRecipe(selectedId, { name: e.target.value })}
-                                                        className="w-full bg-transparent text-4xl md:text-6xl font-black text-zinc-900 dark:text-white outline-none resize-none placeholder:text-zinc-200 dark:placeholder:text-zinc-800 leading-[1.1] tracking-tight"
+                                                        className="w-full bg-transparent text-3xl md:text-6xl font-black text-zinc-900 dark:text-white outline-none resize-none placeholder:text-zinc-200 dark:placeholder:text-zinc-800 leading-[1.1] tracking-tight"
                                                         placeholder="Nome da Receita"
                                                         rows={1}
                                                         onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
