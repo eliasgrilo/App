@@ -345,7 +345,7 @@ const IngredientItem = React.memo(({ item, onUpdate, onDelete, onNext, isEditing
                 {/* Drag Handle - Ultra Subtle (Edit Only) */}
                 {isEditing && (
                     <div
-                        className="touch-none cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150"
+                        className="cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150"
                         onPointerDown={(e) => dragControls.start(e)}
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
@@ -462,7 +462,7 @@ const InstructionItem = React.memo(({ item, index, onUpdate, onDelete, onNext, i
                 {/* Drag Handle (Edit Only) */}
                 {isEditing && (
                     <div
-                        className="touch-none cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150 mt-1"
+                        className="cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150 mt-1"
                         onPointerDown={(e) => dragControls.start(e)}
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
@@ -1307,8 +1307,8 @@ function IngredientsTable({ section, onUpdate, onDelete, dragControls, isEditing
             <div className="flex items-center justify-between mb-6 pl-1">
                 <div className="flex items-center gap-3 flex-1">
                     <div
+                        className="cursor-grab p-2 -ml-2 text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors opacity-100 md:opacity-0 md:group-hover/section:opacity-100"
                         onPointerDown={(e) => dragControls.start(e)}
-                        className="cursor-grab p-2 -ml-2 text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors opacity-100 md:opacity-0 md:group-hover/section:opacity-100 touch-none"
                     >
                         <Icons.Bars className="w-5 h-5" />
                     </div>
@@ -1380,8 +1380,8 @@ function InstructionsTable({ section, onUpdate, onDelete, dragControls, isEditin
             <div className="flex items-center justify-between mb-6 pl-1">
                 <div className="flex items-center gap-3 flex-1">
                     <div
+                        className="cursor-grab p-2 -ml-2 text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors opacity-100 md:opacity-0 md:group-hover/section:opacity-100"
                         onPointerDown={(e) => dragControls.start(e)}
-                        className="cursor-grab p-2 -ml-2 text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors opacity-100 md:opacity-0 md:group-hover/section:opacity-100 touch-none"
                     >
                         <Icons.Bars className="w-5 h-5" />
                     </div>
