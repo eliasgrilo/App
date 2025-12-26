@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { FirebaseService } from './services/firebaseService'
 import { Reorder, motion, AnimatePresence, useDragControls } from 'framer-motion'
@@ -9,6 +9,45 @@ import { compressImage } from './services/imageUtils'
  * "The details are not the details. They make the design." - Charles Eames
  */
 
+// --- LOCAL TOAST HOOK ---
+const useLocalToast = () => {
+    const [toastMessage, setToastMessage] = useState(null)
+    const timeoutRef = useRef(null)
+
+    const showToast = useCallback((message, type = 'error') => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current)
+        setToastMessage({ message, type })
+        timeoutRef.current = setTimeout(() => setToastMessage(null), 3500)
+    }, [])
+
+    const toast = useMemo(() => ({
+        error: (msg) => showToast(msg, 'error'),
+        success: (msg) => showToast(msg, 'success'),
+        info: (msg) => showToast(msg, 'info'),
+    }), [showToast])
+
+    const ToastUI = toastMessage ? createPortal(
+        <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-[20000] px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl border ${toastMessage.type === 'error' ? 'bg-rose-500/90 border-rose-400/20 text-white' :
+                toastMessage.type === 'success' ? 'bg-emerald-500/90 border-emerald-400/20 text-white' :
+                    'bg-zinc-900/90 border-white/10 text-white'
+                }`}
+        >
+            <div className={`w-2 h-2 rounded-full ${toastMessage.type === 'error' ? 'bg-white animate-pulse' :
+                toastMessage.type === 'success' ? 'bg-white' :
+                    'bg-indigo-400'
+                }`} />
+            <span className="text-sm font-semibold tracking-tight">{toastMessage.message}</span>
+        </motion.div>,
+        document.body
+    ) : null
+
+    return { toast, ToastUI }
+}
+
 // --- UTILS & ICONS ---
 const Icons = {
     Camera: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
@@ -17,9 +56,9 @@ const Icons = {
     Back: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>,
     Trash: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
     Clock: () => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-    Users: () => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     Bars: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>,
-    Book: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+    Book: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>,
+    Check: () => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
 }
 
 // --- SUB-COMPONENTS ---
@@ -57,7 +96,7 @@ const SectionWrapper = ({ id, children }) => {
     )
 }
 
-const CategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }) => {
+const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }) => {
     const [newName, setNewName] = useState('')
     const [editingId, setEditingId] = useState(null)
     const [editValue, setEditValue] = useState('')
@@ -133,141 +172,152 @@ const CategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }) => {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Backdrop */}
             <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/60 backdrop-blur-xl"
+                className="absolute inset-0 bg-white/5 dark:bg-white/5 backdrop-blur-lg"
                 onClick={onClose}
             />
 
+            {/* Modal Content */}
             <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="relative bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden"
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-[2rem] p-6 pb-8 md:p-8 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
             >
-                {/* Header */}
-                <div className="px-6 py-5 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                {/* Header - Inventory Style */}
+                <div className="flex items-center justify-between mb-8 shrink-0">
                     <div>
-                        <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">Categorias</h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Organize sua biblioteca</p>
+                        <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">Gerenciar Categorias</h3>
+                        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-1">Organize sua biblioteca de receitas</p>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                        <Icons.Close />
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                    >
+                        <Icons.Close className="w-5 h-5" />
                     </button>
                 </div>
 
-                {/* Add New */}
-                <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+                {/* Add New Category - Inventory Style */}
+                <div className="mb-8 shrink-0">
+                    <h4 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-3">Adicionar Nova Categoria</h4>
                     <div className="flex gap-2">
                         <input
+                            type="text"
                             value={newName}
                             onChange={e => setNewName(e.target.value)}
-                            placeholder="Nova categoria..."
-                            className="flex-1 bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 rounded-lg text-sm outline-none placeholder:text-zinc-400"
                             onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                            className="flex-1 px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 text-zinc-900 dark:text-white font-bold focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-indigo-400/50"
+                            placeholder="Nome da categoria"
                         />
                         <button
                             onClick={handleAdd}
-                            className="px-4 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                            disabled={!newName.trim()}
+                            className="px-5 py-3 bg-indigo-500 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
                         >
-                            Adicionar
+                            <Icons.Plus className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
 
-                {/* List */}
-                <div className="flex-1 overflow-y-auto">
+                {/* Categories List - Inventory Style + Color Picker */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 space-y-3">
+                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2 sticky top-0 bg-white dark:bg-zinc-900 py-2 z-10">Suas Categorias</h4>
                     {categories.map((cat, idx) => {
                         const { name, color } = normalizeCategory(cat)
                         const catId = name + idx
 
                         return (
-                            <div key={catId} className="group flex items-center gap-3 px-6 py-3 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                {/* Color Dot */}
-                                <button
-                                    onClick={() => setColorPicker(colorPicker === catId ? null : catId)}
-                                    className="w-4 h-4 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-transparent hover:ring-zinc-300 transition-all"
-                                    style={{ backgroundColor: color }}
-                                />
+                            <div key={catId} className="group flex items-center justify-between py-3 px-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/20 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    {/* Color Dot */}
+                                    <button
+                                        onClick={() => setColorPicker(colorPicker === catId ? null : catId)}
+                                        className="w-4 h-4 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-transparent hover:ring-indigo-300 transition-all shadow-sm"
+                                        style={{ backgroundColor: color }}
+                                    />
 
-                                {/* Color Picker Dropdown */}
-                                {colorPicker === catId && (
-                                    <div className="absolute left-16 mt-20 z-50 bg-white dark:bg-zinc-800 rounded-xl shadow-xl p-3 grid grid-cols-5 gap-2 border border-zinc-200 dark:border-zinc-700">
-                                        {colorPalette.map(c => (
-                                            <button
-                                                key={c}
-                                                onClick={() => handleColorChange(cat, c)}
-                                                className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${color === c ? 'ring-2 ring-offset-2 ring-zinc-400' : ''}`}
-                                                style={{ backgroundColor: c }}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Name */}
-                                <div className="flex-1 min-w-0">
-                                    {editingId === catId ? (
-                                        <input
-                                            autoFocus
-                                            value={editValue}
-                                            onChange={e => setEditValue(e.target.value)}
-                                            onBlur={() => handleRename(cat)}
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter') handleRename(cat)
-                                                if (e.key === 'Escape') setEditingId(null)
-                                            }}
-                                            className="w-full bg-transparent outline-none text-sm font-medium text-zinc-900 dark:text-white"
-                                        />
-                                    ) : (
-                                        <span
-                                            onClick={() => { setEditingId(catId); setEditValue(name) }}
-                                            className="text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-text truncate block"
-                                        >
-                                            {name}
-                                        </span>
+                                    {/* Color Picker Dropdown */}
+                                    {colorPicker === catId && (
+                                        <div className="absolute left-12 mt-10 z-50 bg-white dark:bg-zinc-800 rounded-2xl shadow-xl p-3 grid grid-cols-6 gap-2 border border-zinc-200 dark:border-zinc-700 animate-slide-up">
+                                            {colorPalette.map(c => (
+                                                <button
+                                                    key={c}
+                                                    onClick={() => handleColorChange(cat, c)}
+                                                    className={`w-6 h-6 rounded-full transition-transform hover:scale-110 ${color === c ? 'ring-2 ring-offset-2 ring-zinc-400' : ''}`}
+                                                    style={{ backgroundColor: c }}
+                                                />
+                                            ))}
+                                        </div>
                                     )}
+
+                                    {/* Name */}
+                                    <div className="flex-1 min-w-0">
+                                        {editingId === catId ? (
+                                            <input
+                                                autoFocus
+                                                value={editValue}
+                                                onChange={e => setEditValue(e.target.value)}
+                                                onBlur={() => handleRename(cat)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') handleRename(cat)
+                                                    if (e.key === 'Escape') setEditingId(null)
+                                                }}
+                                                className="w-full bg-transparent outline-none text-sm font-bold text-zinc-900 dark:text-white"
+                                            />
+                                        ) : (
+                                            <span
+                                                onClick={() => { setEditingId(catId); setEditValue(name) }}
+                                                className="text-sm font-medium text-indigo-900 dark:text-indigo-200 cursor-text truncate block select-none"
+                                            >
+                                                {name}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Delete */}
                                 <button
                                     onClick={() => setConfirmDelete(cat)}
-                                    className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-rose-500 transition-all"
+                                    className="p-2 rounded-lg text-indigo-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all opacity-0 group-hover:opacity-100"
                                 >
-                                    <Icons.Trash />
+                                    <Icons.Trash className="w-4 h-4" />
                                 </button>
                             </div>
                         )
                     })}
                 </div>
 
-                {/* Delete Confirmation */}
+                {/* Delete Confirmation Overlay - Inventory Style */}
                 <AnimatePresence>
                     {confirmDelete && (
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl z-50 flex items-center justify-center p-8"
+                            className="absolute inset-0 bg-white/90 dark:bg-zinc-900/95 backdrop-blur-md z-50 flex items-center justify-center p-6"
                         >
-                            <div className="text-center max-w-xs">
-                                <div className="w-14 h-14 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center text-rose-500 mx-auto mb-4">
-                                    <Icons.Trash />
+                            <div className="text-center w-full">
+                                <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center text-rose-500 mx-auto mb-4 shadow-sm">
+                                    <Icons.Trash className="w-8 h-8" />
                                 </div>
-                                <h4 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">Remover categoria?</h4>
-                                <p className="text-sm text-zinc-500 mb-6">
-                                    "{getCategoryName(confirmDelete)}" será removida e as receitas serão movidas para "Outros".
+                                <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Excluir Categoria?</h4>
+                                <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
+                                    A categoria <span className="font-bold text-zinc-800 dark:text-zinc-200">"{getCategoryName(confirmDelete)}"</span> será removida.<br />As receitas serão movidas para "Outros".
                                 </p>
-                                <div className="flex gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setConfirmDelete(null)}
-                                        className="flex-1 py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                                        className="py-3 text-xs font-bold uppercase tracking-wider text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
                                     >
                                         Cancelar
                                     </button>
                                     <button
                                         onClick={() => handleDelete(confirmDelete)}
-                                        className="flex-1 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600 transition-colors"
+                                        className="py-3 text-xs font-bold uppercase tracking-wider text-white bg-rose-500 rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20 transition-all active:scale-95"
                                     >
-                                        Remover
+                                        Excluir
                                     </button>
                                 </div>
                             </div>
@@ -279,153 +329,201 @@ const CategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }) => {
     )
 }
 
-const IngredientItem = React.memo(({ item, onUpdate, onDelete, onNext }) => {
+const IngredientItem = React.memo(({ item, onUpdate, onDelete, onNext, isEditing }) => {
     const dragControls = useDragControls()
+    const [checked, setChecked] = useState(false)
+
     return (
         <Reorder.Item
             value={item}
-            dragListener={false}
+            dragListener={isEditing}
             dragControls={dragControls}
-            className="group relative mb-2 transition-all duration-300 ease-out"
+            className={`group relative mb-2 transition-all duration-300 ease-out ${!isEditing ? 'cursor-pointer' : ''}`}
+            onClick={() => !isEditing && setChecked(!checked)}
         >
-            <div className="flex items-center gap-2 md:gap-3 py-3 px-1 rounded-xl hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]">
-                {/* Drag Handle - Ultra Subtle */}
-                <div
-                    className="touch-none cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150"
-                    onPointerDown={(e) => dragControls.start(e)}
-                >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                        <circle cx="4" cy="4" r="1.5" />
-                        <circle cx="4" cy="12" r="1.5" />
-                        <circle cx="12" cy="4" r="1.5" />
-                        <circle cx="12" cy="12" r="1.5" />
-                    </svg>
-                </div>
-
-                {/* Name Input - Refined Typography */}
-                <input
-                    id={`ing-name-${item.id}`}
-                    type="text"
-                    value={item.name}
-                    autoFocus
-                    onChange={e => onUpdate({ ...item, name: e.target.value })}
-                    onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault()
-                            document.getElementById(`ing-qty-${item.id}`)?.focus()
-                        }
-                    }}
-                    className="flex-1 bg-transparent outline-none font-medium text-[15px] leading-[1.4] tracking-[-0.011em] text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 transition-colors duration-150 min-w-0"
-                    placeholder="Ingrediente"
-                    onBlur={() => {
-                        if (!item.name.trim() && !item.quantity.trim()) onDelete()
-                    }}
-                />
-
-                {/* Quantity Input - Premium Design */}
-                <div className="flex items-center gap-1.5 md:gap-2">
-                    <div className="relative w-12 md:w-24 transition-all duration-300">
-                        <input
-                            id={`ing-qty-${item.id}`}
-                            type="text"
-                            inputMode="decimal"
-                            value={item.quantity}
-                            onChange={e => onUpdate({ ...item, quantity: e.target.value })}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    onNext?.()
-                                }
-                            }}
-                            className="w-full text-right bg-transparent outline-none font-semibold text-[15px] text-zinc-900 dark:text-white tabular-nums"
-                            placeholder="0"
-                            onBlur={() => {
-                                if (!item.name.trim() && !item.quantity.trim()) onDelete()
-                            }}
-                        />
-                    </div>
-
-                    {/* Unit Selector - Minimal */}
-                    <select
-                        value={item.unit}
-                        onChange={e => onUpdate({ ...item, unit: e.target.value })}
-                        className="bg-transparent text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600 outline-none cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors duration-150 appearance-none"
+            <div className={`flex items-center gap-2 md:gap-3 py-3 px-1 rounded-xl transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${isEditing ? 'hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30' : checked ? 'opacity-50' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/10'}`}>
+                {/* Drag Handle - Ultra Subtle (Edit Only) */}
+                {isEditing && (
+                    <div
+                        className="touch-none cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150"
+                        onPointerDown={(e) => dragControls.start(e)}
                     >
-                        {['g', 'kg', 'ml', 'L', 'un', 'col'].map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-
-                    {/* Delete Button - Subtle (Visible on Mobile) */}
-                    <button
-                        onClick={onDelete}
-                        className="p-1.5 text-zinc-300 dark:text-zinc-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors duration-150 opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                            <circle cx="4" cy="4" r="1.5" />
+                            <circle cx="4" cy="12" r="1.5" />
+                            <circle cx="12" cy="4" r="1.5" />
+                            <circle cx="12" cy="12" r="1.5" />
                         </svg>
-                    </button>
+                    </div>
+                )}
+
+                {/* Checkbox for Read Mode */}
+                {!isEditing && (
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${checked ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                        {checked && <Icons.Check className="w-3 h-3 text-white" />}
+                    </div>
+                )}
+
+                {/* Name Input/Text */}
+                {isEditing ? (
+                    <input
+                        id={`ing-name-${item.id}`}
+                        type="text"
+                        value={item.name}
+                        autoFocus
+                        onChange={e => onUpdate({ ...item, name: e.target.value })}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault()
+                                document.getElementById(`ing-qty-${item.id}`)?.focus()
+                            }
+                        }}
+                        className="flex-1 bg-transparent outline-none font-medium text-[15px] leading-[1.4] tracking-[-0.011em] text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 transition-colors duration-150 min-w-0"
+                        placeholder="Ingrediente"
+                        onBlur={() => {
+                            if (!item.name.trim() && !item.quantity.trim()) onDelete()
+                        }}
+                    />
+                ) : (
+                    <span className={`flex-1 font-medium text-[15px] leading-[1.4] tracking-tight text-zinc-800 dark:text-zinc-200 ${checked ? 'line-through text-zinc-400 dark:text-zinc-500' : ''}`}>
+                        {item.name}
+                    </span>
+                )}
+
+                {/* Quantity Input/Text */}
+                <div className="flex items-center gap-1.5 md:gap-2">
+                    {isEditing ? (
+                        <>
+                            <div className="relative w-12 md:w-24 transition-all duration-300">
+                                <input
+                                    id={`ing-qty-${item.id}`}
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={item.quantity}
+                                    onChange={e => onUpdate({ ...item, quantity: e.target.value })}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault()
+                                            onNext?.()
+                                        }
+                                    }}
+                                    className="w-full text-right bg-transparent outline-none font-semibold text-[15px] text-zinc-900 dark:text-white tabular-nums"
+                                    placeholder="0"
+                                    onBlur={() => {
+                                        if (!item.name.trim() && !item.quantity.trim()) onDelete()
+                                    }}
+                                />
+                            </div>
+                            <select
+                                value={item.unit}
+                                onChange={e => onUpdate({ ...item, unit: e.target.value })}
+                                className="bg-transparent text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600 outline-none cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors duration-150 appearance-none"
+                            >
+                                {['g', 'kg', 'ml', 'L', 'un', 'col'].map(u => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                        </>
+                    ) : (
+                        <div className={`font-semibold text-[15px] text-zinc-900 dark:text-white tabular-nums flex items-baseline gap-1 ${checked ? 'opacity-50' : ''}`}>
+                            <span>{item.quantity}</span>
+                            <span className="text-[10px] uppercase tracking-wider text-zinc-500">{item.unit}</span>
+                        </div>
+                    )}
+
+                    {/* Delete Button (Edit Only) */}
+                    {isEditing && (
+                        <button
+                            onClick={onDelete}
+                            className="p-1.5 text-zinc-300 dark:text-zinc-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors duration-150 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    )}
                 </div>
             </div>
         </Reorder.Item>
     )
 })
 
-const InstructionItem = React.memo(({ item, index, onUpdate, onDelete, onNext }) => {
+const InstructionItem = React.memo(({ item, index, onUpdate, onDelete, onNext, isEditing }) => {
     const dragControls = useDragControls()
+    const [checked, setChecked] = useState(false)
+
     return (
         <Reorder.Item
             value={item}
-            dragListener={false}
+            dragListener={isEditing}
             dragControls={dragControls}
-            className="group relative mb-2 transition-all duration-300 ease-out"
+            className={`group relative mb-2 transition-all duration-300 ease-out ${!isEditing ? 'cursor-pointer' : ''}`}
+            onClick={() => !isEditing && setChecked(!checked)}
         >
-            <div className="flex gap-3 py-3 px-1 rounded-xl hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]">
-                {/* Drag Handle */}
-                <div
-                    className="touch-none cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150 mt-1"
-                    onPointerDown={(e) => dragControls.start(e)}
-                >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                        <circle cx="4" cy="4" r="1.5" />
-                        <circle cx="4" cy="12" r="1.5" />
-                        <circle cx="12" cy="4" r="1.5" />
-                        <circle cx="12" cy="12" r="1.5" />
-                    </svg>
+            <div className={`flex gap-3 py-3 px-1 rounded-xl transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${isEditing ? 'hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30' : checked ? 'opacity-50' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/10'}`}>
+                {/* Drag Handle (Edit Only) */}
+                {isEditing && (
+                    <div
+                        className="touch-none cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-150 mt-1"
+                        onPointerDown={(e) => dragControls.start(e)}
+                    >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                            <circle cx="4" cy="4" r="1.5" />
+                            <circle cx="4" cy="12" r="1.5" />
+                            <circle cx="12" cy="4" r="1.5" />
+                            <circle cx="12" cy="12" r="1.5" />
+                        </svg>
+                    </div>
+                )}
+
+                {/* Step Number / Checkbox */}
+                <div className="pt-1 w-5 shrink-0 flex justify-center">
+                    {!isEditing && checked ? (
+                        <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center">
+                            <Icons.Check className="w-3 h-3 text-white" />
+                        </div>
+                    ) : (
+                        <span className={`text-[11px] font-black pt-0.5 select-none font-mono tabular-nums ${checked ? 'text-zinc-300' : 'text-zinc-300 dark:text-zinc-700'}`}>
+                            {String(index + 1).padStart(2, '0')}
+                        </span>
+                    )}
                 </div>
 
-                {/* Step Number */}
-                <span className="text-[1px] font-black text-zinc-300 dark:text-zinc-700 pt-1 select-none font-mono tabular-nums w-5">
-                    {String(index + 1).padStart(2, '0')}
-                </span>
-
                 {/* Instruction Text */}
-                <textarea
-                    autoFocus
-                    value={item.text}
-                    onChange={e => onUpdate({ ...item, text: e.target.value })}
-                    onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault()
-                            onNext?.()
-                        }
-                    }}
-                    className="flex-1 bg-transparent outline-none resize-none text-[15px] font-medium leading-[1.6] tracking-[-0.011em] text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 min-w-0 transition-colors duration-150"
-                    placeholder="Descreva este passo..."
-                    rows={1}
-                    onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
-                    onBlur={() => {
-                        if (!item.text.trim()) onDelete()
-                    }}
-                />
+                {isEditing ? (
+                    <textarea
+                        autoFocus
+                        value={item.text}
+                        onChange={e => onUpdate({ ...item, text: e.target.value })}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                onNext?.()
+                            }
+                        }}
+                        className="flex-1 bg-transparent outline-none resize-none text-[15px] font-medium leading-[1.6] tracking-[-0.011em] text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 min-w-0 transition-colors duration-150"
+                        placeholder="Descreva este passo..."
+                        rows={1}
+                        onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+                        onBlur={() => {
+                            if (!item.text.trim()) onDelete()
+                        }}
+                    />
+                ) : (
+                    <p className={`flex-1 text-[15px] font-medium leading-[1.6] tracking-[-0.011em] text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap ${checked ? 'line-through text-zinc-400 dark:text-zinc-500' : ''}`}>
+                        {item.text}
+                    </p>
+                )}
 
-                {/* Delete Button (Visible on Mobile) */}
-                <button
-                    onClick={onDelete}
-                    className="p-1.5 text-zinc-300 dark:text-zinc-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors duration-150 opacity-100 md:opacity-0 md:group-hover:opacity-100 mt-0.5"
-                >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
+                {/* Delete Button (Edit Only) */}
+                {isEditing && (
+                    <button
+                        onClick={onDelete}
+                        className="p-1.5 text-zinc-300 dark:text-zinc-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors duration-150 opacity-100 md:opacity-0 md:group-hover:opacity-100 mt-0.5"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                )}
             </div>
         </Reorder.Item>
     )
@@ -448,9 +546,11 @@ const getCategoryColor = (categories, categoryName) => {
 }
 
 export default function Recipes() {
+    const { toast, ToastUI } = useLocalToast()
     const [recipes, setRecipes] = useState([])
     const [categories, setCategories] = useState(['Tradicionais', 'Especiais', 'Veganas', 'Doces'])
     const [selectedId, setSelectedId] = useState(null)
+    const [isEditing, setIsEditing] = useState(false)
     const [activeFilter, setActiveFilter] = useState('Todas')
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState(null)
@@ -468,14 +568,11 @@ export default function Recipes() {
     // ULTRA SIMPLE DATA LOADING - GUARANTEED TO WORK
     useEffect(() => {
         let mounted = true
-        let loadingTimeout = null
 
         // Start loading immediately - no forced delay
         const loadData = async () => {
-            console.log('[Recipes] Starting load')
             try {
                 const recipeData = await FirebaseService.getRecipesV3()
-                console.log('[Recipes] Got recipes:', recipeData)
 
                 if (!mounted) return
 
@@ -518,7 +615,6 @@ export default function Recipes() {
                     setRecipes([])
                 }
             } catch (err) {
-                console.error('[Recipes] Load error:', err)
                 if (mounted) setRecipes([])
             }
 
@@ -529,11 +625,10 @@ export default function Recipes() {
                     setCategories(catData)
                 }
             } catch (err) {
-                console.log('[Recipes] Categories load failed, using defaults')
+                // Categories load failed, using defaults
             }
 
             // Complete loading immediately
-            console.log('[Recipes] Load complete')
             if (mounted) {
                 setLoading(false)
                 setLoadError(null)
@@ -544,9 +639,9 @@ export default function Recipes() {
 
         return () => {
             mounted = false
-            if (loadingTimeout) clearTimeout(loadingTimeout)
         }
     }, [])
+
 
     // Debounced Category Save
     useEffect(() => {
@@ -599,7 +694,6 @@ export default function Recipes() {
                     setSyncError(true)
                 }
             } catch (err) {
-                console.error('Sync error:', err)
                 setSyncError(true)
             } finally {
                 // Only set syncing to false if no other pending syncs
@@ -615,7 +709,7 @@ export default function Recipes() {
         if (!file) return
 
         if (!selectedId) {
-            alert("Erro: Nenhuma receita selecionada.")
+            toast.error('Nenhuma receita selecionada.')
             return
         }
 
@@ -627,20 +721,18 @@ export default function Recipes() {
                     const compressed = await compressImage(ev.target.result)
                     updateRecipe(selectedId, { image: compressed })
                 } catch (err) {
-                    console.error("Compression error:", err)
-                    alert("Falha ao processar imagem. Tente uma foto menor.")
+                    toast.error('Falha ao processar imagem. Tente uma foto menor.')
                 } finally {
                     setIsUploading(false)
                 }
             }
             r.onerror = () => {
-                alert("Erro ao ler o arquivo.")
+                toast.error('Erro ao ler o arquivo.')
                 setIsUploading(false)
             }
             r.readAsDataURL(file)
         } catch (error) {
-            console.error("Upload error:", error)
-            alert("Erro inesperado ao carregar imagem.")
+            toast.error('Erro inesperado ao carregar imagem.')
             setIsUploading(false)
         }
     }
@@ -648,34 +740,24 @@ export default function Recipes() {
 
     const handleDeleteRecipe = async (id) => {
         const stringId = String(id)
-        console.log('[handleDeleteRecipe] Starting deletion for ID:', stringId)
 
         setConfirmModal(null)
 
         // Optimistic update
-        setRecipes(prev => {
-            console.log('[handleDeleteRecipe] Optimistically removing recipe from list')
-            return prev.filter(r => String(r.id) !== stringId)
-        })
+        setRecipes(prev => prev.filter(r => String(r.id) !== stringId))
 
         // Close detail view if deleting current
         if (String(selectedId) === stringId) {
-            console.log('[handleDeleteRecipe] Closing detail view for deleted recipe')
             setSelectedId(null)
         }
 
         try {
-            console.log('[handleDeleteRecipe] Calling Firebase deleteRecipeV3...')
             const success = await FirebaseService.deleteRecipeV3(stringId)
-            if (success) {
-                console.log('[handleDeleteRecipe] Firebase deletion successful')
-            } else {
+            if (!success) {
                 throw new Error('Firebase returned false')
             }
         } catch (err) {
-            console.error("[handleDeleteRecipe] Failed to delete recipe:", err)
-            alert('Erro ao excluir receita: ' + err.message)
-            // Ideally revert here, but for now we keep it simple
+            toast.error('Erro ao excluir receita.')
         }
     }
 
@@ -713,7 +795,7 @@ export default function Recipes() {
     )
 
     return (
-        <div className="space-y-6 md:space-y-8 animate-fade-in pb-16 relative font-sans selection:bg-indigo-500/20 overflow-x-hidden">
+        <div className="space-y-6 md:space-y-8 animate-fade-in pb-16 relative font-sans selection:bg-indigo-500/20">
             {/* Ultra-Subtle Background */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden select-none opacity-40">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/5 blur-[120px] rounded-full"></div>
@@ -728,11 +810,11 @@ export default function Recipes() {
                         className="relative z-10"
                     >
                         {/* Header */}
-                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
                             <div>
                                 <div className="flex items-center gap-3 mb-1">
                                     <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">Receitas</h1>
-                                    <div className={`mt-3 px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 transition-colors ${syncError
+                                    <div className={`mt-2 px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 transition-colors ${syncError
                                         ? 'bg-rose-500/5 border-rose-500/10 text-rose-500/80'
                                         : syncing
                                             ? 'bg-amber-500/5 border-amber-500/10 text-amber-500/80'
@@ -755,7 +837,6 @@ export default function Recipes() {
                                         category: 'Tradicionais',
                                         prepTime: 30,
                                         cookTime: 15,
-                                        servings: 2,
                                         image: null,
                                         sections: [
                                             { id: Date.now(), type: 'ingredients', title: 'BASE', items: [] },
@@ -766,6 +847,7 @@ export default function Recipes() {
                                     }
                                     setRecipes([newR, ...recipes])
                                     setSelectedId(newId)
+                                    setIsEditing(true) // Start in Edit Mode for new recipes
                                     FirebaseService.syncRecipeV3(newId, newR)
                                 }}
                                 className="w-full md:w-auto px-8 py-4 md:py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs md:text-sm font-bold uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
@@ -776,12 +858,12 @@ export default function Recipes() {
                         </div>
 
                         {/* Filters */}
-                        <div className="sticky top-4 z-30 mb-8 py-4 -mx-4 px-4 md:-mx-6 md:px-6 overflow-x-auto scrollbar-hidden bg-zinc-50/80 dark:bg-black/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-50/50">
+                        <div className="sticky top-4 z-30 mb-8 py-4 overflow-x-auto scrollbar-hidden bg-zinc-50/80 dark:bg-black/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-50/50">
                             <div className="flex items-center gap-2 w-max">
                                 {['Todas', ...categories].map(cat => (
                                     <button
                                         key={getCategoryName(cat)} onClick={() => setActiveFilter(getCategoryName(cat))}
-                                        className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wide transition-all ${activeFilter === getCategoryName(cat) ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-lg shadow-zinc-900/10' : 'bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:hover:text-white border border-zinc-200/50 dark:border-zinc-800'}`}
+                                        className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wide transition-all ${activeFilter === getCategoryName(cat) ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:hover:text-white border border-zinc-200/50 dark:border-zinc-800'}`}
                                     >
                                         {getCategoryName(cat)}
                                     </button>
@@ -800,11 +882,11 @@ export default function Recipes() {
                         </div>
 
                         {/* Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 px-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                             {filtered.map(r => (
                                 <motion.div
-                                    layoutId={`card-${r.id}`} key={r.id} onTap={() => setSelectedId(r.id)}
-                                    className="group relative bg-white dark:bg-zinc-950 rounded-[2rem] p-4 border border-zinc-200/50 dark:border-white/10 md:hover:border-zinc-300 md:dark:hover:border-white/20 transition-all cursor-pointer shadow-xl md:hover:shadow-2xl md:hover:-translate-y-1 active:scale-[0.98] overflow-hidden"
+                                    layoutId={`card-${r.id}`} key={r.id} onClick={() => { setSelectedId(r.id); setIsEditing(false); }}
+                                    className="group relative z-20 bg-white dark:bg-zinc-950 rounded-[2rem] p-4 border border-zinc-200/50 dark:border-white/10 md:hover:border-zinc-300 md:dark:hover:border-white/20 transition-all cursor-pointer shadow-xl md:hover:shadow-2xl md:hover:-translate-y-1 active:scale-[0.98] overflow-hidden"
                                 >
                                     <div className="relative aspect-[4/5] rounded-[1.5rem] overflow-hidden bg-zinc-100 dark:bg-zinc-900 mb-6 shadow-inner">
                                         {r.image ? (
@@ -836,13 +918,11 @@ export default function Recipes() {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation()
-                                                console.log('Requesting delete for:', r.id)
                                                 setConfirmModal({
                                                     title: 'Excluir Receita',
                                                     message: `Tem certeza que deseja excluir "${r.name}"? Esta ação é irreversível.`,
                                                     type: 'danger',
                                                     onConfirm: () => {
-                                                        console.log('Confirming delete for:', r.id)
                                                         handleDeleteRecipe(r.id)
                                                     },
                                                     onCancel: () => setConfirmModal(null)
@@ -865,13 +945,26 @@ export default function Recipes() {
                                             >
                                                 {r.category}
                                             </span>
-                                            <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-400">
-                                                <Icons.Clock />
-                                                {r.prepTime + r.cookTime}m
+                                            <div className="flex items-center gap-3 text-xs font-bold text-zinc-400">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Icons.Clock />
+                                                    {r.prepTime + r.cookTime}m
+                                                </div>
+                                                {r.temperature > 0 && (
+                                                    <>
+                                                        <div className="w-px h-3 bg-zinc-200 dark:bg-zinc-700" />
+                                                        <div className="flex items-center gap-1">
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                            </svg>
+                                                            {r.temperature}°
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                         <h3 className="text-2xl font-bold leading-tight text-zinc-900 dark:text-white md:group-hover:text-indigo-600 md:dark:group-hover:text-indigo-400 transition-colors mb-1">{r.name}</h3>
-                                        <p className="text-xs font-medium text-zinc-400">{(r.ingredientSections || []).reduce((acc, s) => acc + (s.items?.length || 0), 0)} ingredientes</p>
+                                        <p className="text-xs font-medium text-zinc-400">{(r.sections || []).filter(s => s.type === 'ingredients').reduce((acc, s) => acc + (s.items?.length || 0), 0)} ingredientes</p>
                                     </div>
                                 </motion.div>
                             ))}
@@ -940,7 +1033,15 @@ export default function Recipes() {
                                             {syncError ? 'Falha' : syncing ? 'Sincronizando...' : 'Salvo'}
                                         </span>
 
-                                        <div className="flex-1 flex justify-end">
+                                        <div className="flex-1 flex justify-end gap-2">
+                                            <button
+                                                onClick={() => setIsEditing(!isEditing)}
+                                                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${isEditing
+                                                    ? 'bg-indigo-500 text-white border-indigo-500 shadow-indigo-500/30 shadow-lg'
+                                                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 hover:text-indigo-500'}`}
+                                            >
+                                                {isEditing ? 'Concluído' : 'Editar'}
+                                            </button>
                                             <button
                                                 onClick={() => {
                                                     setConfirmModal({
@@ -1047,15 +1148,17 @@ export default function Recipes() {
 
                                                 <div className="grid grid-cols-2 gap-4 pb-6">
                                                     <button
+                                                        disabled={!isEditing}
                                                         onClick={() => updateRecipe(selectedId, { sections: [...(selected.sections || []), { id: Date.now(), type: 'ingredients', title: 'INGREDIENTES', items: [] }] })}
-                                                        className="py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-bold text-xs uppercase tracking-widest shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 group"
+                                                        className={`py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 text-zinc-600 dark:text-zinc-300 font-bold text-xs uppercase tracking-widest shadow-sm transition-all flex items-center justify-center gap-2 group ${isEditing ? 'hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md cursor-pointer' : 'opacity-50 cursor-not-allowed grayscale'}`}
                                                     >
                                                         <div className="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 flex items-center justify-center group-hover:scale-110 transition-transform">IN</div>
                                                         + Ingredientes
                                                     </button>
                                                     <button
+                                                        disabled={!isEditing}
                                                         onClick={() => updateRecipe(selectedId, { sections: [...(selected.sections || []), { id: Date.now(), type: 'instructions', title: 'PREPARO', items: [] }] })}
-                                                        className="py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-bold text-xs uppercase tracking-widest shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 group"
+                                                        className={`py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 text-zinc-600 dark:text-zinc-300 font-bold text-xs uppercase tracking-widest shadow-sm transition-all flex items-center justify-center gap-2 group ${isEditing ? 'hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md cursor-pointer' : 'opacity-50 cursor-not-allowed grayscale'}`}
                                                     >
                                                         <div className="w-6 h-6 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform">PR</div>
                                                         + Preparo
@@ -1071,6 +1174,7 @@ export default function Recipes() {
                                                                     onUpdate={(updatedSec) => updateRecipe(selectedId, { sections: selected.sections.map(s => s.id === section.id ? updatedSec : s) })}
                                                                     onDelete={() => updateRecipe(selectedId, { sections: selected.sections.filter(s => s.id !== section.id) })}
                                                                     dragControls={dragControls}
+                                                                    isEditing={isEditing}
                                                                 />
                                                             )}
                                                         </SectionWrapper>
@@ -1107,7 +1211,8 @@ export default function Recipes() {
             {/* Cat Modal */}
             {
                 showCatModal && (
-                    <CategoryModal
+                    <RecipeCategoryModal
+                        key="recipe-cat-modal"
                         categories={categories}
                         onClose={() => setShowCatModal(false)}
                         onUpdate={setCategories}
@@ -1178,23 +1283,26 @@ export default function Recipes() {
                 </AnimatePresence>,
                 document.body
             )}
+
+            {/* Toast Notifications */}
+            {ToastUI}
         </div >
     )
 }
 
 
 
-function RecipeSection({ section, onUpdate, onDelete, dragControls }) {
+function RecipeSection({ section, onUpdate, onDelete, dragControls, isEditing }) {
     if (section.type === 'ingredients') {
-        return <IngredientsTable section={section} onUpdate={onUpdate} onDelete={onDelete} dragControls={dragControls} />
+        return <IngredientsTable section={section} onUpdate={onUpdate} onDelete={onDelete} dragControls={dragControls} isEditing={isEditing} />
     }
     if (section.type === 'instructions') {
-        return <InstructionsTable section={section} onUpdate={onUpdate} onDelete={onDelete} dragControls={dragControls} />
+        return <InstructionsTable section={section} onUpdate={onUpdate} onDelete={onDelete} dragControls={dragControls} isEditing={isEditing} />
     }
     return null
 }
 
-function IngredientsTable({ section, onUpdate, onDelete, dragControls }) {
+function IngredientsTable({ section, onUpdate, onDelete, dragControls, isEditing }) {
     return (
         <div className="relative group/section bg-white dark:bg-black rounded-3xl p-4 md:p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-center justify-between mb-6 pl-1">
@@ -1211,53 +1319,62 @@ function IngredientsTable({ section, onUpdate, onDelete, dragControls }) {
                         IN
                     </div>
 
-                    <input
-                        value={section.title}
-                        onChange={e => onUpdate({ ...section, title: e.target.value })}
-                        className="font-bold text-sm text-zinc-900 dark:text-white uppercase tracking-wider bg-transparent outline-none hover:text-indigo-500 transition-colors flex-1 placeholder:text-zinc-300"
-                        placeholder="NOME DA SEÇÃO"
-                    />
+                    {isEditing ? (
+                        <input
+                            value={section.title}
+                            onChange={e => onUpdate({ ...section, title: e.target.value })}
+                            className="font-bold text-sm text-zinc-900 dark:text-white uppercase tracking-wider bg-transparent outline-none hover:text-indigo-500 transition-colors flex-1 placeholder:text-zinc-300"
+                            placeholder="NOME DA SEÇÃO"
+                        />
+                    ) : (
+                        <span className="font-bold text-sm text-zinc-900 dark:text-white uppercase tracking-wider flex-1">{section.title}</span>
+                    )}
                 </div>
-                <button
-                    onClick={onDelete}
-                    className="opacity-100 md:opacity-0 md:group-hover/section:opacity-100 text-zinc-300 hover:text-rose-500 transition-all p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                >
-                    <Icons.Trash />
-                </button>
+                {isEditing && (
+                    <button
+                        onClick={onDelete}
+                        className="opacity-100 md:opacity-0 md:group-hover/section:opacity-100 text-zinc-300 hover:text-rose-500 transition-all p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                    >
+                        <Icons.Trash />
+                    </button>
+                )}
             </div>
 
             <div className="divide-y divide-zinc-50 dark:divide-zinc-900/50">
-                <Reorder.Group axis="y" values={section.items} onReorder={newItems => onUpdate({ ...section, items: newItems })}>
+                <Reorder.Group axis="y" values={section.items} onReorder={newItems => isEditing && onUpdate({ ...section, items: newItems })}>
                     {section.items.map(item => (
                         <IngredientItem
                             key={item.id} item={item}
                             onUpdate={u => onUpdate({ ...section, items: section.items.map(i => i.id === item.id ? u : i) })}
                             onDelete={() => onUpdate({ ...section, items: section.items.filter(i => i.id !== item.id) })}
                             onNext={() => onUpdate({ ...section, items: [...section.items, { id: Date.now(), name: '', quantity: '', unit: 'g' }] })}
+                            isEditing={isEditing}
                         />
                     ))}
                 </Reorder.Group>
             </div>
 
-            <button
-                onClick={() => {
-                    const lastItem = section.items[section.items.length - 1]
-                    if (lastItem && !lastItem.name.trim() && !lastItem.quantity.trim()) {
-                        document.getElementById(`ing-name-${lastItem.id}`)?.focus()
-                        return
-                    }
-                    const newItem = { id: Date.now(), name: '', quantity: '', unit: 'g' }
-                    onUpdate({ ...section, items: [...section.items, newItem] })
-                }}
-                className="mt-6 w-full py-3 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
-            >
-                <Icons.Plus /> Adicionar Ingrediente
-            </button>
+            {isEditing && (
+                <button
+                    onClick={() => {
+                        const lastItem = section.items[section.items.length - 1]
+                        if (lastItem && !lastItem.name.trim() && !lastItem.quantity.trim()) {
+                            document.getElementById(`ing-name-${lastItem.id}`)?.focus()
+                            return
+                        }
+                        const newItem = { id: Date.now(), name: '', quantity: '', unit: 'g' }
+                        onUpdate({ ...section, items: [...section.items, newItem] })
+                    }}
+                    className="mt-6 w-full py-3 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                >
+                    <Icons.Plus /> Adicionar Ingrediente
+                </button>
+            )}
         </div>
     )
 }
 
-function InstructionsTable({ section, onUpdate, onDelete, dragControls }) {
+function InstructionsTable({ section, onUpdate, onDelete, dragControls, isEditing }) {
     return (
         <div className="relative group/section bg-white dark:bg-black rounded-3xl p-4 md:p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-center justify-between mb-6 pl-1">
@@ -1274,45 +1391,54 @@ function InstructionsTable({ section, onUpdate, onDelete, dragControls }) {
                         PR
                     </div>
 
-                    <input
-                        value={section.title}
-                        onChange={e => onUpdate({ ...section, title: e.target.value })}
-                        className="font-bold text-sm text-zinc-900 dark:text-white uppercase tracking-wider bg-transparent outline-none hover:text-amber-500 transition-colors flex-1 placeholder:text-zinc-300"
-                        placeholder="TÍTULO DA SEÇÃO"
-                    />
+                    {isEditing ? (
+                        <input
+                            value={section.title}
+                            onChange={e => onUpdate({ ...section, title: e.target.value })}
+                            className="font-bold text-sm text-zinc-900 dark:text-white uppercase tracking-wider bg-transparent outline-none hover:text-amber-500 transition-colors flex-1 placeholder:text-zinc-300"
+                            placeholder="TÍTULO DA SEÇÃO"
+                        />
+                    ) : (
+                        <span className="font-bold text-sm text-zinc-900 dark:text-white uppercase tracking-wider flex-1">{section.title}</span>
+                    )}
                 </div>
-                <button
-                    onClick={onDelete}
-                    className="opacity-100 md:opacity-0 md:group-hover/section:opacity-100 text-zinc-300 hover:text-rose-500 transition-all p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                >
-                    <Icons.Trash />
-                </button>
+                {isEditing && (
+                    <button
+                        onClick={onDelete}
+                        className="opacity-100 md:opacity-0 md:group-hover/section:opacity-100 text-zinc-300 hover:text-rose-500 transition-all p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                    >
+                        <Icons.Trash />
+                    </button>
+                )}
             </div>
 
-            <Reorder.Group axis="y" values={section.items} onReorder={newItems => onUpdate({ ...section, items: newItems })} className="space-y-3">
+            <Reorder.Group axis="y" values={section.items} onReorder={newItems => isEditing && onUpdate({ ...section, items: newItems })} className="space-y-3">
                 {section.items.map((item, idx) => (
                     <InstructionItem
                         key={item.id} item={item} index={idx}
                         onUpdate={u => onUpdate({ ...section, items: section.items.map(i => i.id === item.id ? u : i) })}
                         onDelete={() => onUpdate({ ...section, items: section.items.filter(i => i.id !== item.id) })}
                         onNext={() => onUpdate({ ...section, items: [...section.items, { id: Date.now(), text: '' }] })}
+                        isEditing={isEditing}
                     />
                 ))}
             </Reorder.Group>
 
-            <button
-                onClick={() => {
-                    const lastItem = section.items[section.items.length - 1]
-                    if (lastItem && !lastItem.text.trim()) {
-                        // Focus logic (would need ID on input, skipping for simplicity)
-                        return
-                    }
-                    onUpdate({ ...section, items: [...section.items, { id: Date.now(), text: '' }] })
-                }}
-                className="mt-6 w-full py-3 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
-            >
-                <Icons.Plus /> Adicionar Passo
-            </button>
+            {isEditing && (
+                <button
+                    onClick={() => {
+                        const lastItem = section.items[section.items.length - 1]
+                        if (lastItem && !lastItem.text.trim()) {
+                            // Focus logic (would need ID on input, skipping for simplicity)
+                            return
+                        }
+                        onUpdate({ ...section, items: [...section.items, { id: Date.now(), text: '' }] })
+                    }}
+                    className="mt-6 w-full py-3 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                >
+                    <Icons.Plus /> Adicionar Passo
+                </button>
+            )}
         </div>
     )
 }
