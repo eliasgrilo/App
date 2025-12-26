@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { FirebaseService } from './services/firebaseService'
 import { Reorder, motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { compressImage } from './services/imageUtils'
+import Cropper from 'react-easy-crop'
+import getCroppedImg from './utils/cropUtils'
 
 /**
  * Recipes - Ultra-Premium Editorial Design v2.0
@@ -54,7 +56,7 @@ const Icons = {
     Close: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
     Plus: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
     Back: (props) => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>,
-    Trash: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+    Trash: (props) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
     Clock: () => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     Bars: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>,
     Book: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>,
@@ -63,7 +65,7 @@ const Icons = {
 
 // --- SUB-COMPONENTS ---
 
-const ImageLightbox = ({ src, onClose, layoutId }) => createPortal(
+const ImageLightbox = ({ src, onClose }) => createPortal(
     <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
@@ -76,7 +78,6 @@ const ImageLightbox = ({ src, onClose, layoutId }) => createPortal(
             <Icons.Close className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
         </button>
         <motion.img
-            layoutId={layoutId}
             src={src}
             className="max-w-full max-h-full object-contain shadow-2xl rounded-2xl"
             draggable={false}
@@ -86,6 +87,92 @@ const ImageLightbox = ({ src, onClose, layoutId }) => createPortal(
     </motion.div>,
     document.body
 )
+
+// --- IMAGE CROPPER MODAL (Director Class) ---
+const ImageCropperModal = ({ imageSrc, onCancel, onCropComplete }) => {
+    const [crop, setCrop] = useState({ x: 0, y: 0 })
+    const [zoom, setZoom] = useState(1)
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+
+    const onCropChange = (crop) => {
+        setCrop(crop)
+    }
+
+    const onZoomChange = (zoom) => {
+        setZoom(zoom)
+    }
+
+    const onCropCompleteInternal = (croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels)
+    }
+
+    const handleSave = async () => {
+        try {
+            const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels)
+            onCropComplete(croppedImage)
+        } catch (e) {
+            console.error(e)
+        }
+    }
+
+    return createPortal(
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[11000] bg-black flex flex-col pt-safe-top"
+        >
+            <div className="relative flex-1 bg-black overflow-hidden">
+                <Cropper
+                    image={imageSrc}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={4 / 5}
+                    onCropChange={onCropChange}
+                    onZoomChange={onZoomChange}
+                    onCropComplete={onCropCompleteInternal}
+                    showGrid={true}
+                    classes={{
+                        containerClassName: 'bg-black',
+                        mediaClassName: 'object-contain',
+                        cropAreaClassName: 'border-2 border-white/80'
+                    }}
+                />
+            </div>
+
+            <div className="bg-zinc-900 border-t border-white/10 p-6 safe-pb pb-8">
+                <div className="flex items-center gap-4 mb-6">
+                    <Icons.Camera className="w-5 h-5 text-zinc-400" />
+                    <input
+                        type="range"
+                        value={zoom}
+                        min={1}
+                        max={3}
+                        step={0.1}
+                        aria-labelledby="Zoom"
+                        onChange={(e) => setZoom(e.target.value)}
+                        className="w-full accent-white h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <Icons.Plus className="w-5 h-5 text-zinc-400" />
+                </div>
+
+                <div className="flex gap-4">
+                    <button
+                        onClick={onCancel}
+                        className="flex-1 py-4 rounded-xl bg-zinc-800 text-white font-bold text-sm uppercase tracking-widest hover:bg-zinc-700 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className="flex-1 py-4 rounded-xl bg-white text-black font-bold text-sm uppercase tracking-widest hover:bg-zinc-200 transition-colors"
+                    >
+                        Cortar & Salvar
+                    </button>
+                </div>
+            </div>
+        </motion.div>,
+        document.body
+    )
+}
 
 const SectionWrapper = ({ id, children }) => {
     const controls = useDragControls()
@@ -930,12 +1017,12 @@ export default function Recipes() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                             {filtered.map(r => (
                                 <motion.div
-                                    layoutId={`card-${r.id}`} key={r.id} onClick={() => { setSelectedId(r.id); setIsEditing(false); }}
+                                    key={r.id} onClick={() => { setSelectedId(r.id); setIsEditing(false); }}
                                     className="group relative z-20 bg-white dark:bg-zinc-950 rounded-[2rem] p-4 border border-zinc-200/50 dark:border-white/10 md:hover:border-zinc-300 md:dark:hover:border-white/20 transition-all cursor-pointer shadow-xl md:hover:shadow-2xl md:hover:-translate-y-1 active:scale-[0.98] overflow-hidden"
                                 >
                                     <div className="relative aspect-[4/5] rounded-[1.5rem] overflow-hidden bg-zinc-100 dark:bg-zinc-900 mb-6 shadow-inner">
                                         {r.image ? (
-                                            <motion.img layoutId={`img-${r.id}`} src={r.image} className="w-full h-full object-cover transition-transform duration-700 md:group-hover:scale-105" />
+                                            <motion.img src={r.image} className="w-full h-full object-cover transition-transform duration-700 md:group-hover:scale-105" />
                                         ) : (
                                             /* Premium List View Placeholder */
                                             <div className="w-full h-full relative overflow-hidden">
@@ -1118,7 +1205,6 @@ export default function Recipes() {
                                                     {selected.image ? (
                                                         <>
                                                             <motion.img
-                                                                layoutId={`img-${selectedId}`}
                                                                 src={selected.image}
                                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                                                 onClick={() => setZoomedImage(selected.image)}
@@ -1273,7 +1359,7 @@ export default function Recipes() {
 
             {/* Image Zoom Lightbox */}
             <AnimatePresence>
-                {zoomedImage && <ImageLightbox src={zoomedImage} onClose={() => setZoomedImage(null)} layoutId={`img-${selectedId}`} />}
+                {zoomedImage && <ImageLightbox src={zoomedImage} onClose={() => setZoomedImage(null)} />}
             </AnimatePresence>
 
             {/* Premium Confirmation Modal - Safe Animated Portal */}
@@ -1328,6 +1414,17 @@ export default function Recipes() {
                 </AnimatePresence>,
                 document.body
             )}
+
+            {/* Image Cropper Modal */}
+            <AnimatePresence>
+                {imageToCrop && (
+                    <ImageCropperModal
+                        imageSrc={imageToCrop}
+                        onCancel={() => setImageToCrop(null)}
+                        onCropComplete={onCropComplete}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Toast Notifications */}
             {ToastUI}
