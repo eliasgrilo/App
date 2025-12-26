@@ -1354,16 +1354,12 @@ function IngredientsTable({ section, onUpdate, onDelete, dragControls, isEditing
 
             {isEditing && (
                 <button
+                    type="button"
                     onClick={() => {
-                        const lastItem = section.items[section.items.length - 1]
-                        if (lastItem && !lastItem.name.trim() && !lastItem.quantity.trim()) {
-                            document.getElementById(`ing-name-${lastItem.id}`)?.focus()
-                            return
-                        }
                         const newItem = { id: Date.now(), name: '', quantity: '', unit: 'g' }
                         onUpdate({ ...section, items: [...section.items, newItem] })
                     }}
-                    className="mt-6 w-full py-3 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                    className="mt-6 w-full py-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30 active:scale-[0.98] touch-manipulation cursor-pointer select-none"
                 >
                     <Icons.Plus /> Adicionar Ingrediente
                 </button>
@@ -1424,15 +1420,11 @@ function InstructionsTable({ section, onUpdate, onDelete, dragControls, isEditin
 
             {isEditing && (
                 <button
+                    type="button"
                     onClick={() => {
-                        const lastItem = section.items[section.items.length - 1]
-                        if (lastItem && !lastItem.text.trim()) {
-                            // Focus logic (would need ID on input, skipping for simplicity)
-                            return
-                        }
                         onUpdate({ ...section, items: [...section.items, { id: Date.now(), text: '' }] })
                     }}
-                    className="mt-6 w-full py-3 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30"
+                    className="mt-6 w-full py-4 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all flex items-center justify-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/30 active:scale-[0.98] touch-manipulation cursor-pointer select-none"
                 >
                     <Icons.Plus /> Adicionar Passo
                 </button>
