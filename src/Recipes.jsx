@@ -370,7 +370,6 @@ const IngredientItem = React.memo(({ item, onUpdate, onDelete, onNext, isEditing
                         id={`ing-name-${item.id}`}
                         type="text"
                         value={item.name}
-                        autoFocus
                         onChange={e => onUpdate({ ...item, name: e.target.value })}
                         onKeyDown={e => {
                             if (e.key === 'Enter') {
@@ -490,7 +489,6 @@ const InstructionItem = React.memo(({ item, index, onUpdate, onDelete, onNext, i
                 {/* Instruction Text */}
                 {isEditing ? (
                     <textarea
-                        autoFocus
                         value={item.text}
                         onChange={e => onUpdate({ ...item, text: e.target.value })}
                         onKeyDown={e => {
