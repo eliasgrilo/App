@@ -498,7 +498,7 @@ export default function Inventory() {
 
             {/* Add Item Modal - Premium Bottom Sheet */}
             {isAddingItem && (
-                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-0 md:p-4">
+                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4">
                     <ModalScrollLock />
                     {/* Backdrop */}
                     <div
@@ -507,11 +507,7 @@ export default function Inventory() {
                     ></div>
 
                     {/* Modal Content */}
-                    <div
-                        className="relative w-full md:max-w-2xl bg-white dark:bg-zinc-900 rounded-t-[2rem] md:rounded-[2rem] p-6 pb-8 md:p-8 shadow-2xl animate-slide-up max-h-[85vh] overflow-y-auto custom-scrollbar mx-4 md:mx-0 rounded-2xl"
-                        style={{
-                            marginTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)'
-                        }}
+                    <div className="relative w-full md:max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] p-6 pb-8 md:p-8 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
                     >
 
                         {/* Drag Handle (Mobile only) */}
@@ -1143,7 +1139,7 @@ export default function Inventory() {
 
             {/* Category Management Modal */}
             {isManagingCategories && (
-                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-0 md:p-4">
+                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4">
                     <ModalScrollLock />
                     {/* Backdrop */}
                     <div
@@ -1153,10 +1149,7 @@ export default function Inventory() {
 
                     {/* Modal Content */}
                     <div
-                        className="relative w-full md:max-w-lg bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] p-6 pb-8 md:p-8 shadow-2xl animate-slide-up max-h-[85vh] overflow-y-auto custom-scrollbar mx-4 md:mx-0"
-                        style={{
-                            marginTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)'
-                        }}
+                        className="relative w-full md:max-w-lg bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] p-6 pb-8 md:p-8 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
                     >
 
                         {/* Drag Handle (Mobile only) */}
