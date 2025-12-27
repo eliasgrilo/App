@@ -712,7 +712,7 @@ export default function Inventory() {
 
                                         {/* Dropdown */}
                                         {showSupplierDropdown && filteredSuppliers.length > 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl max-h-48 overflow-y-auto z-50">
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl max-h-48 overflow-y-auto z-[100]">
                                                 {filteredSuppliers.map(supplier => (
                                                     <button
                                                         key={supplier.id}
@@ -738,7 +738,7 @@ export default function Inventory() {
                                         )}
 
                                         {showSupplierDropdown && suppliers.length === 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl p-4 text-center">
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl p-4 text-center z-[100]">
                                                 <p className="text-sm text-zinc-500">Nenhum fornecedor cadastrado</p>
                                                 <p className="text-xs text-zinc-400 mt-1">Adicione fornecedores na aba Fornecedores</p>
                                             </div>
