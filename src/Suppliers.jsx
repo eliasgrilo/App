@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useScrollLock } from './hooks/useScrollLock'
 import { FirebaseService } from './services/firebaseService'
@@ -452,12 +453,13 @@ export default function Suppliers() {
 
             {/* Add/Edit Modal */}
             <AnimatePresence>
-                {isModalOpen && (
+                {isModalOpen && createPortal(
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-20"
+                        className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto"
+                        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 20px)', paddingBottom: 'env(safe-area-inset-bottom, 20px)' }}
                     >
                         <ModalScrollLock />
                         <motion.div
@@ -469,14 +471,15 @@ export default function Suppliers() {
                         />
 
                         <motion.div
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 50 }}
+                            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 30, scale: 0.98 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="relative w-full md:max-w-lg bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
+                            className="relative w-full max-w-lg mx-4 my-6 bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl flex flex-col"
+                            style={{ maxHeight: 'calc(100vh - 100px)' }}
                         >
                             {/* Header */}
-                            <div className="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-5 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between z-10">
+                            <div className="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-5 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between z-10 shrink-0">
                                 <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
                                     {editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
                                 </h3>
@@ -491,7 +494,7 @@ export default function Suppliers() {
                             </div>
 
                             {/* Form */}
-                            <div className="p-6 space-y-5">
+                            <div className="p-6 space-y-5 overflow-y-auto flex-1">
                                 {/* Contact Section */}
                                 <div className="space-y-4">
                                     <h4 className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Informações</h4>
@@ -640,7 +643,7 @@ export default function Suppliers() {
                             </div>
 
                             {/* Actions */}
-                            <div className="sticky bottom-0 bg-white dark:bg-zinc-900 px-6 py-5 border-t border-zinc-100 dark:border-white/5 flex gap-3">
+                            <div className="bg-white dark:bg-zinc-900 px-6 py-5 border-t border-zinc-100 dark:border-white/5 flex gap-3 shrink-0">
                                 <button
                                     onClick={() => setIsModalOpen(false)}
                                     className="flex-1 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-[0.98] touch-manipulation"
@@ -655,18 +658,20 @@ export default function Suppliers() {
                                 </button>
                             </div>
                         </motion.div>
-                    </motion.div>
+                    </motion.div>,
+                    document.body
                 )}
             </AnimatePresence>
 
             {/* Supplier Detail Modal */}
             <AnimatePresence>
-                {selectedSupplier && (
+                {selectedSupplier && createPortal(
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-20"
+                        className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto"
+                        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 20px)', paddingBottom: 'env(safe-area-inset-bottom, 20px)' }}
                     >
                         <ModalScrollLock />
                         <motion.div
@@ -678,11 +683,12 @@ export default function Suppliers() {
                         />
 
                         <motion.div
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 50 }}
+                            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 30, scale: 0.98 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="relative w-full md:max-w-lg bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
+                            className="relative w-full max-w-lg mx-4 my-6 bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                            style={{ maxHeight: 'calc(100vh - 100px)' }}
                         >
                             {/* Header with Avatar */}
                             <div className="px-6 py-8 text-center border-b border-zinc-100 dark:border-white/5">
@@ -780,7 +786,8 @@ export default function Suppliers() {
                                 </button>
                             </div>
                         </motion.div>
-                    </motion.div>
+                    </motion.div>,
+                    document.body
                 )}
             </AnimatePresence>
 
