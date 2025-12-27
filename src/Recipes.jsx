@@ -227,19 +227,24 @@ const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }
     const [editValue, setEditValue] = useState('')
     const [confirmDelete, setConfirmDelete] = useState(null)
     const [colorPicker, setColorPicker] = useState(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const modalRef = useRef(null)
 
-    // Sophisticated Muted Palette
+    // Lock body scroll
+    useScrollLock(true)
+
+    // Apple-inspired Sophisticated Palette
     const colorPalette = [
-        '#E63946', // Soft Red
-        '#F4A261', // Terracotta
-        '#E9C46A', // Honey
-        '#2A9D8F', // Teal
-        '#457B9D', // Steel Blue
-        '#264653', // Deep Slate
-        '#6D597A', // Dusty Purple
-        '#B5838D', // Mauve
-        '#7F9183', // Sage
-        '#3D405B', // Charcoal
+        '#FF3B30', // Apple Red
+        '#FF9500', // Apple Orange
+        '#FFCC00', // Apple Yellow
+        '#34C759', // Apple Green
+        '#00C7BE', // Apple Teal
+        '#007AFF', // Apple Blue
+        '#5856D6', // Apple Indigo
+        '#AF52DE', // Apple Purple
+        '#FF2D55', // Apple Pink
+        '#8E8E93', // Apple Gray
     ]
 
     // Normalize category to object format
@@ -295,178 +300,312 @@ const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }
         setConfirmDelete(null)
     }
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4">
-            {/* Backdrop */}
+    // iOS-style drag to dismiss (desktop only)
+    const handleDragEnd = (event, info) => {
+        setIsDragging(false)
+        if (info.offset.y > 100 || info.velocity.y > 500) {
+            onClose()
+        }
+    }
+
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-stretch md:items-center justify-center">
+            {/* Apple-style Glass Backdrop */}
             <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-white/5 dark:bg-white/5 backdrop-blur-lg"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-xl"
                 onClick={onClose}
             />
 
-            {/* Modal Content */}
+            {/* iOS Fullscreen Modal on Mobile, Sheet on Desktop */}
             <motion.div
-                initial={{ opacity: 0, y: 100 }}
+                ref={modalRef}
+                initial={{ opacity: 0, y: '100%' }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 100 }}
-                transition={{ type: "spring", stiffness: 400, damping: 35 }}
-                className="relative w-full md:max-w-md bg-white dark:bg-zinc-900 rounded-t-[2rem] md:rounded-[2rem] p-6 pb-8 md:p-8 shadow-2xl overflow-hidden max-h-[90vh] md:max-h-[85vh] flex flex-col safe-area-bottom"
+                exit={{ opacity: 0, y: '100%' }}
+                transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 30,
+                    mass: 0.8
+                }}
+                drag={window.innerWidth >= 768 ? "y" : false}
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.7 }}
+                onDragStart={() => setIsDragging(true)}
+                onDragEnd={handleDragEnd}
+                className="relative w-full h-full md:h-auto md:max-w-md md:max-h-[80vh] bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_-10px_60px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col"
+                style={{
+                    paddingTop: 'env(safe-area-inset-top, 0px)',
+                    paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+                }}
             >
-                {/* Header - Inventory Style */}
-                <div className="flex items-center justify-between mb-8 shrink-0">
-                    <div>
-                        <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">Gerenciar Categorias</h3>
-                        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-1">Organize sua biblioteca de receitas</p>
+
+                {/* iOS Drag Handle */}
+                <div className="flex justify-center pt-3 pb-2 shrink-0 cursor-grab active:cursor-grabbing md:hidden touch-manipulation">
+                    <motion.div
+                        className="w-9 h-[5px] rounded-full bg-zinc-300 dark:bg-zinc-600"
+                        animate={{
+                            scale: isDragging ? 1.1 : 1,
+                            backgroundColor: isDragging ? '#007AFF' : undefined
+                        }}
+                        transition={{ duration: 0.15 }}
+                    />
+                </div>
+
+                {/* Header - iOS Style */}
+                <div className="flex items-center justify-between px-6 pt-4 md:pt-6 pb-4 shrink-0">
+                    <div className="flex-1">
+                        <h3 className="text-[22px] font-bold text-zinc-900 dark:text-white tracking-tight leading-tight">
+                            Categorias
+                        </h3>
+                        <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Organize suas receitas
+                        </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-3 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors touch-manipulation z-[60] relative shrink-0"
+                        className="w-12 h-12 -mr-2 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-90 touch-manipulation"
                     >
-                        <Icons.Close className="w-5 h-5" />
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
-                {/* Add New Category - Inventory Style */}
-                <div className="mb-8 shrink-0">
-                    <h4 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-3">Adicionar Nova Categoria</h4>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            value={newName}
-                            onChange={e => setNewName(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                            className="flex-1 px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 text-zinc-900 dark:text-white font-bold focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-indigo-400/50"
-                            placeholder="Nome da categoria"
-                        />
+                {/* Add New Category - iOS Style */}
+                <div className="px-6 pb-5 shrink-0">
+                    <div className="flex gap-3">
+                        <div className="flex-1 relative">
+                            <input
+                                type="text"
+                                value={newName}
+                                onChange={e => setNewName(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                                className="w-full h-12 px-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 text-[16px] text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-zinc-700 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                                placeholder="Nova categoria..."
+                            />
+                        </div>
                         <button
                             onClick={handleAdd}
                             disabled={!newName.trim()}
-                            className="px-5 py-3 bg-indigo-500 text-white rounded-xl font-bold text-sm hover:bg-indigo-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+                            className="w-12 h-12 flex items-center justify-center bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 touch-manipulation shadow-lg shadow-blue-500/25"
                         >
-                            <Icons.Plus className="w-5 h-5" />
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
                         </button>
                     </div>
                 </div>
 
-                {/* Categories List - Inventory Style + Color Picker */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 space-y-3">
-                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2 sticky top-0 bg-white dark:bg-zinc-900 py-2 z-10">Suas Categorias</h4>
-                    {categories.map((cat, idx) => {
-                        const { name, color } = normalizeCategory(cat)
-                        const catId = name + idx
+                {/* Divider */}
+                <div className="h-px bg-zinc-200 dark:bg-zinc-700/50 mx-6" />
 
-                        return (
-                            <div key={catId} className="group flex items-center justify-between py-3 px-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/20 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    {/* Color Dot */}
-                                    <button
-                                        onClick={() => setColorPicker(colorPicker === catId ? null : catId)}
-                                        className="w-4 h-4 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-transparent hover:ring-indigo-300 transition-all shadow-sm"
-                                        style={{ backgroundColor: color }}
-                                    />
-
-                                    {/* Color Picker Dropdown - Mobile Friendly */}
-                                    <AnimatePresence>
-                                        {colorPicker === catId && (
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.9 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.9 }}
-                                                className="fixed inset-x-4 bottom-4 md:absolute md:inset-auto md:left-0 md:top-full md:mt-2 z-[70] bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl p-4 border border-zinc-200 dark:border-zinc-700"
-                                            >
-                                                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3 text-center md:text-left">Escolha uma cor</div>
-                                                <div className="grid grid-cols-5 gap-3">
-                                                    {colorPalette.map(c => (
-                                                        <button
-                                                            key={c}
-                                                            onClick={() => handleColorChange(cat, c)}
-                                                            className={`w-10 h-10 md:w-7 md:h-7 rounded-full transition-transform hover:scale-110 active:scale-95 ${color === c ? 'ring-2 ring-offset-2 ring-zinc-400 dark:ring-offset-zinc-800' : ''}`}
-                                                            style={{ backgroundColor: c }}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                <button
-                                                    onClick={() => setColorPicker(null)}
-                                                    className="mt-4 w-full py-3 bg-zinc-100 dark:bg-zinc-700 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-300 uppercase tracking-wider md:hidden"
-                                                >
-                                                    Fechar
-                                                </button>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-
-                                    {/* Name */}
-                                    <div className="flex-1 min-w-0">
-                                        {editingId === catId ? (
-                                            <input
-                                                autoFocus
-                                                value={editValue}
-                                                onChange={e => setEditValue(e.target.value)}
-                                                onBlur={() => handleRename(cat)}
-                                                onKeyDown={e => {
-                                                    if (e.key === 'Enter') handleRename(cat)
-                                                    if (e.key === 'Escape') setEditingId(null)
-                                                }}
-                                                className="w-full bg-transparent outline-none text-sm font-bold text-zinc-900 dark:text-white"
-                                            />
-                                        ) : (
-                                            <span
-                                                onClick={() => { setEditingId(catId); setEditValue(name) }}
-                                                className="text-sm font-medium text-indigo-900 dark:text-indigo-200 cursor-text truncate block select-none"
-                                            >
-                                                {name}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Delete */}
-                                <button
-                                    onClick={() => setConfirmDelete(cat)}
-                                    className="p-3 rounded-lg text-indigo-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 touch-manipulation"
-                                >
-                                    <Icons.Trash className="w-4 h-4" />
-                                </button>
+                {/* Categories List - iOS Style */}
+                <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+                    {categories.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
                             </div>
-                        )
-                    })}
+                            <p className="text-[15px] font-medium text-zinc-400 dark:text-zinc-500">
+                                Nenhuma categoria ainda
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {categories.map((cat, idx) => {
+                                const { name, color } = normalizeCategory(cat)
+                                const catId = name + idx
+
+                                return (
+                                    <motion.div
+                                        key={catId}
+                                        layout
+                                        className="group relative"
+                                    >
+                                        <div className="flex items-center gap-3 py-3 px-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                                            {/* Color Indicator - 48px touch target */}
+                                            <button
+                                                onClick={() => setColorPicker(colorPicker === catId ? null : catId)}
+                                                className="w-12 h-12 rounded-xl flex items-center justify-center touch-manipulation hover:bg-white dark:hover:bg-zinc-700 transition-colors active:scale-95"
+                                            >
+                                                <div
+                                                    className="w-7 h-7 rounded-full shadow-sm transition-transform hover:scale-110"
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            </button>
+
+                                            {/* Name */}
+                                            <div className="flex-1 min-w-0">
+                                                {editingId === catId ? (
+                                                    <input
+                                                        autoFocus
+                                                        value={editValue}
+                                                        onChange={e => setEditValue(e.target.value)}
+                                                        onBlur={() => handleRename(cat)}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleRename(cat)
+                                                            if (e.key === 'Escape') setEditingId(null)
+                                                        }}
+                                                        className="w-full h-10 px-3 -ml-3 bg-white dark:bg-zinc-700 rounded-lg outline-none text-[16px] font-semibold text-zinc-900 dark:text-white ring-2 ring-blue-500"
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => { setEditingId(catId); setEditValue(name) }}
+                                                        className="text-left w-full py-2 text-[16px] font-semibold text-zinc-900 dark:text-white truncate touch-manipulation"
+                                                    >
+                                                        {name}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Delete - 48px touch target */}
+                                            <button
+                                                onClick={() => setConfirmDelete(cat)}
+                                                className="w-12 h-12 flex items-center justify-center rounded-xl text-zinc-300 dark:text-zinc-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all active:scale-95 touch-manipulation"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        {/* Color Picker - iOS Action Sheet Style */}
+                                        <AnimatePresence>
+                                            {colorPicker === catId && (
+                                                <>
+                                                    {/* Mobile: Bottom Sheet */}
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 20 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: 20 }}
+                                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                                        className="md:hidden fixed inset-x-0 bottom-0 z-[80] bg-white dark:bg-zinc-800 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.3)] p-6"
+                                                        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 24px), 24px)' }}
+                                                    >
+                                                        <div className="flex justify-center mb-4">
+                                                            <div className="w-9 h-[5px] rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                                                        </div>
+                                                        <h4 className="text-[17px] font-bold text-zinc-900 dark:text-white text-center mb-5">
+                                                            Escolha uma Cor
+                                                        </h4>
+                                                        <div className="grid grid-cols-5 gap-4 mb-6">
+                                                            {colorPalette.map(c => (
+                                                                <button
+                                                                    key={c}
+                                                                    onClick={() => handleColorChange(cat, c)}
+                                                                    className={`aspect-square rounded-full transition-all active:scale-90 touch-manipulation ${color === c
+                                                                        ? 'ring-[3px] ring-offset-4 ring-offset-white dark:ring-offset-zinc-800 ring-blue-500 scale-110'
+                                                                        : 'hover:scale-105'
+                                                                        }`}
+                                                                    style={{ backgroundColor: c }}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setColorPicker(null)}
+                                                            className="w-full h-14 bg-zinc-100 dark:bg-zinc-700 rounded-2xl text-[17px] font-semibold text-zinc-900 dark:text-white active:bg-zinc-200 dark:active:bg-zinc-600 transition-colors touch-manipulation"
+                                                        >
+                                                            Fechar
+                                                        </button>
+                                                    </motion.div>
+                                                    {/* Mobile backdrop */}
+                                                    <motion.div
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                        className="md:hidden fixed inset-0 z-[75] bg-black/40"
+                                                        onClick={() => setColorPicker(null)}
+                                                    />
+
+                                                    {/* Desktop: Dropdown */}
+                                                    <motion.div
+                                                        initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                                                        transition={{ duration: 0.15 }}
+                                                        className="hidden md:block absolute left-3 top-full mt-2 z-[80] bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl p-4 border border-zinc-200 dark:border-zinc-700"
+                                                    >
+                                                        <div className="grid grid-cols-5 gap-2">
+                                                            {colorPalette.map(c => (
+                                                                <button
+                                                                    key={c}
+                                                                    onClick={() => handleColorChange(cat, c)}
+                                                                    className={`w-8 h-8 rounded-full transition-all hover:scale-110 active:scale-95 ${color === c ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-zinc-800' : ''
+                                                                        }`}
+                                                                    style={{ backgroundColor: c }}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </motion.div>
+                                                </>
+                                            )}
+                                        </AnimatePresence>
+                                    </motion.div>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
 
-                {/* Delete Confirmation Overlay - Inventory Style */}
+                {/* Delete Confirmation - iOS Alert Style */}
                 <AnimatePresence>
                     {confirmDelete && (
                         <motion.div
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-white/90 dark:bg-zinc-900/95 backdrop-blur-md z-50 flex items-center justify-center p-6"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
                         >
-                            <div className="text-center w-full">
-                                <div className="w-16 h-16 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center text-rose-500 mx-auto mb-4 shadow-sm">
-                                    <Icons.Trash className="w-8 h-8" />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                className="w-full max-w-[280px] bg-white/95 dark:bg-zinc-800/95 backdrop-blur-xl rounded-[20px] overflow-hidden shadow-2xl"
+                            >
+                                <div className="p-6 text-center">
+                                    <div className="w-14 h-14 bg-rose-100 dark:bg-rose-900/40 rounded-full flex items-center justify-center text-rose-500 mx-auto mb-4">
+                                        <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </div>
+                                    <h4 className="text-[17px] font-bold text-zinc-900 dark:text-white mb-2">
+                                        Excluir Categoria?
+                                    </h4>
+                                    <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                        "{getCategoryName(confirmDelete)}" será removida. Receitas serão movidas para "Outros".
+                                    </p>
                                 </div>
-                                <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Excluir Categoria?</h4>
-                                <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
-                                    A categoria <span className="font-bold text-zinc-800 dark:text-zinc-200">"{getCategoryName(confirmDelete)}"</span> será removida.<br />As receitas serão movidas para "Outros".
-                                </p>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="border-t border-zinc-200 dark:border-zinc-700">
                                     <button
                                         onClick={() => setConfirmDelete(null)}
-                                        className="py-3 text-xs font-bold uppercase tracking-wider text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                        className="w-full h-12 text-[17px] font-normal text-blue-500 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors touch-manipulation"
                                     >
                                         Cancelar
                                     </button>
+                                </div>
+                                <div className="border-t border-zinc-200 dark:border-zinc-700">
                                     <button
                                         onClick={() => handleDelete(confirmDelete)}
-                                        className="py-3 text-xs font-bold uppercase tracking-wider text-white bg-rose-500 rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20 transition-all active:scale-95"
+                                        className="w-full h-12 text-[17px] font-semibold text-rose-500 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors active:bg-rose-50 dark:active:bg-rose-900/20 touch-manipulation"
                                     >
                                         Excluir
                                     </button>
                                 </div>
-                            </div>
+                            </motion.div>
                         </motion.div>
                     )}
                 </AnimatePresence>
             </motion.div>
-        </div>
+        </div>,
+        document.body
     )
 }
 
@@ -1480,6 +1619,11 @@ export default function Recipes() {
 }
 
 function ConfirmModalScrollLock() {
+    useScrollLock(true)
+    return null
+}
+
+function RecipeCategoryScrollLock() {
     useScrollLock(true)
     return null
 }

@@ -414,63 +414,94 @@ export default function FichaTecnica() {
                 </button>
             </div>
 
-            {/* Create Pizza Modal */}
-            {isCreatingPizza && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center sm:p-4">
-                    <ModalScrollLock />
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-opacity"
-                        onClick={() => setIsCreatingPizza(false)}
-                    ></div>
+            {/* Create Pizza Modal - Apple iOS Sheet Design */}
+            <AnimatePresence>
+                {isCreatingPizza && (
+                    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+                        <ModalScrollLock />
+                        {/* Apple-style Glass Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-xl"
+                            onClick={() => {
+                                setIsCreatingPizza(false)
+                                setNewPizzaName('')
+                            }}
+                        />
 
-                    {/* Modal Content */}
-                    <div className="relative w-full md:max-w-md bg-white dark:bg-zinc-900 rounded-t-[2.5rem] md:rounded-[2.5rem] p-8 pb-12 md:pb-8 shadow-2xl animate-slide-up ring-1 ring-zinc-900/5 dark:ring-white/10">
-                        {/* Drag Handle (Mobile only) */}
-                        <div className="md:hidden w-full flex justify-center mb-8">
-                            <div className="w-12 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800"></div>
-                        </div>
-
-                        <div className="text-center mb-8">
-                            <h3 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">Nova Pizza</h3>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400">Dê um nome para sua nova receita</p>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="relative group">
-                                <input
-                                    type="text"
-                                    className="w-full px-5 py-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800/50 border-2 border-transparent focus:border-zinc-900 dark:focus:border-white text-zinc-900 dark:text-white text-lg font-medium text-center focus:outline-none transition-all placeholder:text-zinc-400"
-                                    placeholder="Ex: Margherita"
-                                    value={newPizzaName}
-                                    onChange={(e) => setNewPizzaName(e.target.value)}
-                                    autoFocus
-                                    onKeyDown={(e) => e.key === 'Enter' && handleCreatePizza()}
-                                />
+                        {/* iOS Sheet Modal */}
+                        <motion.div
+                            initial={{ opacity: 0, y: '100%' }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: '100%' }}
+                            transition={{
+                                type: "spring",
+                                stiffness: 300,
+                                damping: 30,
+                                mass: 0.8
+                            }}
+                            className="relative w-full md:max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl rounded-t-[28px] md:rounded-[24px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_-10px_60px_rgba(0,0,0,0.5)] overflow-hidden"
+                            style={{
+                                paddingBottom: 'max(env(safe-area-inset-bottom, 24px), 24px)'
+                            }}
+                        >
+                            {/* iOS Drag Handle */}
+                            <div className="flex justify-center pt-3 pb-2 md:hidden">
+                                <div className="w-9 h-[5px] rounded-full bg-zinc-300 dark:bg-zinc-600" />
                             </div>
 
-                            <div className="flex gap-3 pt-4 safe-area-bottom">
-                                <button
-                                    onClick={() => {
-                                        setIsCreatingPizza(false)
-                                        setNewPizzaName('')
-                                    }}
-                                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-[0.98]"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleCreatePizza}
-                                    disabled={!newPizzaName.trim()}
-                                    className="flex-[2] px-6 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-zinc-800 dark:hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none shadow-xl shadow-zinc-900/10"
-                                >
-                                    Criar
-                                </button>
+                            <div className="px-6 pt-4 md:pt-8 pb-6">
+                                {/* Header */}
+                                <div className="text-center mb-8">
+                                    <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-[22px] font-bold text-zinc-900 dark:text-white tracking-tight mb-1">Nova Pizza</h3>
+                                    <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Dê um nome para sua nova receita</p>
+                                </div>
+
+                                {/* Input */}
+                                <div className="mb-8">
+                                    <input
+                                        type="text"
+                                        className="w-full h-14 px-5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 text-[17px] text-zinc-900 dark:text-white font-medium text-center focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-zinc-700 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                                        placeholder="Ex: Margherita"
+                                        value={newPizzaName}
+                                        onChange={(e) => setNewPizzaName(e.target.value)}
+                                        autoFocus
+                                        onKeyDown={(e) => e.key === 'Enter' && handleCreatePizza()}
+                                    />
+                                </div>
+
+                                {/* Buttons - 48px touch targets */}
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setIsCreatingPizza(false)
+                                            setNewPizzaName('')
+                                        }}
+                                        className="flex-1 h-14 rounded-2xl font-semibold text-[17px] text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-[0.98] touch-manipulation"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={handleCreatePizza}
+                                        disabled={!newPizzaName.trim()}
+                                        className="flex-[1.5] h-14 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-bold text-[17px] hover:bg-zinc-800 dark:hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-zinc-900/20 dark:shadow-white/10 touch-manipulation"
+                                    >
+                                        Criar
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
             {/* Pizza Grid - Premium Cards */}
             {!selectedPizzaId && (

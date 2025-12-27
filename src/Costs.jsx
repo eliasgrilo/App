@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useScrollLock } from './hooks/useScrollLock'
 import { FirebaseService } from './services/firebaseService'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -645,6 +646,7 @@ export default function Costs() {
                         >
 
                             {/* Minimal Drag Handle */}
+                            <ModalScrollLock />
                             <div className="md:hidden w-full flex justify-center pt-4 pb-1 shrink-0">
                                 <div className="w-8 h-1 rounded-full bg-zinc-300 dark:bg-zinc-800"></div>
                             </div>
@@ -656,9 +658,9 @@ export default function Costs() {
                                 </h3>
                                 <button
                                     onClick={closeModal}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"
+                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 touch-manipulation"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
 
@@ -669,8 +671,8 @@ export default function Costs() {
                                             {categories.map((cat, idx) => (
                                                 <div key={cat} className={`flex justify-between items-center py-3 px-4 ${idx !== categories.length - 1 ? 'border-b border-zinc-100 dark:border-white/5' : ''}`}>
                                                     <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{cat}</span>
-                                                    <button onClick={() => removeCategory(cat)} className="text-red-400 p-1">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    <button onClick={() => removeCategory(cat)} className="w-11 h-11 flex items-center justify-center text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl touch-manipulation transition-all">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                     </button>
                                                 </div>
                                             ))}
@@ -682,9 +684,9 @@ export default function Costs() {
                                                 value={newCatName}
                                                 onChange={e => setNewCatName(e.target.value)}
                                             />
-                                            <button className="w-12 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl text-xl font-bold" onClick={addCategory}>+</button>
+                                            <button className="h-12 w-12 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl text-xl font-bold flex items-center justify-center touch-manipulation active:scale-95 transition-transform" onClick={addCategory}>+</button>
                                         </div>
-                                        <button onClick={() => setIsCategoryManagerOpen(false)} className="w-full py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest transition-all">Pronto</button>
+                                        <button onClick={() => setIsCategoryManagerOpen(false)} className="w-full py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest transition-all touch-manipulation hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl">Pronto</button>
                                     </div>
                                 ) : (
                                     <form onSubmit={handleSave} className="space-y-6 px-4 animate-fade-in">
@@ -861,6 +863,11 @@ export default function Costs() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     )
+}
+
+function ModalScrollLock() {
+    useScrollLock(true)
+    return null
 }

@@ -410,8 +410,8 @@ export default function Kanban() {
                     <div>
                         <div className="flex items-center gap-3 mb-1.5">
                             <h1 className="text-3xl md:text-5xl font-bold text-zinc-900 dark:text-white tracking-tight">Kanban</h1>
-                            <div className={`flex items - center gap - 1.5 px - 3 py - 1 rounded - full border transition - all duration - 500 ${isCloudSynced ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400'} `}>
-                                <div className={`w - 1.5 h - 1.5 rounded - full ${isCloudSynced ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'} `} />
+                            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all duration-500 ${isCloudSynced ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400'}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${isCloudSynced ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                                 <span className="text-[10px] font-bold uppercase tracking-widest">{isCloudSynced ? 'Cloud Active' : 'Syncing'}</span>
                             </div>
                         </div>
@@ -475,7 +475,7 @@ export default function Kanban() {
             <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
                 <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3, ...spring.enter }} className="flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl border border-zinc-200/50 dark:border-white/10">
                     {ZOOM_CONFIG.map((config, idx) => (
-                        <button key={idx} onClick={() => { setZoomLevel(idx); haptic('light') }} className={`relative px - 5 py - 2.5 rounded - xl text - [11px] font - bold uppercase tracking - wider transition - all duration - 200 ${zoomLevel === idx ? 'text-white dark:text-zinc-900' : 'text-zinc-400 dark:text-zinc-500'} `}>
+                        <button key={idx} onClick={() => { setZoomLevel(idx); haptic('light') }} className={`relative px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${zoomLevel === idx ? 'text-white dark:text-zinc-900' : 'text-zinc-400 dark:text-zinc-500'}`}>
                             {zoomLevel === idx && <motion.div layoutId="zoomIndicator" className="absolute inset-0 bg-zinc-900 dark:bg-white rounded-xl" transition={{ type: "spring", stiffness: 500, damping: 35 }} />}
                             <span className="relative z-10">{config.label}</span>
                         </button>
@@ -501,15 +501,15 @@ export default function Kanban() {
                         initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        className={`fixed top - 6 left - 1 / 2 - translate - x - 1 / 2 z - [20000] px - 5 py - 3 rounded - 2xl shadow - 2xl flex items - center gap - 3 backdrop - blur - xl border ${toastMessage.type === 'error' ? 'bg-rose-500/90 border-rose-400/20 text-white' :
-                                toastMessage.type === 'success' ? 'bg-emerald-500/90 border-emerald-400/20 text-white' :
-                                    'bg-zinc-900/90 border-white/10 text-white'
-                            } `}
+                        className={`fixed top-6 left-1/2 -translate-x-1/2 z-[20000] px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl border ${toastMessage.type === 'error' ? 'bg-rose-500/90 border-rose-400/20 text-white' :
+                            toastMessage.type === 'success' ? 'bg-emerald-500/90 border-emerald-400/20 text-white' :
+                                'bg-zinc-900/90 border-white/10 text-white'
+                            }`}
                     >
-                        <div className={`w - 2 h - 2 rounded - full ${toastMessage.type === 'error' ? 'bg-white animate-pulse' :
-                                toastMessage.type === 'success' ? 'bg-white' :
-                                    'bg-indigo-400'
-                            } `} />
+                        <div className={`w-2 h-2 rounded-full ${toastMessage.type === 'error' ? 'bg-white animate-pulse' :
+                            toastMessage.type === 'success' ? 'bg-white' :
+                                'bg-indigo-400'
+                            }`} />
                         <span className="text-sm font-semibold tracking-tight">{toastMessage.message}</span>
                     </motion.div>,
                     document.body
@@ -535,22 +535,13 @@ const KanbanColumn = React.memo(({
     return (
         <motion.div
             layout
-            layoutId={`col - ${col.id} `}
+            layoutId={`col-${col.id}`}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={spring.layout}
             data-column-id={col.id}
-            className={`
-flex - shrink - 0 flex flex - col snap - center
-                ${ZOOM_CONFIG[zoomLevel].width}
-max - h - full rounded - [2rem] md: rounded - [2.5rem]
-bg - white dark: bg - zinc - 950
-                border border - zinc - 200 / 60 dark: border - white / [0.06]
-shadow - xl shadow - black / [0.03] dark: shadow - black / 20
-transition - all duration - 300
-                ${isTargetCol ? 'bg-zinc-100/50 dark:bg-white/[0.02]' : 'hover:shadow-2xl'}
-`}
+            className={`flex-shrink-0 flex flex-col snap-center ${ZOOM_CONFIG[zoomLevel].width} max-h-full rounded-[2rem] md:rounded-[2.5rem] bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-white/[0.06] shadow-xl shadow-black/[0.03] dark:shadow-black/20 transition-all duration-300 ${isTargetCol ? 'bg-zinc-100/50 dark:bg-white/[0.02]' : 'hover:shadow-2xl'}`}
         >
             {/* Header */}
             <div className="flex items-center justify-between p-5 md:p-6 border-b border-zinc-100 dark:border-white/5 group">
@@ -647,27 +638,18 @@ const KanbanCard = React.memo(({ card, colId, dragState, spring, zoomLevel, hand
                     transition={spring.shift}
                     data-card-id={card.id}
                     onPointerDown={e => handleCardPointerDown(e, card, colId)}
-                    className={`
-                        relative bg - white dark: bg - zinc - 900
-                        border border - zinc - 200 / 60 dark: border - white / [0.06]
-rounded - 2xl ${ZOOM_CONFIG[zoomLevel].cardPadding}
-shadow - sm hover: shadow - xl dark: shadow - black / 10
-cursor - grab active: cursor - grabbing
-touch - none select - none
-hover: border - zinc - 300 dark: hover: border - white / 10
-group / card
-    `}
+                    className={`relative bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-white/[0.06] rounded-2xl ${ZOOM_CONFIG[zoomLevel].cardPadding} shadow-sm hover:shadow-xl dark:shadow-black/10 cursor-grab active:cursor-grabbing touch-none select-none hover:border-zinc-300 dark:hover:border-white/10 group/card`}
                     style={{ touchAction: 'none' }}
                 >
                     {/* Content... (Labels, Title, Meta) */}
                     {card.labels?.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-3">
                             {card.labels.map((l, i) => (
-                                <div key={i} className={`rounded - full ${zoomLevel >= 2 ? 'h-2 w-2' : 'h-1.5 w-10'} `} style={{ backgroundColor: l.color }} />
+                                <div key={i} className={`rounded-full ${zoomLevel >= 2 ? 'h-2 w-2' : 'h-1.5 w-10'}`} style={{ backgroundColor: l.color }} />
                             ))}
                         </div>
                     )}
-                    <h4 className={`font - semibold text - zinc - 800 dark: text - zinc - 100 leading - relaxed ${zoomLevel >= 2 ? 'text-[11px] line-clamp-2' : 'text-sm'} `}>{card.title}</h4>
+                    <h4 className={`font-semibold text-zinc-800 dark:text-zinc-100 leading-relaxed ${zoomLevel >= 2 ? 'text-[11px] line-clamp-2' : 'text-sm'}`}>{card.title}</h4>
                     {zoomLevel < 2 && card.checklists?.length > 0 && (
                         <div className="flex items-center gap-2 mt-3 text-zinc-400 dark:text-zinc-500">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
@@ -744,7 +726,7 @@ function ConfirmationModal({ title, message, type = 'info', onConfirm, onCancel 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="relative bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-2xl max-w-sm w-full border border-zinc-200/50 dark:border-white/10 overflow-hidden">
-                <div className={`w - 14 h - 14 rounded - full flex items - center justify - center mb - 6 mx - auto ${type === 'danger' ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-zinc-100 text-zinc-600'} `}>
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-6 mx-auto ${type === 'danger' ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-zinc-100 text-zinc-600'}`}>
                     {type === 'danger' ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -759,7 +741,7 @@ function ConfirmationModal({ title, message, type = 'info', onConfirm, onCancel 
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-8 leading-relaxed text-center font-medium">{message}</p>
                 <div className="flex gap-3">
                     <button onClick={onCancel} className="flex-1 py-3.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Cancelar</button>
-                    <button onClick={onConfirm} className={`flex - 1 py - 3.5 rounded - xl font - bold text - xs uppercase tracking - wider text - white shadow - lg active: scale - 95 transition - all ${type === 'danger' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/25' : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'} `}>Confirmar</button>
+                    <button onClick={onConfirm} className={`flex-1 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all ${type === 'danger' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/25' : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'}`}>Confirmar</button>
                 </div>
             </motion.div>
         </motion.div>
@@ -810,7 +792,7 @@ function CardDetailsModal({ card, onClose, onUpdate, onDelete, setConfirmModal }
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex gap-2 flex-wrap">
                             {LABELS.map(label => (
-                                <button key={label.id} onClick={() => toggleLabel(label)} className={`w - 7 h - 7 rounded - full transition - all ring - 2 ring - offset - 2 dark: ring - offset - zinc - 900 ${localCard.labels?.find(l => l.id === label.id) ? 'ring-zinc-900 dark:ring-white scale-110' : 'ring-transparent opacity-40 hover:opacity-100 hover:scale-110'} `} style={{ backgroundColor: label.color }} />
+                                <button key={label.id} onClick={() => toggleLabel(label)} className={`w-7 h-7 rounded-full transition-all ring-2 ring-offset-2 dark:ring-offset-zinc-900 ${localCard.labels?.find(l => l.id === label.id) ? 'ring-zinc-900 dark:ring-white scale-110' : 'ring-transparent opacity-40 hover:opacity-100 hover:scale-110'}`} style={{ backgroundColor: label.color }} />
                             ))}
                         </div>
                         <button onClick={onClose} className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-white flex items-center justify-center transition-colors">
@@ -834,10 +816,10 @@ function CardDetailsModal({ card, onClose, onUpdate, onDelete, setConfirmModal }
                                 {cl.items.map(item => (
                                     <Reorder.Item key={item.id} value={item} className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700 cursor-grab active:cursor-grabbing group shadow-sm">
                                         <div className="text-zinc-300 dark:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">⋮⋮</div>
-                                        <button onClick={() => toggleItem(cl.id, item.id)} className={`w - 5 h - 5 rounded - lg border - 2 flex items - center justify - center transition - all ${item.done ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-emerald-400'} `}>
+                                        <button onClick={() => toggleItem(cl.id, item.id)} className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${item.done ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-emerald-400'}`}>
                                             {item.done && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                                         </button>
-                                        <span className={`flex - 1 text - sm ${item.done ? 'line-through text-zinc-400' : 'text-zinc-700 dark:text-zinc-200'} `}>{item.text}</span>
+                                        <span className={`flex-1 text-sm ${item.done ? 'line-through text-zinc-400' : 'text-zinc-700 dark:text-zinc-200'}`}>{item.text}</span>
                                         <button onClick={() => removeItem(cl.id, item.id)} className="text-zinc-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
                                     </Reorder.Item>
                                 ))}
