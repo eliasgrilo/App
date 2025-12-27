@@ -119,6 +119,36 @@ export default function Inventory() {
     const [newCategoryName, setNewCategoryName] = useState('')
     const [newSubcategoryName, setNewSubcategoryName] = useState('')
 
+    // Suppliers state
+    const [suppliers, setSuppliers] = useState([])
+    const [supplierSearchQuery, setSupplierSearchQuery] = useState('')
+    const [showSupplierDropdown, setShowSupplierDropdown] = useState(false)
+
+    // Load suppliers from Firebase
+    useEffect(() => {
+        const loadSuppliers = async () => {
+            try {
+                const data = await FirebaseService.getSuppliers()
+                if (data?.suppliers) {
+                    setSuppliers(data.suppliers)
+                }
+            } catch (e) {
+                console.error('Error loading suppliers:', e)
+            }
+        }
+        loadSuppliers()
+    }, [])
+
+    // Filter suppliers based on search
+    const filteredSuppliers = useMemo(() => {
+        if (!supplierSearchQuery.trim()) return suppliers.slice(0, 8)
+        const query = supplierSearchQuery.toLowerCase()
+        return suppliers.filter(s =>
+            s.name?.toLowerCase().includes(query) ||
+            s.company?.toLowerCase().includes(query)
+        ).slice(0, 8)
+    }, [suppliers, supplierSearchQuery])
+
     const [newItem, setNewItem] = useState({
         name: '',
         packageQuantity: '',
@@ -127,7 +157,9 @@ export default function Inventory() {
         pricePerUnit: '',
         category: 'Ingredientes',
         subcategory: 'Outros Ingredientes',
-        purchaseDate: new Date().toISOString().split('T')[0]
+        purchaseDate: new Date().toISOString().split('T')[0],
+        supplierId: null,
+        supplierName: ''
     })
 
     // Cloud Sync Debounce
@@ -208,6 +240,8 @@ export default function Inventory() {
             category: newItem.category,
             subcategory: newItem.category === 'Ingredientes' ? newItem.subcategory : null,
             purchaseDate: newItem.purchaseDate,
+            supplierId: newItem.supplierId,
+            supplierName: newItem.supplierName,
             createdAt: new Date().toISOString()
         }
 
@@ -220,8 +254,11 @@ export default function Inventory() {
             pricePerUnit: '',
             category: 'Ingredientes',
             subcategory: 'Outros Ingredientes',
-            purchaseDate: new Date().toISOString().split('T')[0]
+            purchaseDate: new Date().toISOString().split('T')[0],
+            supplierId: null,
+            supplierName: ''
         })
+        setSupplierSearchQuery('')
         setIsAddingItem(false)
     }
 
@@ -635,6 +672,81 @@ export default function Inventory() {
                             )}
                         </div>
 
+                        {/* Supplier Search */}
+                        <div className="mt-5">
+                            <label className="block text-xs font-bold text-violet-500 uppercase tracking-widest mb-3">Fornecedor</label>
+                            <div className="relative">
+                                {newItem.supplierId ? (
+                                    <div className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-violet-500/25">
+                                            {newItem.supplierName?.charAt(0)?.toUpperCase() || '?'}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-bold text-violet-700 dark:text-violet-300">{newItem.supplierName}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setNewItem(prev => ({ ...prev, supplierId: null, supplierName: '' }))
+                                                setSupplierSearchQuery('')
+                                            }}
+                                            className="w-10 h-10 flex items-center justify-center rounded-xl text-violet-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white font-semibold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-violet-500/20 transition-all placeholder:text-zinc-300"
+                                            placeholder="Buscar fornecedor..."
+                                            value={supplierSearchQuery}
+                                            onChange={(e) => {
+                                                setSupplierSearchQuery(e.target.value)
+                                                setShowSupplierDropdown(true)
+                                            }}
+                                            onFocus={() => setShowSupplierDropdown(true)}
+                                        />
+
+                                        {/* Dropdown */}
+                                        {showSupplierDropdown && filteredSuppliers.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl max-h-48 overflow-y-auto z-50">
+                                                {filteredSuppliers.map(supplier => (
+                                                    <button
+                                                        key={supplier.id}
+                                                        onClick={() => {
+                                                            setNewItem(prev => ({ ...prev, supplierId: supplier.id, supplierName: supplier.name }))
+                                                            setSupplierSearchQuery('')
+                                                            setShowSupplierDropdown(false)
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                                                            {supplier.name?.charAt(0)?.toUpperCase() || '?'}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-bold text-zinc-900 dark:text-white truncate">{supplier.name}</p>
+                                                            {supplier.company && (
+                                                                <p className="text-xs text-zinc-500 truncate">{supplier.company}</p>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {showSupplierDropdown && suppliers.length === 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl p-4 text-center">
+                                                <p className="text-sm text-zinc-500">Nenhum fornecedor cadastrado</p>
+                                                <p className="text-xs text-zinc-400 mt-1">Adicione fornecedores na aba Fornecedores</p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
                         {/* Total Preview */}
                         {newItem.packageQuantity && newItem.packageCount && (
                             <div className="mt-6 p-5 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 shadow-inner">
