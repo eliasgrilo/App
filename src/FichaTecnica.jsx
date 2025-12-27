@@ -416,8 +416,8 @@ export default function FichaTecnica() {
 
             {/* Create Pizza Modal - Apple iOS Sheet Design */}
             <AnimatePresence>
-                {isCreatingPizza && (
-                    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+                {isCreatingPizza && createPortal(
+                    <div className="fixed inset-0 z-[10000] flex items-stretch md:items-center justify-center">
                         <ModalScrollLock />
                         {/* Apple-style Glass Backdrop */}
                         <motion.div
@@ -432,7 +432,7 @@ export default function FichaTecnica() {
                             }}
                         />
 
-                        {/* iOS Sheet Modal */}
+                        {/* iOS Fullscreen Modal on Mobile, Sheet on Desktop */}
                         <motion.div
                             initial={{ opacity: 0, y: '100%' }}
                             animate={{ opacity: 1, y: 0 }}
@@ -443,17 +443,18 @@ export default function FichaTecnica() {
                                 damping: 30,
                                 mass: 0.8
                             }}
-                            className="relative w-full md:max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl rounded-t-[28px] md:rounded-[24px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_-10px_60px_rgba(0,0,0,0.5)] overflow-hidden"
+                            className="relative w-full h-full md:h-auto md:max-w-md bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_-10px_60px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col"
                             style={{
-                                paddingBottom: 'max(env(safe-area-inset-bottom, 24px), 24px)'
+                                paddingTop: 'env(safe-area-inset-top, 0px)',
+                                paddingBottom: 'env(safe-area-inset-bottom, 0px)'
                             }}
                         >
                             {/* iOS Drag Handle */}
-                            <div className="flex justify-center pt-3 pb-2 md:hidden">
+                            <div className="flex justify-center pt-3 pb-2 md:hidden shrink-0">
                                 <div className="w-9 h-[5px] rounded-full bg-zinc-300 dark:bg-zinc-600" />
                             </div>
 
-                            <div className="px-6 pt-4 md:pt-8 pb-6">
+                            <div className="flex-1 flex flex-col justify-center px-6 pt-4 md:pt-8 pb-6">
                                 {/* Header */}
                                 <div className="text-center mb-8">
                                     <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -499,7 +500,8 @@ export default function FichaTecnica() {
                                 </div>
                             </div>
                         </motion.div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </AnimatePresence>
 
