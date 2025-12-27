@@ -87,12 +87,12 @@ function ModalScrollLock() {
     return null
 }
 
-// Create Pizza Modal Component - Fullscreen on Mobile
+// Create Pizza Modal Component - Fullscreen on Mobile with Top-Aligned Input
 function CreatePizzaModal({ newPizzaName, setNewPizzaName, setIsCreatingPizza, handleCreatePizza }) {
     useScrollLock(true)
 
     return createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-stretch md:items-center justify-center">
+        <div className="fixed inset-0 z-[10000] flex items-start justify-center">
             {/* Apple-style Glass Backdrop */}
             <motion.div
                 initial={{ opacity: 0 }}
@@ -106,45 +106,61 @@ function CreatePizzaModal({ newPizzaName, setNewPizzaName, setIsCreatingPizza, h
                 }}
             />
 
-            {/* iOS Fullscreen Modal on Mobile, Sheet on Desktop */}
+            {/* iOS Style Modal - Top Aligned for Keyboard Visibility */}
             <motion.div
-                initial={{ opacity: 0, y: '100%' }}
+                initial={{ opacity: 0, y: -50 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: '100%' }}
+                exit={{ opacity: 0, y: -50 }}
                 transition={{
                     type: "spring",
                     stiffness: 300,
                     damping: 30,
                     mass: 0.8
                 }}
-                className="relative w-full h-full md:h-auto md:max-w-md bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_-10px_60px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col"
+                className="relative w-full md:max-w-md bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-2xl overflow-hidden md:mt-20"
                 style={{
-                    paddingTop: 'env(safe-area-inset-top, 0px)',
-                    paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+                    marginTop: 'max(env(safe-area-inset-top, 0px), 0px)',
                 }}
             >
-                {/* iOS Drag Handle */}
-                <div className="flex justify-center pt-3 pb-2 md:hidden shrink-0">
-                    <div className="w-9 h-[5px] rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                {/* Close Button - Top Right */}
+                <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                    <div className="w-12"></div>
+                    <h3 className="text-[17px] font-semibold text-zinc-900 dark:text-white">Nova Pizza</h3>
+                    <button
+                        onClick={() => {
+                            setIsCreatingPizza(false)
+                            setNewPizzaName('')
+                        }}
+                        className="w-12 h-12 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-90 touch-manipulation"
+                    >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
-                <div className="flex-1 flex flex-col justify-center px-6 pt-4 md:pt-8 pb-6">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {/* Divider */}
+                <div className="h-px bg-zinc-200 dark:bg-zinc-700/50 mx-4" />
+
+                {/* Content - Keep compact for keyboard visibility */}
+                <div className="px-6 py-6">
+                    {/* Icon + Description */}
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
                         </div>
-                        <h3 className="text-[22px] font-bold text-zinc-900 dark:text-white tracking-tight mb-1">Nova Pizza</h3>
-                        <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Dê um nome para sua nova receita</p>
+                        <div>
+                            <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Dê um nome para sua nova receita</p>
+                        </div>
                     </div>
 
-                    {/* Input */}
-                    <div className="mb-8">
+                    {/* Input - Prominent */}
+                    <div className="mb-6">
                         <input
                             type="text"
-                            className="w-full h-14 px-5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 text-[17px] text-zinc-900 dark:text-white font-medium text-center focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-zinc-700 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                            className="w-full h-14 px-5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 text-[17px] text-zinc-900 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-zinc-700 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                             placeholder="Ex: Margherita"
                             value={newPizzaName}
                             onChange={(e) => setNewPizzaName(e.target.value)}
@@ -173,6 +189,9 @@ function CreatePizzaModal({ newPizzaName, setNewPizzaName, setIsCreatingPizza, h
                         </button>
                     </div>
                 </div>
+
+                {/* Safe Area Bottom Padding */}
+                <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
             </motion.div>
         </div>,
         document.body
