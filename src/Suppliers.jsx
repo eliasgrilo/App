@@ -29,12 +29,12 @@ function Toast({ message, type, onClose }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
             className={`fixed top-6 left-1/2 -translate-x-1/2 z-[20000] px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl border ${type === 'error' ? 'bg-rose-500/90 border-rose-400/20 text-white' :
-                    type === 'success' ? 'bg-emerald-500/90 border-emerald-400/20 text-white' :
-                        'bg-zinc-900/90 border-white/10 text-white'
+                type === 'success' ? 'bg-emerald-500/90 border-emerald-400/20 text-white' :
+                    'bg-zinc-900/90 border-white/10 text-white'
                 }`}
         >
             <div className={`w-2 h-2 rounded-full ${type === 'error' ? 'bg-white animate-pulse' :
-                    type === 'success' ? 'bg-white' : 'bg-indigo-400'
+                type === 'success' ? 'bg-white' : 'bg-indigo-400'
                 }`} />
             <span className="text-sm font-semibold tracking-tight">{message}</span>
         </motion.div>
@@ -49,7 +49,7 @@ function ConfirmationModal({ title, message, type = 'info', onConfirm, onCancel 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 pt-20 md:pt-4"
+            className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 pt-24 md:pt-4"
         >
             <motion.div
                 initial={{ opacity: 0 }}
@@ -326,11 +326,11 @@ export default function Suppliers() {
                         <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">Fornecedores</h1>
                         {/* Sync Status */}
                         <div className={`mt-2 px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 transition-all duration-500 ${syncStatus === 'syncing' ? 'bg-amber-500/5 border-amber-500/10 text-amber-500 animate-pulse' :
-                                syncStatus === 'error' ? 'bg-red-500/5 border-red-500/10 text-red-500' :
-                                    'bg-emerald-500/5 border-emerald-500/10 text-emerald-500/80'
+                            syncStatus === 'error' ? 'bg-red-500/5 border-red-500/10 text-red-500' :
+                                'bg-emerald-500/5 border-emerald-500/10 text-emerald-500/80'
                             }`}>
                             <div className={`w-1 h-1 rounded-full ${syncStatus === 'syncing' ? 'bg-amber-500' :
-                                    syncStatus === 'error' ? 'bg-red-500' : 'bg-emerald-500'
+                                syncStatus === 'error' ? 'bg-red-500' : 'bg-emerald-500'
                                 }`} />
                             <span className="text-[10px] font-bold uppercase tracking-widest leading-none">
                                 {syncStatus === 'syncing' ? 'Syncing' : syncStatus === 'error' ? 'Error' : 'Cloud Active'}
@@ -457,7 +457,7 @@ export default function Suppliers() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4"
+                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-4"
                     >
                         <ModalScrollLock />
                         <motion.div
@@ -666,7 +666,7 @@ export default function Suppliers() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4"
+                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-4"
                     >
                         <ModalScrollLock />
                         <motion.div
