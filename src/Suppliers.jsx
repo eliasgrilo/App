@@ -49,7 +49,7 @@ function ConfirmationModal({ title, message, type = 'info', onConfirm, onCancel 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 pt-24 md:pt-4"
+            className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 pt-24 md:pt-20"
         >
             <motion.div
                 initial={{ opacity: 0 }}
@@ -457,7 +457,7 @@ export default function Suppliers() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-4"
+                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-20"
                     >
                         <ModalScrollLock />
                         <motion.div
@@ -666,7 +666,7 @@ export default function Suppliers() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-4"
+                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-24 md:pt-20"
                     >
                         <ModalScrollLock />
                         <motion.div
