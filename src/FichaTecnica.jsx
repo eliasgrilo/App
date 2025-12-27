@@ -117,9 +117,9 @@ function CreatePizzaModal({ newPizzaName, setNewPizzaName, setIsCreatingPizza, h
                     damping: 30,
                     mass: 0.8
                 }}
-                className="relative w-full md:max-w-md bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-2xl overflow-hidden md:mt-20"
+                className="relative w-full md:max-w-md bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-2xl overflow-hidden mt-16 md:mt-20 mx-4 md:mx-0 rounded-2xl"
                 style={{
-                    marginTop: 'max(env(safe-area-inset-top, 0px), 0px)',
+                    marginTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)',
                 }}
             >
                 {/* Close Button - Top Right */}
@@ -712,7 +712,7 @@ export default function FichaTecnica() {
 
                     {/* Add Ingredient Modal - Apple Premium Design */}
                     {isAddingIngredient && (
-                        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+                        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-0 md:p-4">
                             <ModalScrollLock />
                             {/* Backdrop */}
                             <div
@@ -725,7 +725,12 @@ export default function FichaTecnica() {
                             ></div>
 
                             {/* Modal Content */}
-                            <div className="relative w-full md:max-w-lg bg-white dark:bg-zinc-900 rounded-t-[2rem] md:rounded-[2rem] p-6 pb-32 md:p-8 shadow-2xl animate-slide-up max-h-[85vh] overflow-y-auto custom-scrollbar">
+                            <div
+                                className="relative w-full md:max-w-lg bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] p-6 pb-32 md:p-8 shadow-2xl animate-slide-up max-h-[85vh] overflow-y-auto custom-scrollbar mx-4 md:mx-0"
+                                style={{
+                                    marginTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)'
+                                }}
+                            >
 
                                 {/* Drag Handle (Mobile only) */}
                                 <div className="md:hidden w-full flex justify-center mb-5">

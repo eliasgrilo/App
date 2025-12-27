@@ -785,9 +785,19 @@ function CardDetailsModal({ card, onClose, onUpdate, onDelete, setConfirmModal }
     }
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end md:items-center justify-center" onClick={onClose}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4" onClick={onClose}>
             <div className="absolute inset-0 bg-black/50 backdrop-blur-xl" />
-            <motion.div initial={{ opacity: 0, y: 100, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 100, scale: 0.98 }} transition={{ type: "spring", stiffness: 350, damping: 30 }} className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200/50 dark:border-white/10" onClick={e => e.stopPropagation()}>
+            <motion.div
+                initial={{ opacity: 0, y: 100, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 100, scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-zinc-200/50 dark:border-white/10"
+                style={{
+                    marginTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)'
+                }}
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="shrink-0 p-6 md:p-8 border-b border-zinc-100 dark:border-white/5">
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex gap-2 flex-wrap">

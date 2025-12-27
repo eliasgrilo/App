@@ -339,7 +339,7 @@ const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }
                 onDragEnd={handleDragEnd}
                 className="relative w-full h-full md:h-auto md:max-w-md md:max-h-[80vh] bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] dark:shadow-[0_-10px_60px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col"
                 style={{
-                    paddingTop: 'env(safe-area-inset-top, 0px)',
+                    paddingTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)',
                     paddingBottom: 'env(safe-area-inset-bottom, 0px)'
                 }}
             >

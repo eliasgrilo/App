@@ -643,6 +643,9 @@ export default function Costs() {
                             exit={{ y: "100%", opacity: 0 }}
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             className="relative bg-zinc-100 dark:bg-zinc-900 w-full max-w-sm rounded-t-[2.5rem] md:rounded-[2rem] shadow-[0_10px_40px_rgba(0,0,0,0.2)] border-t border-white/20 dark:border-white/5 flex flex-col overflow-hidden max-h-[85vh] md:max-h-[80vh]"
+                            style={{
+                                marginTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)'
+                            }}
                         >
 
                             {/* Minimal Drag Handle */}
