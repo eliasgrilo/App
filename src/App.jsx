@@ -7,6 +7,7 @@ import Inventory from './Inventory.jsx'
 import Production from './Production.jsx'
 import Recipes from './Recipes.jsx'
 import Kanban from './Kanban.jsx'
+import Suppliers from './Suppliers.jsx'
 
 /**
  * App - Premium Navigation Shell
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { key: 'kanban', label: 'Kanban', icon: KanbanIcon },
   { key: 'recipes', label: 'Receitas', icon: RecipesIcon },
   { key: 'inventory', label: 'Estoque', icon: InventoryIcon },
+  { key: 'suppliers', label: 'Fornecedores', icon: SuppliersIcon },
   { key: 'costs', label: 'Financeiro', icon: CostsIcon },
   { key: 'ficha', label: 'Ficha', icon: FichaIcon },
   { key: 'calculator', label: 'Produção', icon: ProductionIcon }
@@ -68,6 +70,14 @@ function ProductionIcon({ active }) {
   return (
     <svg className={`w-4 h-4 transition-all ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.5 : 2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function SuppliersIcon({ active }) {
+  return (
+    <svg className={`w-4 h-4 transition-all ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.5 : 2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
   )
 }
@@ -187,8 +197,8 @@ export default function App() {
                       key={key}
                       onClick={() => handleViewChange(key)}
                       className={`relative flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 text-[10px] md:text-[11px] font-semibold rounded-xl transition-all duration-200 whitespace-nowrap min-w-[60px] ${isActive
-                          ? 'text-zinc-900 dark:text-white'
-                          : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                        ? 'text-zinc-900 dark:text-white'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
                         }`}
                     >
                       {/* Active Background */}
@@ -245,6 +255,8 @@ export default function App() {
               <Recipes />
             ) : view === 'inventory' ? (
               <Inventory />
+            ) : view === 'suppliers' ? (
+              <Suppliers />
             ) : view === 'costs' ? (
               <Costs />
             ) : view === 'ficha' ? (

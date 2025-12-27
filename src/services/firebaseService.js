@@ -293,5 +293,29 @@ export const FirebaseService = {
             console.error("Error getting recipe categories:", e);
             return null;
         }
+    },
+
+    // --- SUPPLIERS ---
+    async syncSuppliers(suppliers) {
+        try {
+            await setDoc(doc(db, COLLECTIONS.SETTINGS, "suppliers"), cleanPayload({
+                suppliers,
+                updatedAt: new Date().toISOString()
+            }));
+            return true;
+        } catch (e) {
+            console.error("Error syncing suppliers:", e);
+            return false;
+        }
+    },
+
+    async getSuppliers() {
+        try {
+            const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "suppliers"));
+            return docSnap.exists() ? docSnap.data() : null;
+        } catch (e) {
+            console.error("Error getting suppliers:", e);
+            return null;
+        }
     }
 };
