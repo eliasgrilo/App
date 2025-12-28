@@ -1429,7 +1429,7 @@ export default function Inventory() {
 
             {/* Item Configuration Modal */}
             {configuringItem && createPortal(
-                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 overflow-y-auto" style={{ paddingTop: '80px', paddingBottom: '40px' }}>
+                <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 overflow-y-auto" style={{ paddingTop: '80px', paddingBottom: '40px' }}>
                     <ModalScrollLock />
                     <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" onClick={() => setConfiguringItem(null)}></div>
                     <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl">
