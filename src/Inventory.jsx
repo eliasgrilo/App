@@ -119,6 +119,11 @@ export default function Inventory() {
     const [newCategoryName, setNewCategoryName] = useState('')
     const [newSubcategoryName, setNewSubcategoryName] = useState('')
 
+    // Stock Management state
+    const [stockFilter, setStockFilter] = useState('all') // 'all' | 'noLimits' | 'alerts' | 'ok'
+    const [stockSearchQuery, setStockSearchQuery] = useState('')
+    const [configuringItem, setConfiguringItem] = useState(null)
+
     // Suppliers state
     const [suppliers, setSuppliers] = useState([])
     const [supplierSearchQuery, setSupplierSearchQuery] = useState('')
@@ -1293,103 +1298,127 @@ export default function Inventory() {
                     </div>
                 </div>
             )}
-            {/* Stock Management */}
+            {/* Stock Management - Full Interface */}
             <section className="relative z-10 mt-8">
                 <div className="bg-white dark:bg-zinc-950 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 shadow-xl">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Gestão de Estoque</h2>
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+                        <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Gestão de Estoque</h2>
                         <div className="flex gap-2">
-                            <button onClick={exportCSV} className="text-[9px] font-bold text-zinc-400 hover:text-zinc-600 uppercase tracking-widest transition-colors">CSV</button>
-                            <button onClick={exportJSON} className="text-[9px] font-bold text-zinc-400 hover:text-zinc-600 uppercase tracking-widest transition-colors">JSON</button>
+                            <button onClick={exportCSV} className="px-3 py-2 text-[9px] font-bold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 uppercase tracking-widest transition-colors">CSV</button>
+                            <button onClick={exportJSON} className="px-3 py-2 text-[9px] font-bold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 uppercase tracking-widest transition-colors">JSON</button>
                         </div>
                     </div>
 
-                    {/* Stock Alerts */}
-                    <div className="space-y-4 mb-6">
-                        {/* Low Stock Alert */}
-                        {items.filter(i => getStockStatus(i) === 'low').length > 0 && (
-                            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200/50 dark:border-rose-500/20">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.5)]"></div>
-                                    <h4 className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Estoque Baixo</h4>
-                                    <span className="ml-auto text-xs font-bold text-rose-500">{items.filter(i => getStockStatus(i) === 'low').length} itens</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {items.filter(i => getStockStatus(i) === 'low').slice(0, 5).map(item => (
-                                        <span key={item.id} className="px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-500/20">
-                                            {item.name} ({getTotalQuantity(item)}/{item.minStock} {item.unit})
-                                        </span>
-                                    ))}
-                                    {items.filter(i => getStockStatus(i) === 'low').length > 5 && (
-                                        <span className="px-3 py-1.5 text-xs font-medium text-rose-400">+{items.filter(i => getStockStatus(i) === 'low').length - 5} mais</span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                    {/* Segmented Control Filters */}
+                    <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl mb-4 overflow-x-auto">
+                        {[
+                            { id: 'all', label: 'Todos', count: items.length },
+                            { id: 'noLimits', label: 'Sem Limites', count: items.filter(i => !i.minStock && !i.maxStock).length },
+                            { id: 'alerts', label: 'Alertas', count: items.filter(i => ['low', 'warning', 'high'].includes(getStockStatus(i))).length },
+                            { id: 'ok', label: 'OK', count: items.filter(i => getStockStatus(i) === 'ok' && (i.minStock || i.maxStock)).length }
+                        ].map(filter => (
+                            <button
+                                key={filter.id}
+                                onClick={() => setStockFilter(filter.id)}
+                                className={`flex-1 min-w-[80px] px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${stockFilter === filter.id
+                                        ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                    }`}
+                            >
+                                {filter.label}
+                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] ${stockFilter === filter.id
+                                        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                        : 'bg-zinc-200/50 dark:bg-zinc-700 text-zinc-500'
+                                    }`}>{filter.count}</span>
+                            </button>
+                        ))}
+                    </div>
 
-                        {/* Warning Stock */}
-                        {items.filter(i => getStockStatus(i) === 'warning').length > 0 && (
-                            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-500/20">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]"></div>
-                                    <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Próximo do Mínimo</h4>
-                                    <span className="ml-auto text-xs font-bold text-amber-500">{items.filter(i => getStockStatus(i) === 'warning').length} itens</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {items.filter(i => getStockStatus(i) === 'warning').slice(0, 5).map(item => (
-                                        <span key={item.id} className="px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-lg text-xs font-medium text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-500/20">
-                                            {item.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                    {/* Search */}
+                    <div className="relative mb-6">
+                        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Buscar item..."
+                            value={stockSearchQuery}
+                            onChange={(e) => setStockSearchQuery(e.target.value)}
+                            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                        />
+                    </div>
 
-                        {/* High Stock */}
-                        {items.filter(i => getStockStatus(i) === 'high').length > 0 && (
-                            <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200/50 dark:border-blue-500/20">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                                    <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Acima do Máximo</h4>
-                                    <span className="ml-auto text-xs font-bold text-blue-500">{items.filter(i => getStockStatus(i) === 'high').length} itens</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {items.filter(i => getStockStatus(i) === 'high').slice(0, 5).map(item => (
-                                        <span key={item.id} className="px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-500/20">
-                                            {item.name} ({getTotalQuantity(item)}/{item.maxStock} {item.unit})
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                    {/* Items List */}
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                        {items
+                            .filter(item => {
+                                if (stockFilter === 'noLimits') return !item.minStock && !item.maxStock
+                                if (stockFilter === 'alerts') return ['low', 'warning', 'high'].includes(getStockStatus(item))
+                                if (stockFilter === 'ok') return getStockStatus(item) === 'ok' && (item.minStock || item.maxStock)
+                                return true
+                            })
+                            .filter(item => {
+                                if (!stockSearchQuery.trim()) return true
+                                return item.name.toLowerCase().includes(stockSearchQuery.toLowerCase())
+                            })
+                            .map(item => {
+                                const status = getStockStatus(item)
+                                const statusConfig = {
+                                    low: { bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-500/30', dot: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' },
+                                    warning: { bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-200 dark:border-amber-500/30', dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+                                    high: { bg: 'bg-blue-50 dark:bg-blue-500/10', border: 'border-blue-200 dark:border-blue-500/30', dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
+                                    ok: { bg: 'bg-zinc-50 dark:bg-zinc-800/50', border: 'border-zinc-200 dark:border-zinc-700', dot: 'bg-emerald-500', text: 'text-zinc-600 dark:text-zinc-400' }
+                                }
+                                const config = statusConfig[status]
 
-                        {/* All OK */}
-                        {items.filter(i => getStockStatus(i) === 'low' || getStockStatus(i) === 'warning' || getStockStatus(i) === 'high').length === 0 && items.length > 0 && (
-                            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/50 dark:border-emerald-500/20">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Todos os Níveis OK</h4>
-                                </div>
+                                return (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => setConfiguringItem(item)}
+                                        className={`p-4 rounded-2xl ${config.bg} border ${config.border} cursor-pointer hover:shadow-md transition-all active:scale-[0.99]`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`flex-shrink-0 w-3 h-3 rounded-full ${config.dot} ${status === 'low' ? 'animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.5)]' : ''}`}></div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-zinc-900 dark:text-white truncate">{item.name}</h4>
+                                                <p className="text-xs text-zinc-500">
+                                                    Atual: <span className={`font-bold ${config.text}`}>{getTotalQuantity(item)} {item.unit}</span>
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-xs">
+                                                <div className="text-center">
+                                                    <div className="text-[9px] font-bold text-zinc-400 uppercase mb-0.5">Mín</div>
+                                                    <div className={`font-bold ${item.minStock ? config.text : 'text-zinc-300 dark:text-zinc-600'}`}>{item.minStock || '—'}</div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="text-[9px] font-bold text-zinc-400 uppercase mb-0.5">Máx</div>
+                                                    <div className={`font-bold ${item.maxStock ? config.text : 'text-zinc-300 dark:text-zinc-600'}`}>{item.maxStock || '—'}</div>
+                                                </div>
+                                                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        {items.length === 0 && (
+                            <div className="text-center py-12 text-zinc-400">
+                                <p className="text-sm">Nenhum item no estoque</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
+                    {/* Footer Actions */}
+                    <div className="pt-6 mt-6 border-t border-zinc-100 dark:border-white/5">
                         <div className="grid grid-cols-2 gap-3">
-                            <button
-                                onClick={() => setIsManagingCategories(true)}
-                                className="py-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-2"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                </svg>
+                            <button onClick={() => setIsManagingCategories(true)} className="py-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
                                 Categorias
                             </button>
                             <button onClick={clearAllData} className="py-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 Limpar Tudo
                             </button>
                         </div>
@@ -1397,6 +1426,40 @@ export default function Inventory() {
                     </div>
                 </div>
             </section>
+
+            {/* Item Configuration Modal */}
+            {configuringItem && createPortal(
+                <div className="fixed inset-0 z-[10000] flex items-start md:items-center justify-center p-4 pt-20 md:pt-4 overflow-y-auto">
+                    <ModalScrollLock />
+                    <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" onClick={() => setConfiguringItem(null)}></div>
+                    <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl">
+                        <button onClick={() => setConfiguringItem(null)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <div className="text-center mb-6 pt-2">
+                            <div className={`inline-flex w-16 h-16 rounded-2xl items-center justify-center text-2xl font-bold text-white mb-4 ${getStockStatus(configuringItem) === 'low' ? 'bg-gradient-to-br from-rose-500 to-rose-600' : getStockStatus(configuringItem) === 'warning' ? 'bg-gradient-to-br from-amber-500 to-amber-600' : getStockStatus(configuringItem) === 'high' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-emerald-500 to-emerald-600'}`}>
+                                {configuringItem.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">{configuringItem.name}</h3>
+                            <p className="text-sm text-zinc-500 mt-1">Estoque atual: <span className="font-bold text-zinc-900 dark:text-white">{getTotalQuantity(configuringItem)} {configuringItem.unit}</span></p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Estoque Mínimo</label>
+                                <input type="number" step="0.01" inputMode="decimal" className="w-full px-4 py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-zinc-900 dark:text-white text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all" placeholder="0" value={configuringItem.minStock || ''} onChange={(e) => { handleUpdateItem(configuringItem.id, 'minStock', e.target.value); setConfiguringItem(prev => ({ ...prev, minStock: Number(e.target.value) || 0 })) }} />
+                                <p className="text-[10px] text-amber-500 text-center mt-1">{configuringItem.unit}</p>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Estoque Máximo</label>
+                                <input type="number" step="0.01" inputMode="decimal" className="w-full px-4 py-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-zinc-900 dark:text-white text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all" placeholder="0" value={configuringItem.maxStock || ''} onChange={(e) => { handleUpdateItem(configuringItem.id, 'maxStock', e.target.value); setConfiguringItem(prev => ({ ...prev, maxStock: Number(e.target.value) || 0 })) }} />
+                                <p className="text-[10px] text-blue-500 text-center mt-1">{configuringItem.unit}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setConfiguringItem(null)} className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-sm font-bold uppercase tracking-wider shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all">Salvar Limites</button>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Category Management Modal */}
             {isManagingCategories && (
