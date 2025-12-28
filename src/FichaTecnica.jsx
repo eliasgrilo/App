@@ -875,40 +875,21 @@ export default function FichaTecnica() {
                                     </div>
                                 )}
 
-                                {/* Manual Entry Fields (Name and Price if not matched, or for edit) */}
+                                {/* Manual Entry Fields (Unit if not matched) */}
                                 {!matchedInventoryItem && (
-                                    <div className="space-y-4 mb-5">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Preço por Unidade</label>
-                                                <div className="relative">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm font-bold">R$</span>
-                                                    <input
-                                                        type="number"
-                                                        step="any"
-                                                        inputMode="decimal"
-                                                        className="w-full pl-10 pr-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white text-right text-lg font-bold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-zinc-300"
-                                                        placeholder="0,00"
-                                                        value={newIngredient.pricePerUnit}
-                                                        onChange={(e) => setNewIngredient(prev => ({ ...prev, pricePerUnit: e.target.value }))}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Unidade</label>
-                                                <select
-                                                    className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white text-lg font-bold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all appearance-none text-center"
-                                                    value={newIngredient.unit}
-                                                    onChange={(e) => handleUnitChange(e.target.value)}
-                                                >
-                                                    <option value="g">g</option>
-                                                    <option value="kg">kg</option>
-                                                    <option value="ml">ml</option>
-                                                    <option value="L">L</option>
-                                                    <option value="un">un</option>
-                                                </select>
-                                            </div>
-                                        </div>
+                                    <div className="mb-5">
+                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Unidade</label>
+                                        <select
+                                            className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white text-lg font-bold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all appearance-none text-center"
+                                            value={newIngredient.unit}
+                                            onChange={(e) => handleUnitChange(e.target.value)}
+                                        >
+                                            <option value="g">g</option>
+                                            <option value="kg">kg</option>
+                                            <option value="ml">ml</option>
+                                            <option value="L">L</option>
+                                            <option value="un">un</option>
+                                        </select>
                                     </div>
                                 )}
 
