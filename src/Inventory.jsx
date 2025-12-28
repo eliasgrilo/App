@@ -556,63 +556,71 @@ export default function Inventory() {
                 </div>
             </section>
 
-            {/* Add Item Modal - Premium Bottom Sheet */}
+            {/* Add Item Modal - Apple Quality Design */}
             {isAddingItem && createPortal(
-                <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 overflow-y-auto" style={{ paddingTop: '80px', paddingBottom: '40px' }}>
+                <div className="fixed inset-0 z-[20000] flex items-end md:items-center justify-center">
                     <ModalScrollLock />
                     {/* Backdrop */}
                     <div
-                        className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm transition-opacity"
+                        className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-md"
                         onClick={() => setIsAddingItem(false)}
-                    ></div>
+                    />
 
-                    {/* Modal Content */}
-                    <div className="relative w-full md:max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                    {/* Modal */}
+                    <div className="relative w-full md:max-w-lg bg-white dark:bg-zinc-900 md:rounded-3xl rounded-t-[2rem] shadow-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden">
+
+                        {/* Drag Handle - Mobile */}
+                        <div className="md:hidden flex justify-center pt-3 pb-1">
+                            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+                        </div>
+
                         {/* Header */}
-                        <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100 dark:border-zinc-800 flex-shrink-0">
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Novo Item</h3>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+                            <div>
+                                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Novo Item</h2>
+                                <p className="text-xs text-zinc-500 mt-0.5">Adicionar ao estoque</p>
+                            </div>
                             <button
                                 onClick={() => setIsAddingItem(false)}
-                                className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                                className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
                             >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
 
                         {/* Scrollable Content */}
-                        <div className="p-6 overflow-y-auto custom-scrollbar">
-                            {/* Name */}
-                            <div className="sm:col-span-2 lg:col-span-12">
-                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Nome do Item</label>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+                            {/* Item Name */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Nome do Item</label>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white font-semibold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-zinc-300"
+                                    className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/50 transition-all placeholder:text-zinc-400"
                                     placeholder="Ex: Farinha de Trigo"
                                     value={newItem.name}
                                     onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
-                                    autoFocus
                                 />
                             </div>
 
-                            {/* Package Details Section */}
-                            <div className="lg:col-span-12 grid grid-cols-2 gap-4">
-                                {/* Package Quantity */}
+                            {/* Package Info Grid */}
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Qtd/Pacote</label>
+                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Qtd/Pacote</label>
                                     <div className="flex gap-2">
                                         <input
                                             type="number"
                                             step="0.01"
                                             inputMode="decimal"
-                                            className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white text-right font-bold text-lg focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-zinc-300"
+                                            className="flex-1 px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
                                             placeholder="25"
                                             value={newItem.packageQuantity}
                                             onChange={(e) => setNewItem(prev => ({ ...prev, packageQuantity: e.target.value }))}
                                         />
                                         <select
-                                            className="w-24 px-2 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white font-bold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all text-center appearance-none"
+                                            className="w-20 px-2 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
                                             value={newItem.unit}
                                             onChange={(e) => setNewItem(prev => ({ ...prev, unit: e.target.value }))}
                                         >
@@ -625,16 +633,13 @@ export default function Inventory() {
                                         </select>
                                     </div>
                                 </div>
-
-                                {/* Package Count */}
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Nº Pacotes</label>
+                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Nº Pacotes</label>
                                     <input
                                         type="number"
                                         min="1"
                                         inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white text-right font-bold text-lg focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-zinc-300"
+                                        className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
                                         placeholder="1"
                                         value={newItem.packageCount}
                                         onChange={(e) => setNewItem(prev => ({ ...prev, packageCount: e.target.value }))}
@@ -642,201 +647,169 @@ export default function Inventory() {
                                 </div>
                             </div>
 
-                            {/* Price Section */}
-                            <div className="lg:col-span-6">
-                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Preço por Pacote</label>
+                            {/* Price */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2">Preço por Pacote</label>
                                 <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 font-medium">$</span>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-lg">R$</span>
                                     <input
                                         type="number"
                                         step="0.01"
                                         inputMode="decimal"
-                                        className="w-full pl-8 pr-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white text-right font-bold text-lg focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all placeholder:text-zinc-300"
-                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-4 py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-zinc-900 dark:text-white text-xl font-bold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all"
+                                        placeholder="0,00"
                                         value={newItem.pricePerUnit}
                                         onChange={(e) => setNewItem(prev => ({ ...prev, pricePerUnit: e.target.value }))}
                                     />
                                 </div>
                             </div>
 
-                            {/* Category */}
-                            <div className={newItem.category === 'Ingredientes' ? 'lg:col-span-6' : 'lg:col-span-12'}>
-                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Categoria</label>
-                                <select
-                                    className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white font-bold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all appearance-none"
-                                    value={newItem.category}
-                                    onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value, subcategory: e.target.value === 'Ingredientes' ? 'Outros Ingredientes' : null }))}
-                                >
-                                    {categories.map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Subcategory (only for Ingredientes) */}
-                            {newItem.category === 'Ingredientes' && (
-                                <div className="lg:col-span-6">
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Subcategoria</label>
+                            {/* Category & Subcategory */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className={newItem.category !== 'Ingredientes' ? 'col-span-2' : ''}>
+                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Categoria</label>
                                     <select
-                                        className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white font-bold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/20 transition-all appearance-none"
-                                        value={newItem.subcategory}
-                                        onChange={(e) => setNewItem(prev => ({ ...prev, subcategory: e.target.value }))}
+                                        className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                                        value={newItem.category}
+                                        onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value, subcategory: e.target.value === 'Ingredientes' ? 'Outros Ingredientes' : null }))}
                                     >
-                                        {subcategories.map(sub => (
-                                            <option key={sub} value={sub}>{sub}</option>
+                                        {categories.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
                                         ))}
                                     </select>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Supplier Search */}
-                        <div className="mt-5">
-                            <label className="block text-xs font-bold text-violet-500 uppercase tracking-widest mb-3">Fornecedor</label>
-                            <div className="relative">
-                                {newItem.supplierId ? (
-                                    <div className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-violet-500/25">
-                                            {newItem.supplierName?.charAt(0)?.toUpperCase() || '?'}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-bold text-violet-700 dark:text-violet-300">{newItem.supplierName}</p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                setNewItem(prev => ({ ...prev, supplierId: null, supplierName: '' }))
-                                                setSupplierSearchQuery('')
-                                            }}
-                                            className="w-10 h-10 flex items-center justify-center rounded-xl text-violet-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
+                                {newItem.category === 'Ingredientes' && (
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Subcategoria</label>
+                                        <select
+                                            className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                                            value={newItem.subcategory}
+                                            onChange={(e) => setNewItem(prev => ({ ...prev, subcategory: e.target.value }))}
                                         >
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
+                                            {subcategories.map(sub => (
+                                                <option key={sub} value={sub}>{sub}</option>
+                                            ))}
+                                        </select>
                                     </div>
-                                ) : (
-                                    <>
-                                        <input
-                                            type="text"
-                                            className="w-full px-4 py-4 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-900 dark:text-white font-semibold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-violet-500/20 transition-all placeholder:text-zinc-300"
-                                            placeholder="Buscar fornecedor..."
-                                            value={supplierSearchQuery}
-                                            onChange={(e) => {
-                                                setSupplierSearchQuery(e.target.value)
-                                                setShowSupplierDropdown(true)
-                                            }}
-                                            onFocus={() => setShowSupplierDropdown(true)}
-                                        />
-
-                                        {/* Dropdown */}
-                                        {showSupplierDropdown && filteredSuppliers.length > 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl max-h-48 overflow-y-auto z-[100]">
-                                                {filteredSuppliers.map(supplier => (
-                                                    <button
-                                                        key={supplier.id}
-                                                        onClick={() => {
-                                                            setNewItem(prev => ({ ...prev, supplierId: supplier.id, supplierName: supplier.name }))
-                                                            setSupplierSearchQuery('')
-                                                            setShowSupplierDropdown(false)
-                                                        }}
-                                                        className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
-                                                    >
-                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-                                                            {supplier.name?.charAt(0)?.toUpperCase() || '?'}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="font-bold text-zinc-900 dark:text-white truncate">{supplier.name}</p>
-                                                            {supplier.company && (
-                                                                <p className="text-xs text-zinc-500 truncate">{supplier.company}</p>
-                                                            )}
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {showSupplierDropdown && suppliers.length === 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl p-4 text-center z-[100]">
-                                                <p className="text-sm text-zinc-500">Nenhum fornecedor cadastrado</p>
-                                                <p className="text-xs text-zinc-400 mt-1">Adicione fornecedores na aba Fornecedores</p>
-                                            </div>
-                                        )}
-                                    </>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Stock Limits Section */}
-                        <div className="mt-6 p-5 rounded-2xl bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10">
-                            <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-4">Limites de Estoque</h4>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Mínimo</label>
-                                    <div className="relative">
+                            {/* Supplier */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-2">Fornecedor</label>
+                                <div className="relative">
+                                    {newItem.supplierId ? (
+                                        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg">
+                                                {newItem.supplierName?.charAt(0)?.toUpperCase()}
+                                            </div>
+                                            <span className="flex-1 font-bold text-violet-700 dark:text-violet-300">{newItem.supplierName}</span>
+                                            <button
+                                                onClick={() => { setNewItem(prev => ({ ...prev, supplierId: null, supplierName: '' })); setSupplierSearchQuery('') }}
+                                                className="w-10 h-10 rounded-xl flex items-center justify-center text-violet-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <input
+                                                type="text"
+                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all placeholder:text-zinc-400"
+                                                placeholder="Buscar fornecedor..."
+                                                value={supplierSearchQuery}
+                                                onChange={(e) => { setSupplierSearchQuery(e.target.value); setShowSupplierDropdown(true) }}
+                                                onFocus={() => setShowSupplierDropdown(true)}
+                                            />
+                                            {showSupplierDropdown && filteredSuppliers.length > 0 && (
+                                                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl max-h-40 overflow-y-auto z-50">
+                                                    {filteredSuppliers.map(supplier => (
+                                                        <button
+                                                            key={supplier.id}
+                                                            onClick={() => { setNewItem(prev => ({ ...prev, supplierId: supplier.id, supplierName: supplier.name })); setSupplierSearchQuery(''); setShowSupplierDropdown(false) }}
+                                                            className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                                                                {supplier.name?.charAt(0)?.toUpperCase()}
+                                                            </div>
+                                                            <span className="font-bold text-zinc-900 dark:text-white">{supplier.name}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Stock Limits */}
+                            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10">
+                                <h4 className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Limites de Estoque</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Mínimo</label>
                                         <input
                                             type="number"
                                             step="0.01"
                                             inputMode="decimal"
-                                            className="w-full px-4 py-4 rounded-2xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-right text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-zinc-300"
+                                            className="w-full px-3 py-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
                                             placeholder="0"
                                             value={newItem.minStock}
                                             onChange={(e) => setNewItem(prev => ({ ...prev, minStock: e.target.value }))}
                                         />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-500/50 text-sm font-bold pointer-events-none">{newItem.unit}</span>
                                     </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Máximo</label>
-                                    <div className="relative">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Máximo</label>
                                         <input
                                             type="number"
                                             step="0.01"
                                             inputMode="decimal"
-                                            className="w-full px-4 py-4 rounded-2xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-right text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-zinc-300"
+                                            className="w-full px-3 py-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
                                             placeholder="0"
                                             value={newItem.maxStock}
                                             onChange={(e) => setNewItem(prev => ({ ...prev, maxStock: e.target.value }))}
                                         />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-500/50 text-sm font-bold pointer-events-none">{newItem.unit}</span>
                                     </div>
                                 </div>
+                                <p className="text-[10px] text-amber-600/60 mt-2 text-center">Deixe em 0 para desativar alertas</p>
                             </div>
-                            <p className="text-xs text-amber-600/70 dark:text-amber-400/50 mt-3">Deixe em 0 para desativar alertas</p>
+
+                            {/* Summary Preview */}
+                            {newItem.packageQuantity && newItem.packageCount && (
+                                <div className="p-4 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-zinc-700">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total</span>
+                                        <div className="text-right">
+                                            <div className="text-lg font-bold text-zinc-900 dark:text-white">
+                                                {Number(newItem.packageQuantity) * Number(newItem.packageCount)} {newItem.unit}
+                                            </div>
+                                            {newItem.pricePerUnit && (
+                                                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                                                    {formatCurrency(Number(newItem.packageCount) * Number(newItem.pricePerUnit))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Total Preview */}
-                        {newItem.packageQuantity && newItem.packageCount && (
-                            <div className="mt-6 p-5 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 shadow-inner">
-                                <div className="flex items-center justify-between">
-                                    <div className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Resumo</div>
-                                    <div className="text-right">
-                                        <div className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                                            {Number(newItem.packageQuantity) * Number(newItem.packageCount)} {newItem.unit} Total
-                                        </div>
-                                        {newItem.pricePerUnit && (
-                                            <div className="text-2xl font-bold text-zinc-900 dark:text-white mt-1 tracking-tight tabular-nums">
-                                                {formatCurrency(Number(newItem.packageCount) * Number(newItem.pricePerUnit))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 mt-8 safe-area-bottom">
+                        {/* Footer Actions */}
+                        <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex gap-3">
                             <button
                                 onClick={() => setIsAddingItem(false)}
-                                className="flex-1 px-6 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-[0.98]"
+                                className="flex-1 py-4 rounded-2xl font-bold text-sm text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all active:scale-[0.98]"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleAddItem}
                                 disabled={!newItem.name.trim()}
-                                className="flex-[2] px-6 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider text-white bg-zinc-900 dark:bg-white dark:text-zinc-900 shadow-lg shadow-zinc-900/10 hover:shadow-xl hover:shadow-zinc-900/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                                className="flex-[2] py-4 rounded-2xl font-bold text-sm text-white bg-zinc-900 dark:bg-white dark:text-zinc-900 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
                             >
-                                Adicionar ao Estoque
+                                Adicionar
                             </button>
                         </div>
                     </div>
