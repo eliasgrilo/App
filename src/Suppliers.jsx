@@ -679,8 +679,18 @@ export default function Suppliers() {
                                 className="relative w-full max-w-lg mx-4 my-6 bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
                                 style={{ maxHeight: 'calc(100vh - 100px)' }}
                             >
-                                {/* Header with Avatar */}
-                                <div className="px-6 py-8 text-center border-b border-zinc-100 dark:border-white/5">
+                                {/* Header with Avatar and Close Button */}
+                                <div className="relative px-6 py-8 text-center border-b border-zinc-100 dark:border-white/5">
+                                    {/* Close Button */}
+                                    <button
+                                        onClick={() => setSelectedSupplier(null)}
+                                        className="absolute top-4 right-4 w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+
                                     <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-xl shadow-violet-500/30 mx-auto mb-4">
                                         {selectedSupplier.name?.charAt(0)?.toUpperCase() || '?'}
                                     </div>
