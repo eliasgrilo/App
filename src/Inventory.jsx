@@ -553,7 +553,7 @@ export default function Inventory() {
 
             {/* Add Item Modal - Premium Bottom Sheet */}
             {isAddingItem && (
-                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4">
+                <div className="fixed inset-0 z-[10000] flex items-start md:items-center justify-center p-4 pt-20 md:pt-4">
                     <ModalScrollLock />
                     {/* Backdrop */}
                     <div
@@ -1293,39 +1293,114 @@ export default function Inventory() {
                     </div>
                 </div>
             )}
-            {/* System Controls */}
+            {/* Stock Management */}
             <section className="relative z-10 mt-8">
                 <div className="bg-white dark:bg-zinc-950 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 shadow-xl">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">System Integrity</h2>
-                        <button onClick={clearAllData} className="text-[9px] font-bold text-red-500/60 hover:text-red-600 uppercase tracking-widest transition-colors">Terminate All</button>
+                        <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Gestão de Estoque</h2>
+                        <div className="flex gap-2">
+                            <button onClick={exportCSV} className="text-[9px] font-bold text-zinc-400 hover:text-zinc-600 uppercase tracking-widest transition-colors">CSV</button>
+                            <button onClick={exportJSON} className="text-[9px] font-bold text-zinc-400 hover:text-zinc-600 uppercase tracking-widest transition-colors">JSON</button>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                        <button onClick={exportCSV} className="py-4 md:py-3 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 text-zinc-600 dark:text-zinc-300 rounded-2xl text-[10px] md:text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-white/10 transition-all">Export CSV</button>
-                        <button onClick={exportJSON} className="py-4 md:py-3 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 text-zinc-600 dark:text-zinc-300 rounded-2xl text-[10px] md:text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-white/10 transition-all">Export JSON</button>
-                        <button onClick={() => fileRef.current?.click()} className="py-4 md:py-3 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 text-zinc-600 dark:text-zinc-300 rounded-2xl text-[10px] md:text-[9px] font-bold uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-white/10 transition-all">Import Protocol</button>
-                        <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importJSON} />
+
+                    {/* Stock Alerts */}
+                    <div className="space-y-4 mb-6">
+                        {/* Low Stock Alert */}
+                        {items.filter(i => getStockStatus(i) === 'low').length > 0 && (
+                            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200/50 dark:border-rose-500/20">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.5)]"></div>
+                                    <h4 className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Estoque Baixo</h4>
+                                    <span className="ml-auto text-xs font-bold text-rose-500">{items.filter(i => getStockStatus(i) === 'low').length} itens</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {items.filter(i => getStockStatus(i) === 'low').slice(0, 5).map(item => (
+                                        <span key={item.id} className="px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-500/20">
+                                            {item.name} ({getTotalQuantity(item)}/{item.minStock} {item.unit})
+                                        </span>
+                                    ))}
+                                    {items.filter(i => getStockStatus(i) === 'low').length > 5 && (
+                                        <span className="px-3 py-1.5 text-xs font-medium text-rose-400">+{items.filter(i => getStockStatus(i) === 'low').length - 5} mais</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Warning Stock */}
+                        {items.filter(i => getStockStatus(i) === 'warning').length > 0 && (
+                            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-500/20">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]"></div>
+                                    <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Próximo do Mínimo</h4>
+                                    <span className="ml-auto text-xs font-bold text-amber-500">{items.filter(i => getStockStatus(i) === 'warning').length} itens</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {items.filter(i => getStockStatus(i) === 'warning').slice(0, 5).map(item => (
+                                        <span key={item.id} className="px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-lg text-xs font-medium text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-500/20">
+                                            {item.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* High Stock */}
+                        {items.filter(i => getStockStatus(i) === 'high').length > 0 && (
+                            <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200/50 dark:border-blue-500/20">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                    <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Acima do Máximo</h4>
+                                    <span className="ml-auto text-xs font-bold text-blue-500">{items.filter(i => getStockStatus(i) === 'high').length} itens</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {items.filter(i => getStockStatus(i) === 'high').slice(0, 5).map(item => (
+                                        <span key={item.id} className="px-3 py-1.5 bg-white dark:bg-zinc-900 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-500/20">
+                                            {item.name} ({getTotalQuantity(item)}/{item.maxStock} {item.unit})
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* All OK */}
+                        {items.filter(i => getStockStatus(i) === 'low' || getStockStatus(i) === 'warning' || getStockStatus(i) === 'high').length === 0 && items.length > 0 && (
+                            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/50 dark:border-emerald-500/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Todos os Níveis OK</h4>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    {/* Category Management */}
+
+                    {/* Actions */}
                     <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
-                        <h3 className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-4">Category Management</h3>
-                        <button
-                            onClick={() => setIsManagingCategories(true)}
-                            className="w-full py-4 md:py-3 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] md:text-[9px] font-bold uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Gerenciar Categorias e Subcategorias
-                        </button>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => setIsManagingCategories(true)}
+                                className="py-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                Categorias
+                            </button>
+                            <button onClick={clearAllData} className="py-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Limpar Tudo
+                            </button>
+                        </div>
+                        <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importJSON} />
                     </div>
                 </div>
             </section>
 
             {/* Category Management Modal */}
             {isManagingCategories && (
-                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4">
+                <div className="fixed inset-0 z-[10000] flex items-start md:items-center justify-center p-4 pt-20 md:pt-4">
                     <ModalScrollLock />
                     {/* Backdrop */}
                     <div
