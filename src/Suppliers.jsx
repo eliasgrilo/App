@@ -527,30 +527,16 @@ export default function Suppliers() {
                                     <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-white/5">
                                         <h4 className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Contato</h4>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Telefone</label>
-                                                <input
-                                                    type="tel"
-                                                    inputMode="tel"
-                                                    className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                                                    placeholder="(00) 00000-0000"
-                                                    value={formData.phone}
-                                                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">WhatsApp</label>
-                                                <input
-                                                    type="tel"
-                                                    inputMode="tel"
-                                                    className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                                                    placeholder="+55 00 00000-0000"
-                                                    value={formData.whatsapp}
-                                                    onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
-                                                />
-                                            </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Telefone</label>
+                                            <input
+                                                type="tel"
+                                                inputMode="tel"
+                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                                                placeholder="(00) 00000-0000"
+                                                value={formData.phone}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                            />
                                         </div>
 
                                         <div>
