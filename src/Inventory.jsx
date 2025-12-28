@@ -159,7 +159,9 @@ export default function Inventory() {
         subcategory: 'Outros Ingredientes',
         purchaseDate: new Date().toISOString().split('T')[0],
         supplierId: null,
-        supplierName: ''
+        supplierName: '',
+        minStock: '',
+        maxStock: ''
     })
 
     // Cloud Sync Debounce
@@ -189,6 +191,18 @@ export default function Inventory() {
     // Calculate total quantity for an item (total weight/volume)
     const getTotalQuantity = (item) => {
         return (Number(item.packageQuantity) || 0) * (Number(item.packageCount) || 1)
+    }
+
+    // Stock status indicator
+    const getStockStatus = (item) => {
+        const total = getTotalQuantity(item)
+        const min = Number(item.minStock) || 0
+        const max = Number(item.maxStock) || 0
+
+        if (min > 0 && total < min) return 'low' // Below minimum
+        if (min > 0 && total <= min * 1.2) return 'warning' // Near minimum (≤120%)
+        if (max > 0 && total > max) return 'high' // Above maximum
+        return 'ok' // Within range
     }
 
     // Calculate total value for an item
@@ -242,6 +256,8 @@ export default function Inventory() {
             purchaseDate: newItem.purchaseDate,
             supplierId: newItem.supplierId,
             supplierName: newItem.supplierName,
+            minStock: Number(newItem.minStock) || 0,
+            maxStock: Number(newItem.maxStock) || 0,
             createdAt: new Date().toISOString()
         }
 
@@ -256,7 +272,9 @@ export default function Inventory() {
             subcategory: 'Outros Ingredientes',
             purchaseDate: new Date().toISOString().split('T')[0],
             supplierId: null,
-            supplierName: ''
+            supplierName: '',
+            minStock: '',
+            maxStock: ''
         })
         setSupplierSearchQuery('')
         setIsAddingItem(false)
@@ -747,6 +765,45 @@ export default function Inventory() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Stock Limits Section */}
+                        <div className="mt-6 p-5 rounded-2xl bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10">
+                            <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-4">Limites de Estoque</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Mínimo</label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            inputMode="decimal"
+                                            className="w-full px-4 py-4 rounded-2xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-right text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-zinc-300"
+                                            placeholder="0"
+                                            value={newItem.minStock}
+                                            onChange={(e) => setNewItem(prev => ({ ...prev, minStock: e.target.value }))}
+                                        />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-500/50 text-sm font-bold pointer-events-none">{newItem.unit}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Máximo</label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            inputMode="decimal"
+                                            className="w-full px-4 py-4 rounded-2xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-right text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-zinc-300"
+                                            placeholder="0"
+                                            value={newItem.maxStock}
+                                            onChange={(e) => setNewItem(prev => ({ ...prev, maxStock: e.target.value }))}
+                                        />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-500/50 text-sm font-bold pointer-events-none">{newItem.unit}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-xs text-amber-600/70 dark:text-amber-400/50 mt-3">Deixe em 0 para desativar alertas</p>
+                        </div>
+
                         {/* Total Preview */}
                         {newItem.packageQuantity && newItem.packageCount && (
                             <div className="mt-6 p-5 rounded-2xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 shadow-inner">
@@ -986,7 +1043,17 @@ export default function Inventory() {
                                             ) : (
                                                 <>
                                                     {/* View Mode */}
-                                                    <div className="col-span-3">
+                                                    <div className="col-span-3 flex items-center gap-2">
+                                                        {/* Stock Level Indicator */}
+                                                        {getStockStatus(item) === 'low' && (
+                                                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)] animate-pulse" title="Estoque baixo" />
+                                                        )}
+                                                        {getStockStatus(item) === 'warning' && (
+                                                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]" title="Próximo do mínimo" />
+                                                        )}
+                                                        {getStockStatus(item) === 'high' && (
+                                                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)]" title="Acima do máximo" />
+                                                        )}
                                                         <span className="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">{item.name}</span>
                                                     </div>
                                                     <div className="col-span-2 text-center">
@@ -1027,167 +1094,174 @@ export default function Inventory() {
 
                             {/* Mobile View - Cards Premium */}
                             <div className="md:hidden space-y-3 p-4 bg-zinc-50/50 dark:bg-white/[0.01]">
-                                {categoryItems.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${editingId === item.id
-                                            ? 'border-indigo-500/30 shadow-lg shadow-indigo-500/5'
-                                            : 'border-zinc-200/60 dark:border-white/5 shadow-sm'
-                                            }`}
-                                    >
-                                        {editingId === item.id ? (
-                                            /* Mobile Edit Mode */
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] animate-pulse"></div>
-                                                        <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">Editando Item</h4>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => setEditingId(null)}
-                                                            className="p-2 rounded-xl text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all active:scale-95"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteItem(item.id)}
-                                                            className="p-2 rounded-xl text-red-500 bg-red-50/50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all active:scale-95"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                {categoryItems.map((item) => {
+                                    const stockStatus = getStockStatus(item)
+                                    const stockBorderClass = stockStatus === 'low' ? 'border-l-4 border-l-rose-500' :
+                                        stockStatus === 'warning' ? 'border-l-4 border-l-amber-500' :
+                                            stockStatus === 'high' ? 'border-l-4 border-l-blue-500' : ''
 
-                                                {/* Nome */}
-                                                <div>
-                                                    <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Nome</label>
-                                                    <input
-                                                        type="text"
-                                                        className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-800 dark:text-zinc-100 font-semibold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder:text-zinc-300"
-                                                        value={item.name}
-                                                        onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
-                                                    />
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Qtd</label>
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${stockBorderClass} ${editingId === item.id
+                                                ? 'border-indigo-500/30 shadow-lg shadow-indigo-500/5'
+                                                : 'border-zinc-200/60 dark:border-white/5 shadow-sm'
+                                                }`}
+                                        >
+                                            {editingId === item.id ? (
+                                                /* Mobile Edit Mode */
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] animate-pulse"></div>
+                                                            <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">Editando Item</h4>
+                                                        </div>
                                                         <div className="flex gap-2">
-                                                            <input
-                                                                type="number"
-                                                                step="0.01"
-                                                                inputMode="decimal"
-                                                                className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-center font-bold text-lg text-zinc-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-                                                                value={item.packageQuantity}
-                                                                onChange={(e) => handleUpdateItem(item.id, 'packageQuantity', e.target.value)}
-                                                            />
+                                                            <button
+                                                                onClick={() => setEditingId(null)}
+                                                                className="p-2 rounded-xl text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all active:scale-95"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteItem(item.id)}
+                                                                className="p-2 rounded-xl text-red-500 bg-red-50/50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all active:scale-95"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
                                                         </div>
                                                     </div>
+
+                                                    {/* Nome */}
                                                     <div>
-                                                        <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Unidade</label>
-                                                        <div className="relative">
+                                                        <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Nome</label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-zinc-800 dark:text-zinc-100 font-semibold focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder:text-zinc-300"
+                                                            value={item.name}
+                                                            onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
+                                                        />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Qtd</label>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    inputMode="decimal"
+                                                                    className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-center font-bold text-lg text-zinc-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
+                                                                    value={item.packageQuantity}
+                                                                    onChange={(e) => handleUpdateItem(item.id, 'packageQuantity', e.target.value)}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Unidade</label>
+                                                            <div className="relative">
+                                                                <select
+                                                                    className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 font-bold text-center appearance-none text-zinc-700 dark:text-zinc-300 focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
+                                                                    value={item.unit}
+                                                                    onChange={(e) => handleUpdateItem(item.id, 'unit', e.target.value)}
+                                                                >
+                                                                    <option value="kg">kg</option>
+                                                                    <option value="g">g</option>
+                                                                    <option value="L">L</option>
+                                                                    <option value="ml">ml</option>
+                                                                    <option value="un">un</option>
+                                                                    <option value="cx">cx</option>
+                                                                </select>
+                                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Price Section - Mobile */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Nº Pcts</label>
+                                                            <input
+                                                                type="number"
+                                                                inputMode="numeric"
+                                                                className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-center font-bold text-lg text-zinc-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
+                                                                value={item.packageCount}
+                                                                onChange={(e) => handleUpdateItem(item.id, 'packageCount', e.target.value)}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Preço/Un</label>
+                                                            <div className="relative group">
+                                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-indigo-400 transition-colors text-xs font-bold">R$</span>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    inputMode="decimal"
+                                                                    className="w-full pl-8 pr-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-right font-bold text-lg text-zinc-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
+                                                                    value={item.pricePerUnit}
+                                                                    onChange={(e) => handleUpdateItem(item.id, 'pricePerUnit', e.target.value)}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Subcategory Dropdown - Mobile */}
+                                                    {item.category === 'Ingredientes' && (
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Subcategoria</label>
                                                             <select
-                                                                className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 font-bold text-center appearance-none text-zinc-700 dark:text-zinc-300 focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-                                                                value={item.unit}
-                                                                onChange={(e) => handleUpdateItem(item.id, 'unit', e.target.value)}
+                                                                className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 font-semibold text-zinc-700 dark:text-zinc-300 focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all appearance-none"
+                                                                value={item.subcategory || ''}
+                                                                onChange={(e) => handleUpdateItem(item.id, 'subcategory', e.target.value)}
                                                             >
-                                                                <option value="kg">kg</option>
-                                                                <option value="g">g</option>
-                                                                <option value="L">L</option>
-                                                                <option value="ml">ml</option>
-                                                                <option value="un">un</option>
-                                                                <option value="cx">cx</option>
+                                                                {subcategories.map(sub => (
+                                                                    <option key={sub} value={sub}>{sub}</option>
+                                                                ))}
                                                             </select>
-                                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                                                </svg>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                /* Mobile View Mode */
+                                                /* Mobile View Mode - Ultra Premium */
+                                                <div onClick={() => setEditingId(item.id)} className="group cursor-pointer">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div>
+                                                            <h4 className="font-semibold text-zinc-800 dark:text-zinc-100 text-[15px] tracking-tight mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{item.name}</h4>
+                                                            <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 text-[10px] font-bold text-zinc-500 dark:text-zinc-400 tabular-nums uppercase tracking-wide">
+                                                                {getTotalQuantity(item)} {item.unit} em estoque
+                                                            </div>
+                                                        </div>
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-zinc-900 dark:bg-white text-[10px] font-semibold text-white dark:text-zinc-900 shadow-sm ring-1 ring-inset ring-white/10 dark:ring-black/10">
+                                                            {item.packageCount} pcts
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex items-end justify-between pt-4 border-t border-dashed border-zinc-100 dark:border-white/5">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600 mb-0.5">Unitário</span>
+                                                            <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 tabular-nums">{formatCurrency(item.pricePerUnit)}</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-end">
+                                                            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-400 dark:text-indigo-400/80 mb-0.5">Total</span>
+                                                            <div className="flex items-baseline gap-1">
+                                                                <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200 tracking-tight tabular-nums">{formatCurrency(getItemTotal(item) * (1 + taxRate))}</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-
-                                                {/* Price Section - Mobile */}
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Nº Pcts</label>
-                                                        <input
-                                                            type="number"
-                                                            inputMode="numeric"
-                                                            className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-center font-bold text-lg text-zinc-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-                                                            value={item.packageCount}
-                                                            onChange={(e) => handleUpdateItem(item.id, 'packageCount', e.target.value)}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Preço/Un</label>
-                                                        <div className="relative group">
-                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-indigo-400 transition-colors text-xs font-bold">R$</span>
-                                                            <input
-                                                                type="number"
-                                                                step="0.01"
-                                                                inputMode="decimal"
-                                                                className="w-full pl-8 pr-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 text-right font-bold text-lg text-zinc-900 dark:text-white focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-                                                                value={item.pricePerUnit}
-                                                                onChange={(e) => handleUpdateItem(item.id, 'pricePerUnit', e.target.value)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Subcategory Dropdown - Mobile */}
-                                                {item.category === 'Ingredientes' && (
-                                                    <div>
-                                                        <label className="text-[9px] font-bold text-zinc-400/80 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 block ml-1">Subcategoria</label>
-                                                        <select
-                                                            className="w-full px-4 py-3 rounded-xl bg-zinc-50/50 dark:bg-black/20 border border-zinc-100 dark:border-white/5 font-semibold text-zinc-700 dark:text-zinc-300 focus:outline-none focus:bg-white dark:focus:bg-black/40 focus:ring-1 focus:ring-indigo-500/30 transition-all appearance-none"
-                                                            value={item.subcategory || ''}
-                                                            onChange={(e) => handleUpdateItem(item.id, 'subcategory', e.target.value)}
-                                                        >
-                                                            {subcategories.map(sub => (
-                                                                <option key={sub} value={sub}>{sub}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            /* Mobile View Mode */
-                                            /* Mobile View Mode - Ultra Premium */
-                                            <div onClick={() => setEditingId(item.id)} className="group cursor-pointer">
-                                                <div className="flex items-start justify-between mb-4">
-                                                    <div>
-                                                        <h4 className="font-semibold text-zinc-800 dark:text-zinc-100 text-[15px] tracking-tight mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{item.name}</h4>
-                                                        <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 text-[10px] font-bold text-zinc-500 dark:text-zinc-400 tabular-nums uppercase tracking-wide">
-                                                            {getTotalQuantity(item)} {item.unit} em estoque
-                                                        </div>
-                                                    </div>
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-zinc-900 dark:bg-white text-[10px] font-semibold text-white dark:text-zinc-900 shadow-sm ring-1 ring-inset ring-white/10 dark:ring-black/10">
-                                                        {item.packageCount} pcts
-                                                    </span>
-                                                </div>
-
-                                                <div className="flex items-end justify-between pt-4 border-t border-dashed border-zinc-100 dark:border-white/5">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600 mb-0.5">Unitário</span>
-                                                        <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 tabular-nums">{formatCurrency(item.pricePerUnit)}</span>
-                                                    </div>
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-400 dark:text-indigo-400/80 mb-0.5">Total</span>
-                                                        <div className="flex items-baseline gap-1">
-                                                            <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200 tracking-tight tabular-nums">{formatCurrency(getItemTotal(item) * (1 + taxRate))}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                            )}
+                                        </div>
+                                    )
+                                })}
                             </div>
 
                             {/* Category Footer - Inside the Card */}
