@@ -453,22 +453,17 @@ export default function Kanban() {
                     ))}
                 </AnimatePresence>
 
-                {/* Add Column */}
-                {addingCol ? (
-                    <motion.div initial={{ opacity: 0, x: 20, scale: 0.95 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: 20, scale: 0.95 }} transition={spring.enter} className="flex-shrink-0 w-80 p-6 rounded-[2rem] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 shadow-xl h-min">
-                        <input autoFocus value={newColTitle} onChange={e => setNewColTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addColumn(); if (e.key === 'Escape') { setAddingCol(false); setNewColTitle('') } }} placeholder="Nome da lista..." className="w-full bg-zinc-50 dark:bg-zinc-900 px-4 py-4 rounded-xl text-zinc-900 dark:text-white font-medium outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-zinc-500/50 mb-4" />
-                        <div className="flex gap-3">
-                            <button onClick={addColumn} className="flex-1 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-3 rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">Criar</button>
-                            <button onClick={() => { setAddingCol(false); setNewColTitle('') }} className="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 py-3 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Cancelar</button>
-                        </div>
-                    </motion.div>
-                ) : (
-                    <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} onClick={() => setAddingCol(true)} className="flex-shrink-0 w-14 h-14 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-lg flex items-center justify-center text-zinc-400 transition-all">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </motion.button>
-                )}
+                {/* Add Column Button */}
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setAddingCol(true)}
+                    className="flex-shrink-0 w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg hover:shadow-xl flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all"
+                >
+                    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                </motion.button>
             </div>
 
             {/* Mobile Zoom */}
@@ -493,6 +488,100 @@ export default function Kanban() {
             <AnimatePresence>
                 {confirmModal && <ConfirmationModal {...confirmModal} />}
             </AnimatePresence>
+
+            {/* Add Column Modal */}
+            {createPortal(
+                <AnimatePresence>
+                    {addingCol && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto p-4"
+                            style={{ paddingTop: '80px', paddingBottom: '40px' }}
+                        >
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+                                onClick={() => { setAddingCol(false); setNewColTitle('') }}
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 30, scale: 0.98 }}
+                                transition={spring.modal}
+                                className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-6"
+                            >
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-6 tracking-tight">Nova Lista</h3>
+                                <input
+                                    autoFocus
+                                    value={newColTitle}
+                                    onChange={e => setNewColTitle(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') addColumn(); if (e.key === 'Escape') { setAddingCol(false); setNewColTitle('') } }}
+                                    placeholder="Nome da lista..."
+                                    className="w-full bg-zinc-50 dark:bg-zinc-800 px-4 py-4 rounded-2xl text-zinc-900 dark:text-white font-medium outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-zinc-500/50 mb-6"
+                                />
+                                <div className="flex gap-3">
+                                    <button onClick={() => { setAddingCol(false); setNewColTitle('') }} className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors active:scale-[0.98]">Cancelar</button>
+                                    <button onClick={addColumn} disabled={!newColTitle.trim()} className="flex-1 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs font-bold uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">Criar Lista</button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
+
+            {/* Add Card Modal */}
+            {createPortal(
+                <AnimatePresence>
+                    {addingCardToCol && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto p-4"
+                            style={{ paddingTop: '80px', paddingBottom: '40px' }}
+                        >
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+                                onClick={() => { setAddingCardToCol(null); setNewCardTitle('') }}
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 30, scale: 0.98 }}
+                                transition={spring.modal}
+                                className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-6"
+                            >
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2 tracking-tight">Novo Cartão</h3>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+                                    {board.columns.find(c => c.id === addingCardToCol)?.title}
+                                </p>
+                                <textarea
+                                    autoFocus
+                                    value={newCardTitle}
+                                    onChange={e => setNewCardTitle(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addCard(addingCardToCol) } if (e.key === 'Escape') { setAddingCardToCol(null); setNewCardTitle('') } }}
+                                    placeholder="Título do cartão..."
+                                    className="w-full bg-zinc-50 dark:bg-zinc-800 px-4 py-4 rounded-2xl text-zinc-900 dark:text-white font-medium outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-zinc-500/50 resize-none mb-6"
+                                    rows={3}
+                                />
+                                <div className="flex gap-3">
+                                    <button onClick={() => { setAddingCardToCol(null); setNewCardTitle('') }} className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors active:scale-[0.98]">Cancelar</button>
+                                    <button onClick={() => addCard(addingCardToCol)} disabled={!newCardTitle.trim()} className="flex-1 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs font-bold uppercase tracking-wider shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50">Adicionar</button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
 
             {/* Premium Toast */}
             <AnimatePresence>
@@ -588,18 +677,13 @@ const KanbanColumn = React.memo(({
                         )}
                 </AnimatePresence>
 
-                {/* Add Card UI */}
-                {addingCardToCol === col.id ? (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={spring.enter} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-lg">
-                        <textarea autoFocus value={newCardTitle} onChange={e => setNewCardTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addCard(col.id) } if (e.key === 'Escape') setAddingCardToCol(null) }} placeholder="Título do cartão..." className="w-full bg-zinc-50 dark:bg-zinc-800 rounded-xl px-4 py-3 text-sm outline-none border border-zinc-200/50 dark:border-zinc-700 focus:ring-2 focus:ring-zinc-500/50 resize-none mb-3" rows={2} />
-                        <div className="flex justify-end gap-2">
-                            <button onClick={() => setAddingCardToCol(null)} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={() => addCard(col.id)} disabled={!newCardTitle.trim()} className="px-5 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-xl shadow-md disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] transition-all">Adicionar</button>
-                        </div>
-                    </motion.div>
-                ) : (
-                    <button onClick={() => { setAddingCardToCol(col.id); setNewCardTitle('') }} className="w-full py-4 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-all">+ Cartão</button>
-                )}
+                {/* Add Card Button - Opens Modal */}
+                <button
+                    onClick={() => { setAddingCardToCol(col.id); setNewCardTitle('') }}
+                    className="w-full min-h-[48px] py-4 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.98] touch-manipulation"
+                >
+                    + Cartão
+                </button>
             </div>
         </motion.div>
     )
