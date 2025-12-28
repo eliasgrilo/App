@@ -557,8 +557,8 @@ export default function Inventory() {
             </section>
 
             {/* Add Item Modal - Premium Bottom Sheet */}
-            {isAddingItem && (
-                <div className="fixed inset-0 z-[10000] flex items-start md:items-center justify-center p-4 pt-20 md:pt-4">
+            {isAddingItem && createPortal(
+                <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 overflow-y-auto" style={{ paddingTop: '80px', paddingBottom: '40px' }}>
                     <ModalScrollLock />
                     {/* Backdrop */}
                     <div
@@ -567,27 +567,22 @@ export default function Inventory() {
                     ></div>
 
                     {/* Modal Content */}
-                    <div className="relative w-full md:max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] p-6 pb-8 md:p-8 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
-                    >
-
-                        {/* Drag Handle (Mobile only) */}
-                        <div className="md:hidden w-full flex justify-center mb-6">
-                            <div className="w-12 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700/50"></div>
-                        </div>
-
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">Novo Item</h3>
+                    <div className="relative w-full md:max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100 dark:border-zinc-800 flex-shrink-0">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Novo Item</h3>
                             <button
                                 onClick={() => setIsAddingItem(false)}
-                                className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                                className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-5">
+                        {/* Scrollable Content */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
                             {/* Name */}
                             <div className="sm:col-span-2 lg:col-span-12">
                                 <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Nome do Item</label>
@@ -845,7 +840,8 @@ export default function Inventory() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Search Bar - Premium Apple Design */}
