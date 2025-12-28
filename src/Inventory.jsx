@@ -1322,14 +1322,14 @@ export default function Inventory() {
                                 key={filter.id}
                                 onClick={() => setStockFilter(filter.id)}
                                 className={`flex-1 min-w-[80px] px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${stockFilter === filter.id
-                                        ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
-                                        : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                    ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                                     }`}
                             >
                                 {filter.label}
                                 <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] ${stockFilter === filter.id
-                                        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                        : 'bg-zinc-200/50 dark:bg-zinc-700 text-zinc-500'
+                                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                    : 'bg-zinc-200/50 dark:bg-zinc-700 text-zinc-500'
                                     }`}>{filter.count}</span>
                             </button>
                         ))}
@@ -1429,33 +1429,72 @@ export default function Inventory() {
 
             {/* Item Configuration Modal */}
             {configuringItem && createPortal(
-                <div className="fixed inset-0 z-[10000] flex items-start md:items-center justify-center p-4 pt-20 md:pt-4 overflow-y-auto">
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 overflow-y-auto" style={{ paddingTop: '80px', paddingBottom: '40px' }}>
                     <ModalScrollLock />
                     <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm" onClick={() => setConfiguringItem(null)}></div>
-                    <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl">
-                        <button onClick={() => setConfiguringItem(null)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                        <div className="text-center mb-6 pt-2">
-                            <div className={`inline-flex w-16 h-16 rounded-2xl items-center justify-center text-2xl font-bold text-white mb-4 ${getStockStatus(configuringItem) === 'low' ? 'bg-gradient-to-br from-rose-500 to-rose-600' : getStockStatus(configuringItem) === 'warning' ? 'bg-gradient-to-br from-amber-500 to-amber-600' : getStockStatus(configuringItem) === 'high' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-emerald-500 to-emerald-600'}`}>
-                                {configuringItem.name?.charAt(0)?.toUpperCase() || '?'}
-                            </div>
-                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">{configuringItem.name}</h3>
-                            <p className="text-sm text-zinc-500 mt-1">Estoque atual: <span className="font-bold text-zinc-900 dark:text-white">{getTotalQuantity(configuringItem)} {configuringItem.unit}</span></p>
+                    <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl">
+                        {/* Header with Close Button */}
+                        <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Configurar Limites</h3>
+                            <button
+                                onClick={() => setConfiguringItem(null)}
+                                className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Estoque Mínimo</label>
-                                <input type="number" step="0.01" inputMode="decimal" className="w-full px-4 py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-zinc-900 dark:text-white text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all" placeholder="0" value={configuringItem.minStock || ''} onChange={(e) => { handleUpdateItem(configuringItem.id, 'minStock', e.target.value); setConfiguringItem(prev => ({ ...prev, minStock: Number(e.target.value) || 0 })) }} />
-                                <p className="text-[10px] text-amber-500 text-center mt-1">{configuringItem.unit}</p>
+
+                        {/* Content */}
+                        <div className="p-6">
+                            {/* Item Info */}
+                            <div className="text-center mb-6">
+                                <div className={`inline-flex w-16 h-16 rounded-2xl items-center justify-center text-2xl font-bold text-white mb-4 ${getStockStatus(configuringItem) === 'low' ? 'bg-gradient-to-br from-rose-500 to-rose-600' : getStockStatus(configuringItem) === 'warning' ? 'bg-gradient-to-br from-amber-500 to-amber-600' : getStockStatus(configuringItem) === 'high' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-emerald-500 to-emerald-600'}`}>
+                                    {configuringItem.name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                                <h4 className="text-xl font-bold text-zinc-900 dark:text-white">{configuringItem.name}</h4>
+                                <p className="text-sm text-zinc-500 mt-1">Estoque atual: <span className="font-bold text-zinc-900 dark:text-white">{getTotalQuantity(configuringItem)} {configuringItem.unit}</span></p>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Estoque Máximo</label>
-                                <input type="number" step="0.01" inputMode="decimal" className="w-full px-4 py-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-zinc-900 dark:text-white text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all" placeholder="0" value={configuringItem.maxStock || ''} onChange={(e) => { handleUpdateItem(configuringItem.id, 'maxStock', e.target.value); setConfiguringItem(prev => ({ ...prev, maxStock: Number(e.target.value) || 0 })) }} />
-                                <p className="text-[10px] text-blue-500 text-center mt-1">{configuringItem.unit}</p>
+
+                            {/* Min/Max Inputs */}
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Estoque Mínimo</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        inputMode="decimal"
+                                        className="w-full px-4 py-4 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-zinc-900 dark:text-white text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
+                                        placeholder="0"
+                                        value={configuringItem.minStock || ''}
+                                        onChange={(e) => { handleUpdateItem(configuringItem.id, 'minStock', e.target.value); setConfiguringItem(prev => ({ ...prev, minStock: Number(e.target.value) || 0 })) }}
+                                    />
+                                    <p className="text-[10px] text-amber-500 text-center mt-1">{configuringItem.unit}</p>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Estoque Máximo</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        inputMode="decimal"
+                                        className="w-full px-4 py-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-zinc-900 dark:text-white text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                                        placeholder="0"
+                                        value={configuringItem.maxStock || ''}
+                                        onChange={(e) => { handleUpdateItem(configuringItem.id, 'maxStock', e.target.value); setConfiguringItem(prev => ({ ...prev, maxStock: Number(e.target.value) || 0 })) }}
+                                    />
+                                    <p className="text-[10px] text-blue-500 text-center mt-1">{configuringItem.unit}</p>
+                                </div>
                             </div>
+
+                            {/* Save Button */}
+                            <button
+                                onClick={() => setConfiguringItem(null)}
+                                className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-sm font-bold uppercase tracking-wider shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                            >
+                                Salvar Limites
+                            </button>
                         </div>
-                        <button onClick={() => setConfiguringItem(null)} className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-sm font-bold uppercase tracking-wider shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all">Salvar Limites</button>
                     </div>
                 </div>,
                 document.body
