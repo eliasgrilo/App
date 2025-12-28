@@ -8,6 +8,7 @@ import Production from './Production.jsx'
 import Recipes from './Recipes.jsx'
 import Kanban from './Kanban.jsx'
 import Suppliers from './Suppliers.jsx'
+import Products from './Products.jsx'
 
 /**
  * App - Premium Navigation Shell
@@ -18,6 +19,7 @@ import Suppliers from './Suppliers.jsx'
 const NAV_ITEMS = [
   { key: 'kanban', label: 'Kanban', icon: KanbanIcon },
   { key: 'recipes', label: 'Receitas', icon: RecipesIcon },
+  { key: 'products', label: 'Produtos', icon: ProductsIcon },
   { key: 'inventory', label: 'Estoque', icon: InventoryIcon },
   { key: 'suppliers', label: 'Fornecedores', icon: SuppliersIcon },
   { key: 'costs', label: 'Financeiro', icon: CostsIcon },
@@ -82,6 +84,14 @@ function SuppliersIcon({ active }) {
   )
 }
 
+function ProductsIcon({ active }) {
+  return (
+    <svg className={`w-4 h-4 transition-all ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.5 : 2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+    </svg>
+  )
+}
+
 // Spring animation configuration
 const spring = {
   type: "spring",
@@ -104,6 +114,7 @@ export default function App() {
     return saved || 'recipes'
   })
   const [isLoaded, setIsLoaded] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Smooth initial load
   useEffect(() => {
@@ -111,10 +122,17 @@ export default function App() {
   }, [])
 
   const handleViewChange = (newView) => {
-    if (newView === view) return
+    if (newView === view) {
+      setMobileMenuOpen(false)
+      return
+    }
     setView(newView)
+    setMobileMenuOpen(false)
     localStorage.setItem('padoca_view', newView)
   }
+
+  // Get current view label
+  const currentLabel = NAV_ITEMS.find(item => item.key === view)?.label || 'Menu'
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-100 text-zinc-900 dark:from-black dark:via-zinc-950 dark:to-black dark:text-zinc-100 transition-colors duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
@@ -133,7 +151,7 @@ export default function App() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pb-8">
 
         {/* Premium Header */}
-        <header className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 pb-4 mb-6 md:relative md:pt-8 md:mb-8">
+        <header className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-2 mb-2 md:relative md:pt-8 md:pb-4 md:mb-6">
 
           {/* Glass Background */}
           <motion.div
@@ -143,7 +161,7 @@ export default function App() {
             className="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-2xl md:bg-transparent md:backdrop-blur-none border-b border-zinc-200/50 dark:border-white/5 md:border-none"
           />
 
-          <div className="relative flex flex-col gap-5">
+          <div className="relative flex flex-col gap-0 md:gap-5">
 
             {/* Title Row */}
             <div className="flex items-center justify-between">
@@ -159,6 +177,26 @@ export default function App() {
                   Sistema de Produção & Gestão
                 </p>
               </motion.div>
+
+              {/* Mobile: Hamburger Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="relative w-11 h-11 flex items-center justify-center -mr-2 md:hidden"
+                aria-label="Menu"
+              >
+                <div className="relative w-[18px] h-[10px]">
+                  <motion.span
+                    animate={mobileMenuOpen ? { rotate: 45, y: 4 } : { rotate: 0, y: 0 }}
+                    transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="absolute top-0 left-0 right-0 h-[1.5px] bg-zinc-800 dark:bg-zinc-200 origin-center"
+                  />
+                  <motion.span
+                    animate={mobileMenuOpen ? { rotate: -45, y: -4 } : { rotate: 0, y: 0 }}
+                    transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-zinc-800 dark:bg-zinc-200 origin-center"
+                  />
+                </div>
+              </button>
 
               {/* Unit Toggle - Desktop */}
               <motion.div
@@ -182,13 +220,82 @@ export default function App() {
               </motion.div>
             </div>
 
-            {/* Navigation Pills - Premium */}
-            <nav className="flex items-center gap-2">
+            {/* Full-Screen Mobile Menu Overlay */}
+            <AnimatePresence>
+              {mobileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="fixed inset-0 z-[9999] bg-white dark:bg-black md:hidden"
+                  style={{ top: 0 }}
+                >
+                  {/* Close Button */}
+                  <div className="absolute top-3 right-4 z-10">
+                    <button
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-11 h-11 flex items-center justify-center"
+                      aria-label="Close"
+                    >
+                      <div className="relative w-[18px] h-[10px]">
+                        <span className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-zinc-800 dark:bg-zinc-200 rotate-45 -translate-y-1/2" />
+                        <span className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-zinc-800 dark:bg-zinc-200 -rotate-45 -translate-y-1/2" />
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="flex flex-col justify-center h-full px-8 -mt-16">
+                    {NAV_ITEMS.map(({ key, label }, index) => {
+                      const isActive = view === key
+                      return (
+                        <motion.button
+                          key={key}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{
+                            delay: index * 0.05,
+                            duration: 0.3,
+                            ease: [0.25, 0.46, 0.45, 0.94]
+                          }}
+                          onClick={() => handleViewChange(key)}
+                          className={`text-left py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-0 transition-colors ${isActive
+                            ? 'text-zinc-900 dark:text-white'
+                            : 'text-zinc-400 dark:text-zinc-500'
+                            }`}
+                        >
+                          <span className="text-[28px] font-semibold tracking-tight">
+                            {label}
+                          </span>
+                        </motion.button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Bottom Branding */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="absolute bottom-8 left-8 right-8 text-center"
+                  >
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-600 uppercase tracking-widest font-medium">
+                      Padoca Pizza
+                    </p>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Desktop Navigation */}
+            <nav className="relative hidden md:block">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, ...spring }}
-                className="flex-1 flex items-center gap-1 p-1.5 bg-zinc-100/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-2xl overflow-x-auto scrollbar-hidden border border-zinc-200/50 dark:border-white/5 shadow-sm"
+                className="flex items-center gap-1 p-1.5 bg-zinc-100/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-2xl border border-zinc-200/50 dark:border-white/5 shadow-sm"
               >
                 {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
                   const isActive = view === key
@@ -196,22 +303,19 @@ export default function App() {
                     <button
                       key={key}
                       onClick={() => handleViewChange(key)}
-                      className={`relative flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-5 py-3 text-[10px] md:text-[11px] font-semibold rounded-xl transition-all duration-200 whitespace-nowrap min-w-[60px] ${isActive
+                      className={`relative flex items-center justify-center gap-2 px-5 py-3 text-[11px] font-semibold rounded-xl transition-all duration-200 whitespace-nowrap ${isActive
                         ? 'text-zinc-900 dark:text-white'
                         : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
                         }`}
                     >
-                      {/* Active Background */}
                       {isActive && (
                         <motion.div
-                          layoutId="nav-active"
+                          layoutId="nav-active-desktop"
                           className="absolute inset-0 bg-white dark:bg-zinc-800 rounded-xl shadow-lg shadow-zinc-900/5 dark:shadow-black/20"
                           transition={spring}
                         />
                       )}
-
-                      {/* Icon + Label */}
-                      <span className="relative z-10 hidden md:block">
+                      <span className="relative z-10">
                         <Icon active={isActive} />
                       </span>
                       <span className="relative z-10 uppercase tracking-wider">{label}</span>
@@ -228,7 +332,7 @@ export default function App() {
                     animate={{ opacity: 1, scale: 1, width: 'auto' }}
                     exit={{ opacity: 0, scale: 0.8, width: 0 }}
                     transition={spring}
-                    className="md:hidden flex-shrink-0"
+                    className="md:hidden flex-shrink-0 mt-3"
                   >
                     <UnitToggle value={inputMode} onChange={setInputMode} />
                   </motion.div>
@@ -253,6 +357,8 @@ export default function App() {
               <Kanban />
             ) : view === 'recipes' ? (
               <Recipes />
+            ) : view === 'products' ? (
+              <Products />
             ) : view === 'inventory' ? (
               <Inventory />
             ) : view === 'suppliers' ? (
@@ -266,7 +372,7 @@ export default function App() {
             )}
           </motion.main>
         </AnimatePresence>
-      </div>
-    </div>
+      </div >
+    </div >
   )
 }

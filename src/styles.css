@@ -810,6 +810,16 @@ body {
   display: none;
 }
 
+/* Apple-style invisible scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ============================================
    GLASSMORPHISM EFFECTS
    ============================================ */

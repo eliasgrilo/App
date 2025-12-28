@@ -317,5 +317,30 @@ export const FirebaseService = {
             console.error("Error getting suppliers:", e);
             return null;
         }
+    },
+
+    // --- PRODUCTS ---
+    async syncProducts(products, categories) {
+        try {
+            await setDoc(doc(db, COLLECTIONS.SETTINGS, "products_v1"), cleanPayload({
+                products,
+                categories,
+                updatedAt: new Date().toISOString()
+            }));
+            return true;
+        } catch (e) {
+            console.error("Error syncing products:", e);
+            return false;
+        }
+    },
+
+    async getProducts() {
+        try {
+            const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "products_v1"));
+            return docSnap.exists() ? docSnap.data() : null;
+        } catch (e) {
+            console.error("Error getting products:", e);
+            return null;
+        }
     }
 };

@@ -14,7 +14,7 @@ const STORAGE_KEY = 'padoca_inventory_v2'
 const defaultCategories = ['Ingredientes', 'Embalagens', 'Utensílios', 'Outros']
 
 // Default Subcategories for Ingredientes
-const defaultIngredientSubcategories = ['Embutidos', 'Laticínios', 'Farináceos', 'Temperos', 'Vegetais', 'Produtos de Limpeza', 'Outros Ingredientes']
+const defaultIngredientSubcategories = ['None', 'Embutidos', 'Laticínios', 'Farináceos', 'Temperos', 'Vegetais', 'Produtos de Limpeza', 'Outros Ingredientes']
 
 export default function Inventory() {
     const [items, setItems] = useState(() => {
@@ -92,7 +92,7 @@ export default function Inventory() {
     const [isAddingItem, setIsAddingItem] = useState(false)
     const [editingId, setEditingId] = useState(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [activeSubcategoryFilter, setActiveSubcategoryFilter] = useState(null)
+    const [activeSubcategoryFilter, setActiveSubcategoryFilter] = useState('None')
     const [confirmModal, setConfirmModal] = useState(null)
 
     // Premium Toast System
@@ -120,9 +120,17 @@ export default function Inventory() {
     const [newSubcategoryName, setNewSubcategoryName] = useState('')
 
     // Stock Management state
-    const [stockFilter, setStockFilter] = useState('all') // 'all' | 'noLimits' | 'alerts' | 'ok'
+    const [stockFilter, setStockFilter] = useState('alerts') // 'all' | 'noLimits' | 'alerts' | 'ok'
     const [stockSearchQuery, setStockSearchQuery] = useState('')
     const [configuringItem, setConfiguringItem] = useState(null)
+
+    // Auto-switch filter if no alerts
+    useEffect(() => {
+        const alertCount = items.filter(item => ['low', 'warning', 'high'].includes(getStockStatus(item))).length
+        if (alertCount === 0 && stockFilter === 'alerts') {
+            setStockFilter('ok')
+        }
+    }, [items])
 
     // Suppliers state
     const [suppliers, setSuppliers] = useState([])
@@ -144,10 +152,22 @@ export default function Inventory() {
         loadSuppliers()
     }, [])
 
-    // Filter suppliers based on search
+    // Helper: Check if supplier name matches exactly (same name and word count)
+    const isExactSupplierMatch = useCallback((searchTerm, supplierName) => {
+        if (!searchTerm || !supplierName) return false
+        const normalizedSearch = searchTerm.trim().toLowerCase()
+        const normalizedSupplier = supplierName.trim().toLowerCase()
+        // Must be exactly equal AND have same word count
+        const searchWords = normalizedSearch.split(/\s+/).filter(w => w.length > 0)
+        const supplierWords = normalizedSupplier.split(/\s+/).filter(w => w.length > 0)
+        return normalizedSearch === normalizedSupplier && searchWords.length === supplierWords.length
+    }, [])
+
+    // Filter suppliers based on search - only show when pattern is found (min 2 chars)
     const filteredSuppliers = useMemo(() => {
-        if (!supplierSearchQuery.trim()) return suppliers.slice(0, 8)
-        const query = supplierSearchQuery.toLowerCase()
+        const query = supplierSearchQuery.trim().toLowerCase()
+        // Only show suggestions if at least 2 characters are typed
+        if (query.length < 2) return []
         return suppliers.filter(s =>
             s.name?.toLowerCase().includes(query) ||
             s.company?.toLowerCase().includes(query)
@@ -198,16 +218,30 @@ export default function Inventory() {
         return (Number(item.packageQuantity) || 0) * (Number(item.packageCount) || 1)
     }
 
-    // Stock status indicator
+    // Stock status indicator - Apple-quality 5-tier system
     const getStockStatus = (item) => {
         const total = getTotalQuantity(item)
         const min = Number(item.minStock) || 0
         const max = Number(item.maxStock) || 0
 
-        if (min > 0 && total < min) return 'low' // Below minimum
-        if (min > 0 && total <= min * 1.2) return 'warning' // Near minimum (≤120%)
-        if (max > 0 && total > max) return 'high' // Above maximum
-        return 'ok' // Within range
+        // No limits set
+        if (min === 0 && max === 0) return 'noLimit'
+
+        // Critical: Below minimum
+        if (min > 0 && total < min) return 'low'
+
+        // Warning: Near minimum (≤120% of min)
+        if (min > 0 && total <= min * 1.2) return 'warning'
+
+        // High: Above maximum
+        if (max > 0 && total > max) return 'high'
+
+        // Adequate: Good level (between 120% min and 80% max, or just above warning if no max)
+        if (max > 0 && total >= max * 0.6 && total <= max) return 'adequate'
+        if (min > 0 && max === 0 && total > min * 1.2) return 'adequate'
+
+        // OK: Within safe range but could be better
+        return 'ok'
     }
 
     // Calculate total value for an item
@@ -563,7 +597,7 @@ export default function Inventory() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[20000] flex items-start md:items-center justify-center p-4 pt-20 md:pt-4"
+                        className="fixed inset-0 z-[99999] flex items-end md:items-start justify-center p-0 md:p-4 md:pt-40"
                     >
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -573,11 +607,12 @@ export default function Inventory() {
                             onClick={() => setIsAddingItem(false)}
                         />
                         <motion.div
-                            initial={{ y: 50, opacity: 0 }}
+                            initial={{ y: '100%', opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: 50, opacity: 0 }}
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="relative bg-zinc-100 dark:bg-zinc-900 w-full max-w-md rounded-2xl md:rounded-[2rem] shadow-2xl border border-zinc-200/50 dark:border-white/5 flex flex-col overflow-hidden max-h-[85vh]"
+                            exit={{ y: '100%', opacity: 0 }}
+                            transition={{ type: "spring", damping: 30, stiffness: 350 }}
+                            className="relative bg-zinc-100 dark:bg-zinc-900 w-full max-w-md rounded-t-[2rem] md:rounded-[2rem] shadow-2xl border border-zinc-200/50 dark:border-white/5 flex flex-col overflow-hidden max-h-[90vh] md:max-h-[80vh]"
+                            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                         >
                             <ModalScrollLock />
 
@@ -663,7 +698,7 @@ export default function Inventory() {
                                 <div>
                                     <label className="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2">Preço por Pacote</label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-lg">R$</span>
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-lg">$</span>
                                         <input
                                             type="number"
                                             step="0.01"
@@ -732,7 +767,18 @@ export default function Inventory() {
                                                     className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all placeholder:text-zinc-400"
                                                     placeholder="Buscar fornecedor..."
                                                     value={supplierSearchQuery}
-                                                    onChange={(e) => { setSupplierSearchQuery(e.target.value); setShowSupplierDropdown(true) }}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value
+                                                        setSupplierSearchQuery(value)
+                                                        setShowSupplierDropdown(true)
+                                                        // Auto-select only if exact match (same name AND same word count)
+                                                        const exactMatch = suppliers.find(s => isExactSupplierMatch(value, s.name))
+                                                        if (exactMatch) {
+                                                            setNewItem(prev => ({ ...prev, supplierId: exactMatch.id, supplierName: exactMatch.name }))
+                                                            setSupplierSearchQuery('')
+                                                            setShowSupplierDropdown(false)
+                                                        }
+                                                    }}
                                                     onFocus={() => setShowSupplierDropdown(true)}
                                                 />
                                                 {showSupplierDropdown && filteredSuppliers.length > 0 && (
@@ -758,31 +804,51 @@ export default function Inventory() {
 
                                 {/* Stock Limits */}
                                 <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10">
-                                    <h4 className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3">Limites de Estoque</h4>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Limites de Estoque</h4>
+                                        <select
+                                            className="px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold uppercase tracking-wider border-none focus:outline-none focus:ring-2 focus:ring-amber-500/30 cursor-pointer appearance-none pr-6 bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2020%2020%22%20fill%3d%22%23d97706%22%3e%3cpath%20fill-rule%3d%22evenodd%22%20d%3d%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%20clip-rule%3d%22evenodd%22%2f%3e%3c%2fsvg%3e')] bg-no-repeat bg-[right_0.3rem_center] bg-[length:1rem]"
+                                            value={newItem.unit}
+                                            onChange={(e) => setNewItem(prev => ({ ...prev, unit: e.target.value }))}
+                                        >
+                                            <option value="kg">kg</option>
+                                            <option value="g">g</option>
+                                            <option value="L">L</option>
+                                            <option value="ml">ml</option>
+                                            <option value="un">un</option>
+                                            <option value="cx">cx</option>
+                                        </select>
+                                    </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Mínimo</label>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                inputMode="decimal"
-                                                className="w-full px-3 py-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
-                                                placeholder="0"
-                                                value={newItem.minStock}
-                                                onChange={(e) => setNewItem(prev => ({ ...prev, minStock: e.target.value }))}
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    inputMode="decimal"
+                                                    className="w-full px-3 py-3 pr-12 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
+                                                    placeholder="0"
+                                                    value={newItem.minStock}
+                                                    onChange={(e) => setNewItem(prev => ({ ...prev, minStock: e.target.value }))}
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500/60 text-sm font-bold">{newItem.unit}</span>
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Máximo</label>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                inputMode="decimal"
-                                                className="w-full px-3 py-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
-                                                placeholder="0"
-                                                value={newItem.maxStock}
-                                                onChange={(e) => setNewItem(prev => ({ ...prev, maxStock: e.target.value }))}
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    inputMode="decimal"
+                                                    className="w-full px-3 py-3 pr-12 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
+                                                    placeholder="0"
+                                                    value={newItem.maxStock}
+                                                    onChange={(e) => setNewItem(prev => ({ ...prev, maxStock: e.target.value }))}
+                                                />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500/60 text-sm font-bold">{newItem.unit}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <p className="text-[10px] text-amber-600/60 mt-2 text-center">Deixe em 0 para desativar alertas</p>
@@ -901,7 +967,7 @@ export default function Inventory() {
             </section>
 
             {/* Items by Category - Premium Lists */}
-            {Object.keys(groupedItems).length > 0 ? (
+            {Object.keys(groupedItems).length > 0 && (
                 <div className="space-y-8">
                     {Object.entries(groupedItems).map(([category, categoryItems]) => (
                         <div key={category} className="rounded-[2.5rem] bg-white dark:bg-zinc-950 border border-zinc-200/50 dark:border-white/10 overflow-hidden shadow-xl">
@@ -1258,8 +1324,10 @@ export default function Inventory() {
                         </div>
                     ))}
                 </div>
-            ) : (
-                /* Empty State Premium */
+            )}
+
+            {/* Empty State - Only shown when no items AND filter is not 'None' */}
+            {Object.keys(groupedItems).length === 0 && activeSubcategoryFilter !== 'None' && (
                 <div className="text-center py-20 rounded-[2.5rem] bg-white dark:bg-zinc-950 border border-zinc-200/50 dark:border-white/10 shadow-xl overflow-hidden relative">
                     <div className="absolute inset-0 bg-zinc-50/50 dark:bg-white/[0.01]"></div>
                     <div className="relative z-10">
@@ -1279,64 +1347,87 @@ export default function Inventory() {
                     </div>
                 </div>
             )}
-            {/* Stock Management - Full Interface */}
-            <section className="relative z-10 mt-8">
-                <div className="bg-white dark:bg-zinc-950 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 shadow-xl">
-                    {/* Header */}
-                    <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-                        <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Gestão de Estoque</h2>
-                        <div className="flex gap-2">
-                            <button onClick={exportCSV} className="px-3 py-2 text-[9px] font-bold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 uppercase tracking-widest transition-colors">CSV</button>
-                            <button onClick={exportJSON} className="px-3 py-2 text-[9px] font-bold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 uppercase tracking-widest transition-colors">JSON</button>
+            {/* Stock Management - Genuine Apple Design */}
+            <section className="relative z-10 mt-8 mb-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-zinc-200/60 dark:border-white/10 shadow-2xl shadow-zinc-900/5 dark:shadow-black/20"
+                >
+                    {/* Header - Clean Apple Typography */}
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight">Níveis</h2>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Monitoramento de estoque</p>
                         </div>
                     </div>
 
-                    {/* Segmented Control Filters */}
-                    <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl mb-4 overflow-x-auto">
-                        {[
-                            { id: 'all', label: 'Todos', count: items.length },
-                            { id: 'noLimits', label: 'Sem Limites', count: items.filter(i => !i.minStock && !i.maxStock).length },
-                            { id: 'alerts', label: 'Alertas', count: items.filter(i => ['low', 'warning', 'high'].includes(getStockStatus(i))).length },
-                            { id: 'ok', label: 'OK', count: items.filter(i => getStockStatus(i) === 'ok' && (i.minStock || i.maxStock)).length }
-                        ].map(filter => (
-                            <button
-                                key={filter.id}
-                                onClick={() => setStockFilter(filter.id)}
-                                className={`flex-1 min-w-[80px] px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${stockFilter === filter.id
-                                    ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
-                                    }`}
-                            >
-                                {filter.label}
-                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] ${stockFilter === filter.id
-                                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                    : 'bg-zinc-200/50 dark:bg-zinc-700 text-zinc-500'
-                                    }`}>{filter.count}</span>
-                            </button>
-                        ))}
+                    {/* True iOS Segmented Control */}
+                    <div className="relative mb-6">
+                        {/* Track Container */}
+                        <div className="relative flex bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm p-1 rounded-[10px] overflow-x-auto scrollbar-hide md:overflow-visible">
+                            {/* Animated Indicator */}
+                            <motion.div
+                                className="absolute top-1 bottom-1 bg-white dark:bg-zinc-700 rounded-lg shadow-sm"
+                                initial={false}
+                                animate={{
+                                    width: `calc(${100 / 4}% - 2px)`,
+                                    x: `calc(${['alerts', 'ok', 'noLimits', 'all'].indexOf(stockFilter) * 100}% + 1px)`
+                                }}
+                                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            />
+
+                            {/* Tab Buttons */}
+                            {[
+                                { id: 'alerts', label: 'Crítico' },
+                                { id: 'ok', label: 'Normal' },
+                                { id: 'noLimits', label: 'S/ Limite' },
+                                { id: 'all', label: 'Todos' }
+                            ].map((filter) => (
+                                <button
+                                    key={filter.id}
+                                    onClick={() => setStockFilter(filter.id)}
+                                    className={`
+                                        relative flex-1 min-w-[60px] py-2 px-1.5 text-center z-10 transition-colors duration-200
+                                        ${stockFilter === filter.id
+                                            ? 'text-zinc-900 dark:text-white'
+                                            : 'text-zinc-500 dark:text-zinc-400'
+                                        }
+                                    `}
+                                >
+                                    <span className="text-[13px] font-semibold tracking-[-0.01em]">
+                                        {filter.label}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Search */}
+                    {/* Search - Refined */}
                     <div className="relative mb-6">
-                        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
                         <input
                             type="text"
-                            placeholder="Buscar item..."
+                            placeholder="Buscar..."
                             value={stockSearchQuery}
                             onChange={(e) => setStockSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                            className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border-0 text-zinc-900 dark:text-white text-sm font-medium placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/20 transition-shadow"
                         />
                     </div>
 
-                    {/* Items List */}
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                    {/* Items List - Premium Cards */}
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto overscroll-contain pr-1 -mr-1">
                         {items
                             .filter(item => {
-                                if (stockFilter === 'noLimits') return !item.minStock && !item.maxStock
-                                if (stockFilter === 'alerts') return ['low', 'warning', 'high'].includes(getStockStatus(item))
-                                if (stockFilter === 'ok') return getStockStatus(item) === 'ok' && (item.minStock || item.maxStock)
+                                const status = getStockStatus(item)
+                                if (stockFilter === 'noLimits') return status === 'noLimit'
+                                if (stockFilter === 'alerts') return ['low', 'warning', 'high'].includes(status)
+                                if (stockFilter === 'ok') return status === 'ok' || status === 'adequate'
                                 return true
                             })
                             .filter(item => {
@@ -1345,67 +1436,79 @@ export default function Inventory() {
                             })
                             .map(item => {
                                 const status = getStockStatus(item)
-                                const statusConfig = {
-                                    low: { bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-500/30', dot: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' },
-                                    warning: { bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-200 dark:border-amber-500/30', dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
-                                    high: { bg: 'bg-blue-50 dark:bg-blue-500/10', border: 'border-blue-200 dark:border-blue-500/30', dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
-                                    ok: { bg: 'bg-zinc-50 dark:bg-zinc-800/50', border: 'border-zinc-200 dark:border-zinc-700', dot: 'bg-emerald-500', text: 'text-zinc-600 dark:text-zinc-400' }
+                                const total = getTotalQuantity(item)
+                                const min = Number(item.minStock) || 0
+                                const max = Number(item.maxStock) || 0
+
+                                let progress = 0
+                                if (max > 0) progress = Math.min((total / max) * 100, 100)
+                                else if (min > 0) progress = Math.min((total / (min * 2)) * 100, 100)
+
+                                const statusStyles = {
+                                    low: { bg: 'bg-rose-50 dark:bg-rose-500/5', accent: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' },
+                                    warning: { bg: 'bg-amber-50 dark:bg-amber-500/5', accent: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+                                    high: { bg: 'bg-violet-50 dark:bg-violet-500/5', accent: 'bg-violet-500', text: 'text-violet-600 dark:text-violet-400' },
+                                    ok: { bg: 'bg-zinc-50 dark:bg-zinc-800/30', accent: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+                                    adequate: { bg: 'bg-sky-50 dark:bg-sky-500/5', accent: 'bg-sky-500', text: 'text-sky-600 dark:text-sky-400' },
+                                    noLimit: { bg: 'bg-zinc-50 dark:bg-zinc-800/30', accent: 'bg-zinc-300 dark:bg-zinc-600', text: 'text-zinc-500 dark:text-zinc-400' }
                                 }
-                                const config = statusConfig[status]
+                                const style = statusStyles[status] || statusStyles.noLimit
 
                                 return (
-                                    <div
+                                    <motion.div
                                         key={item.id}
+                                        layout
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
                                         onClick={() => setConfiguringItem(item)}
-                                        className={`p-4 rounded-2xl ${config.bg} border ${config.border} cursor-pointer hover:shadow-md transition-all active:scale-[0.99]`}
+                                        className={`group p-4 rounded-2xl ${style.bg} cursor-pointer transition-all duration-200 hover:shadow-lg active:scale-[0.98]`}
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className={`flex-shrink-0 w-3 h-3 rounded-full ${config.dot} ${status === 'low' ? 'animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.5)]' : ''}`}></div>
+                                            <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${style.accent} flex items-center justify-center shadow-lg ${status === 'low' ? 'animate-pulse' : ''}`}>
+                                                <span className="text-white text-sm font-bold tabular-nums">{total}</span>
+                                            </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-zinc-900 dark:text-white truncate">{item.name}</h4>
-                                                <p className="text-xs text-zinc-500">
-                                                    Atual: <span className={`font-bold ${config.text}`}>{getTotalQuantity(item)} {item.unit}</span>
+                                                <h4 className="font-semibold text-zinc-900 dark:text-white truncate">{item.name}</h4>
+                                                <p className={`text-xs font-medium mt-0.5 ${style.text}`}>
+                                                    {total} {item.unit} {min > 0 && `· min ${min}`} {max > 0 && `· max ${max}`}
                                                 </p>
+                                                {(min > 0 || max > 0) && (
+                                                    <div className="mt-2 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                                        <div className={`h-full ${style.accent} rounded-full transition-all duration-500`} style={{ width: `${progress}%` }} />
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-3 text-xs">
-                                                <div className="text-center">
-                                                    <div className="text-[9px] font-bold text-zinc-400 uppercase mb-0.5">Mín</div>
-                                                    <div className={`font-bold ${item.minStock ? config.text : 'text-zinc-300 dark:text-zinc-600'}`}>{item.minStock || '—'}</div>
-                                                </div>
-                                                <div className="text-center">
-                                                    <div className="text-[9px] font-bold text-zinc-400 uppercase mb-0.5">Máx</div>
-                                                    <div className={`font-bold ${item.maxStock ? config.text : 'text-zinc-300 dark:text-zinc-600'}`}>{item.maxStock || '—'}</div>
-                                                </div>
-                                                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </div>
+                                            <svg className="w-5 h-5 text-zinc-300 group-hover:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                            </svg>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 )
                             })}
                         {items.length === 0 && (
-                            <div className="text-center py-12 text-zinc-400">
-                                <p className="text-sm">Nenhum item no estoque</p>
+                            <div className="text-center py-16">
+                                <div className="w-16 h-16 mx-auto bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mb-4">
+                                    <svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                    </svg>
+                                </div>
+                                <p className="text-zinc-500 font-medium">Nenhum item</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Footer Actions */}
-                    <div className="pt-6 mt-6 border-t border-zinc-100 dark:border-white/5">
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => setIsManagingCategories(true)} className="py-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
-                                Categorias
-                            </button>
-                            <button onClick={clearAllData} className="py-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                Limpar Tudo
-                            </button>
+                    {/* Footer - Minimalist */}
+                    <div className="flex items-center justify-between pt-6 mt-6 border-t border-zinc-100 dark:border-zinc-800">
+                        <button onClick={() => setIsManagingCategories(true)} className="text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                            Categorias
+                        </button>
+                        <div className="flex items-center gap-4">
+                            <button onClick={exportCSV} className="text-sm font-medium text-zinc-400 hover:text-zinc-600 transition-colors">Exportar</button>
+                            <button onClick={clearAllData} className="text-sm font-medium text-rose-500 hover:text-rose-600 transition-colors">Limpar</button>
                         </div>
                         <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importJSON} />
                     </div>
-                </div>
+                </motion.div>
             </section>
 
             {/* Item Configuration Modal */}
