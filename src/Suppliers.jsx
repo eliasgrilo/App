@@ -110,6 +110,9 @@ export default function Suppliers() {
     const [toast, setToast] = useState(null)
     const [syncStatus, setSyncStatus] = useState('synced')
     const [isCloudSynced, setIsCloudSynced] = useState(false)
+    const [activeView, setActiveView] = useState('suppliers') // 'suppliers' | 'quotes'
+    const quotesFileInputRef = useRef(null)
+    const [quotesUploadingFor, setQuotesUploadingFor] = useState(null)
 
     // Form state
     const [formData, setFormData] = useState({
@@ -120,8 +123,25 @@ export default function Suppliers() {
         whatsapp: '',
         address: '',
         notes: '',
-        linkedItems: []
+        linkedItems: [],
+        documents: [] // { id, name, type, size, dataUrl, uploadedAt, category }
     })
+
+    // Document categories
+    const documentCategories = [
+        { id: 'cotacao', label: 'Cotação', icon: '💰' },
+        { id: 'catalogo', label: 'Catálogo', icon: '📚' },
+        { id: 'contrato', label: 'Contrato', icon: '📋' },
+        { id: 'tecnico', label: 'Técnico', icon: '⚙️' },
+        { id: 'outros', label: 'Outros', icon: '📄' }
+    ]
+
+    // File upload state
+    const [isDragging, setIsDragging] = useState(false)
+    const [uploadingFile, setUploadingFile] = useState(null)
+    const [viewingDocument, setViewingDocument] = useState(null)
+    const [selectedDocCategory, setSelectedDocCategory] = useState('cotacao')
+    const fileInputRef = useRef(null)
 
     // Inventory items for linking
     const [inventoryItems, setInventoryItems] = useState([])
@@ -212,7 +232,8 @@ export default function Suppliers() {
             whatsapp: '',
             address: '',
             notes: '',
-            linkedItems: []
+            linkedItems: [],
+            documents: []
         })
         setEditingSupplier(null)
         setIsModalOpen(true)
@@ -228,7 +249,8 @@ export default function Suppliers() {
             whatsapp: supplier.whatsapp || '',
             address: supplier.address || '',
             notes: supplier.notes || '',
-            linkedItems: supplier.linkedItems || []
+            linkedItems: supplier.linkedItems || [],
+            documents: supplier.documents || []
         })
         setEditingSupplier(supplier)
         setSelectedSupplier(null)
@@ -298,6 +320,121 @@ export default function Suppliers() {
         }))
     }
 
+    // ========== DOCUMENT MANAGEMENT ==========
+
+    // Format file size
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 B'
+        const k = 1024
+        const sizes = ['B', 'KB', 'MB', 'GB']
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+    }
+
+    // Get file icon based on type
+    const getFileIcon = (type) => {
+        if (type.startsWith('image/')) return '🖼️'
+        if (type === 'application/pdf') return '📕'
+        if (type.includes('spreadsheet') || type.includes('excel')) return '📊'
+        if (type.includes('document') || type.includes('word')) return '📝'
+        return '📄'
+    }
+
+    // Handle file selection
+    const handleFileSelect = useCallback((files) => {
+        const maxSize = 5 * 1024 * 1024 // 5MB limit
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf',
+            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+
+        Array.from(files).forEach(file => {
+            // Validate file size
+            if (file.size > maxSize) {
+                showToast(`${file.name} excede 5MB`, 'error')
+                return
+            }
+
+            // Validate file type
+            if (!validTypes.includes(file.type) && !file.type.startsWith('image/')) {
+                showToast('Formato não suportado', 'error')
+                return
+            }
+
+            setUploadingFile(file.name)
+
+            const reader = new FileReader()
+            reader.onload = (e) => {
+                const newDoc = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    dataUrl: e.target.result,
+                    uploadedAt: new Date().toISOString(),
+                    category: selectedDocCategory
+                }
+
+                setFormData(prev => ({
+                    ...prev,
+                    documents: [...prev.documents, newDoc]
+                }))
+
+                setUploadingFile(null)
+                showToast('Documento anexado!')
+            }
+
+            reader.onerror = () => {
+                setUploadingFile(null)
+                showToast('Erro ao ler arquivo', 'error')
+            }
+
+            reader.readAsDataURL(file)
+        })
+    }, [selectedDocCategory, showToast])
+
+    // Handle drag events
+    const handleDragOver = useCallback((e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(true)
+    }, [])
+
+    const handleDragLeave = useCallback((e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+    }, [])
+
+    const handleDrop = useCallback((e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+
+        const files = e.dataTransfer.files
+        if (files.length > 0) {
+            handleFileSelect(files)
+        }
+    }, [handleFileSelect])
+
+    // Delete document
+    const deleteDocument = (docId) => {
+        setFormData(prev => ({
+            ...prev,
+            documents: prev.documents.filter(d => d.id !== docId)
+        }))
+        showToast('Documento removido')
+    }
+
+    // Download document
+    const downloadDocument = (doc) => {
+        const link = document.createElement('a')
+        link.href = doc.dataUrl
+        link.download = doc.name
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
     // Contact actions
     const handleCall = (phone) => {
         window.open(`tel:${phone}`, '_self')
@@ -352,104 +489,321 @@ export default function Suppliers() {
                 </button>
             </div>
 
-            {/* Search */}
+            {/* Segmented Control - Apple Style */}
             <section className="relative z-10">
-                <div className="bg-white dark:bg-zinc-950 rounded-[2rem] p-5 border border-zinc-200/50 dark:border-white/10 shadow-lg">
-                    <div className="relative">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <input
-                            type="text"
-                            className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-white/5 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition-all placeholder:text-zinc-400"
-                            placeholder="Buscar fornecedor..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
+                <div className="bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl inline-flex">
+                    <button
+                        onClick={() => setActiveView('suppliers')}
+                        className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all touch-manipulation ${activeView === 'suppliers'
+                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                            : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                            }`}
+                    >
+                        Fornecedores
+                    </button>
+                    <button
+                        onClick={() => setActiveView('quotes')}
+                        className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all touch-manipulation ${activeView === 'quotes'
+                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                            : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                            }`}
+                    >
+                        Orçamentos
+                    </button>
                 </div>
             </section>
 
-            {/* Suppliers Grid */}
-            <section className="relative z-10">
-                {filteredSuppliers.length === 0 ? (
-                    <div className="bg-white dark:bg-zinc-950 rounded-[2.5rem] p-12 border border-zinc-200/50 dark:border-white/10 text-center">
-                        <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <svg className="w-10 h-10 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
+            {/* Search */}
+            {activeView === 'suppliers' && (
+                <section className="relative z-10">
+                    <div className="bg-white dark:bg-zinc-950 rounded-[2rem] p-5 border border-zinc-200/50 dark:border-white/10 shadow-lg">
+                        <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-white/5 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white transition-all placeholder:text-zinc-400"
+                                placeholder="Buscar fornecedor..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
-                        <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Nenhum fornecedor</h3>
-                        <p className="text-zinc-500 dark:text-zinc-400 mb-6">Adicione seu primeiro fornecedor para começar</p>
-                        <button
-                            onClick={openAddModal}
-                            className="px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all"
-                        >
-                            Adicionar Fornecedor
-                        </button>
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                        {filteredSuppliers.map((supplier) => (
-                            <motion.div
-                                key={supplier.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                whileHover={{ y: -4 }}
-                                onClick={() => setSelectedSupplier(supplier)}
-                                className="bg-white dark:bg-zinc-950 rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/10 shadow-lg hover:shadow-2xl transition-all cursor-pointer group"
+                </section>
+            )}
+
+            {/* Suppliers Grid */}
+            {activeView === 'suppliers' && (
+                <section className="relative z-10">
+                    {filteredSuppliers.length === 0 ? (
+                        <div className="bg-white dark:bg-zinc-950 rounded-[2.5rem] p-12 border border-zinc-200/50 dark:border-white/10 text-center">
+                            <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <svg className="w-10 h-10 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Nenhum fornecedor</h3>
+                            <p className="text-zinc-500 dark:text-zinc-400 mb-6">Adicione seu primeiro fornecedor para começar</p>
+                            <button
+                                onClick={openAddModal}
+                                className="px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all"
                             >
-                                {/* Avatar + Name */}
-                                <div className="flex items-start gap-4 mb-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-500/25">
-                                        {supplier.name?.charAt(0)?.toUpperCase() || '?'}
+                                Adicionar Fornecedor
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                            {filteredSuppliers.map((supplier) => (
+                                <motion.div
+                                    key={supplier.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    whileHover={{ y: -4 }}
+                                    onClick={() => setSelectedSupplier(supplier)}
+                                    className="bg-white dark:bg-zinc-950 rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/10 shadow-lg hover:shadow-2xl transition-all cursor-pointer group"
+                                >
+                                    {/* Avatar + Name */}
+                                    <div className="flex items-start gap-4 mb-4">
+                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-500/25">
+                                            {supplier.name?.charAt(0)?.toUpperCase() || '?'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white truncate">{supplier.name}</h3>
+                                            {supplier.company && (
+                                                <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{supplier.company}</p>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white truncate">{supplier.name}</h3>
-                                        {supplier.company && (
-                                            <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{supplier.company}</p>
+
+                                    {/* Contact Info */}
+                                    <div className="space-y-2 mb-4">
+                                        {supplier.phone && (
+                                            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                </svg>
+                                                <span className="truncate">{supplier.phone}</span>
+                                            </div>
+                                        )}
+                                        {supplier.email && (
+                                            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                <span className="truncate">{supplier.email}</span>
+                                            </div>
                                         )}
                                     </div>
-                                </div>
 
-                                {/* Contact Info */}
-                                <div className="space-y-2 mb-4">
-                                    {supplier.phone && (
-                                        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                                            <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    {/* Linked Items Badge */}
+                                    {supplier.linkedItems?.length > 0 && (
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 dark:bg-violet-500/10 rounded-xl border border-violet-100 dark:border-violet-500/20">
+                                            <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                             </svg>
-                                            <span className="truncate">{supplier.phone}</span>
+                                            <span className="text-xs font-bold text-violet-600 dark:text-violet-400">
+                                                {supplier.linkedItems.length} {supplier.linkedItems.length === 1 ? 'item' : 'itens'}
+                                            </span>
                                         </div>
                                     )}
-                                    {supplier.email && (
-                                        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                                            <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                            </svg>
-                                            <span className="truncate">{supplier.email}</span>
-                                        </div>
-                                    )}
-                                </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
 
-                                {/* Linked Items Badge */}
-                                {supplier.linkedItems?.length > 0 && (
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 dark:bg-violet-500/10 rounded-xl border border-violet-100 dark:border-violet-500/20">
-                                        <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                        </svg>
-                                        <span className="text-xs font-bold text-violet-600 dark:text-violet-400">
-                                            {supplier.linkedItems.length} {supplier.linkedItems.length === 1 ? 'item' : 'itens'}
-                                        </span>
-                                    </div>
-                                )}
-                            </motion.div>
-                        ))}
-                    </div>
-                )}
-            </section>
+            {/* Quotes View - Apple Card Design */}
+            {activeView === 'quotes' && (() => {
+                // Filter suppliers with at least 1 quote
+                const suppliersWithQuotes = suppliers.filter(s =>
+                    (s.documents || []).some(d => d.category === 'cotacao')
+                )
+
+                return (
+                    <section className="relative z-10">
+                        {/* Hidden File Input for Quotes */}
+                        <input
+                            ref={quotesFileInputRef}
+                            type="file"
+                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                            className="hidden"
+                            onChange={(e) => {
+                                if (e.target.files?.length && quotesUploadingFor) {
+                                    const file = e.target.files[0]
+                                    if (file.size > 5 * 1024 * 1024) {
+                                        showToast('Arquivo muito grande (máx 5MB)', 'error')
+                                        return
+                                    }
+                                    const reader = new FileReader()
+                                    reader.onload = (ev) => {
+                                        const newDoc = {
+                                            id: `doc_${Date.now()}`,
+                                            name: file.name,
+                                            type: file.type,
+                                            size: file.size,
+                                            dataUrl: ev.target.result,
+                                            uploadedAt: new Date().toISOString(),
+                                            category: 'cotacao'
+                                        }
+                                        setSuppliers(prev => prev.map(s =>
+                                            s.id === quotesUploadingFor
+                                                ? { ...s, documents: [...(s.documents || []), newDoc] }
+                                                : s
+                                        ))
+                                        showToast('Cotação adicionada')
+                                        setQuotesUploadingFor(null)
+                                    }
+                                    reader.readAsDataURL(file)
+                                }
+                                e.target.value = ''
+                            }}
+                        />
+
+                        {suppliersWithQuotes.length === 0 ? (
+                            /* Empty State - Apple Card Style */
+                            <div className="bg-white dark:bg-zinc-950 rounded-[2.5rem] p-12 border border-zinc-200/50 dark:border-white/10 text-center shadow-lg">
+                                <div className="w-20 h-20 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-500/10 dark:to-orange-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                    <svg className="w-10 h-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Nenhuma cotação</h3>
+                                <p className="text-zinc-500 dark:text-zinc-400 mb-6">Adicione cotações aos seus fornecedores</p>
+                                <button
+                                    onClick={() => setActiveView('suppliers')}
+                                    className="px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all"
+                                >
+                                    Ver Fornecedores
+                                </button>
+                            </div>
+                        ) : (
+                            /* Quotes List - Apple Card Grid */
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                {suppliersWithQuotes.map(supplier => {
+                                    const quotes = (supplier.documents || []).filter(d => d.category === 'cotacao')
+                                    return (
+                                        <motion.div
+                                            key={supplier.id}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            whileHover={{ y: -4 }}
+                                            className="bg-white dark:bg-zinc-950 rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/10 shadow-lg hover:shadow-2xl transition-all"
+                                        >
+                                            {/* Header: Avatar + Supplier Name + Add Button */}
+                                            <div className="flex items-start gap-4 mb-5">
+                                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-amber-500/25">
+                                                    {supplier.name?.charAt(0)?.toUpperCase() || '?'}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white truncate">{supplier.name}</h3>
+                                                    {supplier.company && (
+                                                        <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{supplier.company}</p>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setQuotesUploadingFor(supplier.id)
+                                                        quotesFileInputRef.current?.click()
+                                                    }}
+                                                    className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors touch-manipulation"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Badge showing count */}
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-500/10 rounded-xl border border-amber-100 dark:border-amber-500/20 mb-4">
+                                                <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                                                    {quotes.length} {quotes.length === 1 ? 'cotação' : 'cotações'}
+                                                </span>
+                                            </div>
+
+                                            {/* Quote Files List */}
+                                            <div className="space-y-2">
+                                                {quotes.map(doc => (
+                                                    <div
+                                                        key={doc.id}
+                                                        className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl group hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
+                                                    >
+                                                        {/* File Icon */}
+                                                        {doc.type.startsWith('image/') ? (
+                                                            <div
+                                                                className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 shadow-sm"
+                                                                style={{ backgroundImage: `url(${doc.dataUrl})` }}
+                                                            />
+                                                        ) : (
+                                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${doc.type === 'application/pdf'
+                                                                    ? 'bg-red-100 dark:bg-red-500/20'
+                                                                    : 'bg-blue-100 dark:bg-blue-500/20'
+                                                                }`}>
+                                                                {doc.type === 'application/pdf' ? (
+                                                                    <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                                                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z" />
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                                                    </svg>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* File Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{doc.name}</p>
+                                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                                {formatFileSize(doc.size)} · {new Date(doc.uploadedAt).toLocaleDateString('pt-BR')}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Actions */}
+                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => downloadDocument(doc)}
+                                                                className="w-8 h-8 flex items-center justify-center rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors touch-manipulation"
+                                                                title="Baixar"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSuppliers(prev => prev.map(s =>
+                                                                        s.id === supplier.id
+                                                                            ? { ...s, documents: s.documents.filter(d => d.id !== doc.id) }
+                                                                            : s
+                                                                    ))
+                                                                    showToast('Cotação removida')
+                                                                }}
+                                                                className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors touch-manipulation"
+                                                                title="Remover"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </section>
+                )
+            })()}
 
             {/* Add/Edit Modal */}
             {createPortal(
@@ -616,6 +970,80 @@ export default function Suppliers() {
                                         )}
                                     </div>
 
+                                    {/* ========== ANEXOS - Ultra Minimal ========== */}
+                                    <div className="pt-5 border-t border-zinc-100 dark:border-white/5">
+                                        {/* Hidden File Input */}
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            multiple
+                                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                                            className="hidden"
+                                            onChange={(e) => handleFileSelect(e.target.files)}
+                                        />
+
+                                        {/* Uploaded Files - Minimal List */}
+                                        {formData.documents?.length > 0 && (
+                                            <div className="mb-4 space-y-3">
+                                                {formData.documents.map(doc => {
+                                                    const isImage = doc.type.startsWith('image/')
+                                                    return (
+                                                        <div key={doc.id} className="flex items-center gap-3">
+                                                            {isImage ? (
+                                                                <div
+                                                                    className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 cursor-pointer"
+                                                                    style={{ backgroundImage: `url(${doc.dataUrl})` }}
+                                                                    onClick={() => setViewingDocument(doc)}
+                                                                />
+                                                            ) : (
+                                                                <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-zinc-400">
+                                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                                                    </svg>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm text-zinc-900 dark:text-white truncate">{doc.name}</p>
+                                                                <p className="text-xs text-zinc-400">{formatFileSize(doc.size)}</p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => deleteDocument(doc.id)}
+                                                                className="w-8 h-8 flex items-center justify-center text-zinc-300 hover:text-red-500 transition-colors touch-manipulation"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {/* Add Attachment - Simple Link Style */}
+                                        <button
+                                            type="button"
+                                            onDragOver={handleDragOver}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={handleDrop}
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={!!uploadingFile}
+                                            className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors touch-manipulation"
+                                        >
+                                            {uploadingFile ? (
+                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                                                </svg>
+                                            )}
+                                            <span className="text-sm font-medium">
+                                                {uploadingFile ? 'Enviando...' : 'Anexar arquivo'}
+                                            </span>
+                                        </button>
+                                    </div>
+
                                     {/* Notes */}
                                     <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
                                         <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Observações</label>
@@ -761,6 +1189,41 @@ export default function Suppliers() {
                                         </div>
                                     )}
 
+                                    {/* Documents Section in Detail View */}
+                                    {selectedSupplier.documents?.length > 0 && (
+                                        <div>
+                                            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Documentos</h4>
+                                            <div className="space-y-2">
+                                                {selectedSupplier.documents.map(doc => {
+                                                    const category = documentCategories.find(c => c.id === doc.category)
+                                                    return (
+                                                        <div
+                                                            key={doc.id}
+                                                            onClick={() => downloadDocument(doc)}
+                                                            className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-700 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all touch-manipulation active:scale-[0.98]"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/30 dark:to-indigo-900/30 flex items-center justify-center text-xl shrink-0">
+                                                                {getFileIcon(doc.type)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h5 className="text-sm font-medium text-zinc-900 dark:text-white truncate mb-0.5">{doc.name}</h5>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[10px] text-zinc-400">{formatFileSize(doc.size)}</span>
+                                                                    {category && (
+                                                                        <span className="text-[10px] font-bold text-violet-500">{category.icon} {category.label}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <svg className="w-5 h-5 text-zinc-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                            </svg>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {selectedSupplier.notes && (
                                         <div>
                                             <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Observações</h4>
@@ -795,6 +1258,64 @@ export default function Suppliers() {
             <AnimatePresence>
                 {confirmModal && <ConfirmationModal {...confirmModal} />}
             </AnimatePresence>
+
+            {/* Image Viewer Modal - Premium Full Screen */}
+            {createPortal(
+                <AnimatePresence>
+                    {viewingDocument && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-2xl"
+                            onClick={() => setViewingDocument(null)}
+                        >
+                            <ModalScrollLock />
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setViewingDocument(null)}
+                                className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all z-10 touch-manipulation"
+                            >
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+
+                            {/* Download Button */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); downloadDocument(viewingDocument) }}
+                                className="absolute top-6 left-6 px-4 py-3 rounded-xl bg-white/10 backdrop-blur-xl flex items-center gap-2 text-white hover:bg-white/20 transition-all z-10 touch-manipulation"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span className="text-sm font-bold">Baixar</span>
+                            </button>
+
+                            {/* Image */}
+                            <motion.img
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                src={viewingDocument.dataUrl}
+                                alt={viewingDocument.name}
+                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+
+                            {/* File Name */}
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl bg-white/10 backdrop-blur-xl">
+                                <p className="text-sm font-medium text-white text-center">{viewingDocument.name}</p>
+                                <p className="text-xs text-white/60 text-center mt-0.5">
+                                    {formatFileSize(viewingDocument.size)}
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
 
             {/* Toast */}
             <AnimatePresence>

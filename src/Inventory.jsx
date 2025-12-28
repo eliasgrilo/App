@@ -522,7 +522,7 @@ export default function Inventory() {
                                     <p className="text-zinc-400 dark:text-white/30 text-[9px] font-medium tracking-wide mt-1">Protocol Status: High Integrity</p>
                                 </div>
                                 <div className="px-4 py-1.5 bg-zinc-50 dark:bg-white/5 backdrop-blur-md rounded-full border border-zinc-200/50 dark:border-white/10 flex items-center gap-2 shadow-sm">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                                     <span className="text-[8px] font-bold text-zinc-500 dark:text-white/60 uppercase tracking-widest leading-none">Live Matrix</span>
                                 </div>
                             </div>
@@ -1098,7 +1098,7 @@ export default function Inventory() {
                                                     <div className="col-span-3 flex items-center gap-2">
                                                         {/* Stock Level Indicator */}
                                                         {getStockStatus(item) === 'low' && (
-                                                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)] animate-pulse" title="Estoque baixo" />
+                                                            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]" title="Estoque baixo" />
                                                         )}
                                                         {getStockStatus(item) === 'warning' && (
                                                             <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]" title="Próximo do mínimo" />
@@ -1165,7 +1165,7 @@ export default function Inventory() {
                                                 <div className="space-y-4">
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)] animate-pulse"></div>
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
                                                             <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">Editando Item</h4>
                                                         </div>
                                                         <div className="flex gap-2">
@@ -1455,16 +1455,13 @@ export default function Inventory() {
                                 const style = statusStyles[status] || statusStyles.noLimit
 
                                 return (
-                                    <motion.div
+                                    <div
                                         key={item.id}
-                                        layout
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
                                         onClick={() => setConfiguringItem(item)}
                                         className={`group p-4 rounded-2xl ${style.bg} cursor-pointer transition-all duration-200 hover:shadow-lg active:scale-[0.98]`}
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${style.accent} flex items-center justify-center shadow-lg ${status === 'low' ? 'animate-pulse' : ''}`}>
+                                            <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${style.accent} flex items-center justify-center shadow-lg`}>
                                                 <span className="text-white text-sm font-bold tabular-nums">{total}</span>
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -1482,7 +1479,7 @@ export default function Inventory() {
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                                             </svg>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         {items.length === 0 && (

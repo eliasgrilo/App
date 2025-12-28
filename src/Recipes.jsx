@@ -424,9 +424,8 @@ const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }
                                 const catId = name + idx
 
                                 return (
-                                    <motion.div
+                                    <div
                                         key={catId}
-                                        layout
                                         className="group relative"
                                     >
                                         <div className="flex items-center gap-3 py-3 px-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
@@ -547,7 +546,7 @@ const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }
                                                 </>
                                             )}
                                         </AnimatePresence>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </div>
@@ -1208,18 +1207,12 @@ export default function Recipes() {
                                         {r.image ? (
                                             <motion.img src={r.image} className="w-full h-full object-cover transition-transform duration-700 md:group-hover:scale-105" />
                                         ) : (
-                                            /* Premium List View Placeholder */
+                                            /* Premium List View Placeholder - Static for performance */
                                             <div className="w-full h-full relative overflow-hidden">
                                                 <div className="absolute inset-0 bg-gradient-to-br from-zinc-50 via-zinc-100 to-zinc-200 dark:from-zinc-900 dark:via-zinc-950 dark:to-black"></div>
-                                                <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/5 via-transparent to-transparent animate-[spin_20s_linear_infinite] opacity-60"></div>
-                                                <div className="absolute bottom-[-50%] right-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-fuchsia-500/5 via-transparent to-transparent animate-[spin_25s_linear_infinite_reverse] opacity-60"></div>
-
-                                                {/* Inner Glow Pulse */}
-                                                <motion.div
-                                                    animate={{ opacity: [0.2, 0.5, 0.2] }}
-                                                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                                                    className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent"
-                                                />
+                                                {/* Static gradient overlays - no animation for performance */}
+                                                <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/8 via-transparent to-transparent opacity-60"></div>
+                                                <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-fuchsia-500/8 via-transparent to-transparent opacity-60"></div>
 
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center opacity-40 md:group-hover:opacity-80 transition-opacity">
                                                     <div className="w-12 h-12 rounded-full bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 flex items-center justify-center mb-2 shadow-lg md:group-hover:scale-110 transition-transform duration-500">

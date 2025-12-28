@@ -837,8 +837,33 @@ function CardDetailsModal({ card, onClose, onUpdate, onDelete, setConfirmModal }
     const [localCard, setLocalCard] = useState(card)
     const [addingChecklist, setAddingChecklist] = useState(false)
     const [newChecklistTitle, setNewChecklistTitle] = useState('')
+    const isFirstRender = useRef(true)
+    const saveTimeoutRef = useRef(null)
 
-    useEffect(() => { onUpdate(localCard) }, [localCard, onUpdate])
+    // Debounced sync to parent - prevents infinite loops and excessive re-renders
+    useEffect(() => {
+        // Skip first render to avoid unnecessary initial sync
+        if (isFirstRender.current) {
+            isFirstRender.current = false
+            return
+        }
+
+        // Clear any pending save
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current)
+        }
+
+        // Debounce the update to prevent excessive syncs
+        saveTimeoutRef.current = setTimeout(() => {
+            onUpdate(localCard)
+        }, 800)
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current)
+            }
+        }
+    }, [localCard]) // Removed onUpdate from deps to prevent infinite loop
 
     const toggleLabel = (label) => {
         const has = localCard.labels?.find(l => l.id === label.id)

@@ -9,6 +9,7 @@ import Recipes from './Recipes.jsx'
 import Kanban from './Kanban.jsx'
 import Suppliers from './Suppliers.jsx'
 import Products from './Products.jsx'
+import AI from './AI.jsx'
 
 /**
  * App - Premium Navigation Shell
@@ -17,6 +18,7 @@ import Products from './Products.jsx'
 
 // Navigation items configuration
 const NAV_ITEMS = [
+  { key: 'ai', label: 'IA', icon: AIIcon },
   { key: 'kanban', label: 'Kanban', icon: KanbanIcon },
   { key: 'recipes', label: 'Receitas', icon: RecipesIcon },
   { key: 'products', label: 'Produtos', icon: ProductsIcon },
@@ -88,6 +90,14 @@ function ProductsIcon({ active }) {
   return (
     <svg className={`w-4 h-4 transition-all ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.5 : 2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+    </svg>
+  )
+}
+
+function AIIcon({ active }) {
+  return (
+    <svg className={`w-4 h-4 transition-all ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.5 : 2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
     </svg>
   )
 }
@@ -353,7 +363,9 @@ export default function App() {
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             className="relative z-10"
           >
-            {view === 'kanban' ? (
+            {view === 'ai' ? (
+              <AI />
+            ) : view === 'kanban' ? (
               <Kanban />
             ) : view === 'recipes' ? (
               <Recipes />
