@@ -1138,3 +1138,106 @@ query GetSupplierSummary @auth(level: PUBLIC) {
     }
   }
 }
+
+# ===========================================================
+# AUDIT LOG OPERATIONS (Fiscal Compliance)
+# ===========================================================
+
+# Create audit log entry
+mutation CreateAuditLog(
+  $entityType: String!
+  $entityId: String!
+  $action: AuditAction!
+  $previousState: String
+  $newState: String
+  $diff: String
+  $userId: String
+  $userName: String
+  $ipAddress: String
+  $userAgent: String
+) @auth(level: PUBLIC) {
+  auditLog_insert(data: {
+    entityType: $entityType
+    entityId: $entityId
+    action: $action
+    previousState: $previousState
+    newState: $newState
+    diff: $diff
+    userId: $userId
+    userName: $userName
+    ipAddress: $ipAddress
+    userAgent: $userAgent
+  })
+}
+
+# Query audit logs for an entity
+query ListAuditLogs(
+  $entityType: String!
+  $entityId: String
+  $limit: Int = 100
+) @auth(level: PUBLIC) {
+  auditLogs(
+    where: {
+      entityType: { eq: $entityType }
+      entityId: { eq: $entityId }
+    }
+    orderBy: [{ createdAt: DESC }]
+    limit: $limit
+  ) {
+    id
+    entityType
+    entityId
+    action
+    previousState
+    newState
+    diff
+    userId
+    userName
+    ipAddress
+    userAgent
+    createdAt
+  }
+}
+
+# Get complete audit trail for fiscal compliance
+query GetAuditTrail(
+  $startDate: Timestamp!
+  $endDate: Timestamp!
+) @auth(level: PUBLIC) {
+  auditLogs(
+    where: {
+      createdAt: { gte: $startDate, lte: $endDate }
+    }
+    orderBy: [{ createdAt: ASC }]
+  ) {
+    id
+    entityType
+    entityId
+    action
+    previousState
+    newState
+    userId
+    userName
+    createdAt
+  }
+}
+
+# Get audit logs by user
+query ListAuditLogsByUser(
+  $userId: String!
+  $limit: Int = 50
+) @auth(level: PUBLIC) {
+  auditLogs(
+    where: { userId: { eq: $userId } }
+    orderBy: [{ createdAt: DESC }]
+    limit: $limit
+  ) {
+    id
+    entityType
+    entityId
+    action
+    previousState
+    newState
+    createdAt
+  }
+}

@@ -8,3 +8,5 @@ schema:
   source: ./schema.gql
 connectorDirs:
   - ./connector
+
+

@@ -320,33 +320,99 @@ export async function deleteKanbanTask(id) {
 }
 
 // ===================================================================
-// FILES (with Storage integration)
+// FILES (with Storage integration + Atomic Commit)
 // ===================================================================
 
 import { StorageService } from './storageService'
+import { createAuditEntry } from './auditService'
 
+/**
+ * Upload file with Atomic Commit pattern
+ * Ensures Storage and DB are synchronized
+ * If DB write fails, the orphan file in Storage is automatically removed
+ * 
+ * @param {File} file - File to upload
+ * @param {Object} options - Upload options
+ * @returns {Promise<Object>} - Upload result with file ID
+ */
 export async function uploadAndCreateFile(file, options = {}) {
-    // Upload to Firebase Storage
-    const uploadResult = await StorageService.uploadFile(file, options)
+    let uploadResult = null;
+    let dbRecord = null;
 
-    // Save reference in Data Connect
-    const dc = getDataConnectInstance()
-    const result = await executeMutation(mutationRef(dc, 'CreateFile'), {
-        name: uploadResult.name,
-        type: uploadResult.type,
-        mimeType: uploadResult.mimeType,
-        size: uploadResult.size,
-        storageUrl: uploadResult.storageUrl,
-        storagePath: uploadResult.storagePath,
-        thumbnailUrl: uploadResult.thumbnailUrl,
-        entityType: options.entityType,
-        entityId: options.entityId,
-        uploadedBy: options.uploadedBy
-    })
+    try {
+        // Step 1: Upload to Firebase Storage
+        uploadResult = await StorageService.uploadFile(file, options);
 
-    return {
-        ...uploadResult,
-        id: result.data.file_insert.id
+        // Step 2: Save reference in Data Connect
+        const dc = getDataConnectInstance();
+        if (!dc) throw new Error('Data Connect not initialized');
+
+        const result = await executeMutation(mutationRef(dc, 'CreateFile'), {
+            name: uploadResult.name,
+            type: uploadResult.type,
+            mimeType: uploadResult.mimeType,
+            size: uploadResult.size,
+            storageUrl: uploadResult.storageUrl,
+            storagePath: uploadResult.storagePath,
+            thumbnailUrl: uploadResult.thumbnailUrl,
+            entityType: options.entityType,
+            entityId: options.entityId,
+            uploadedBy: options.uploadedBy
+        });
+
+        dbRecord = result.data.file_insert;
+
+        // Step 3: Create audit log entry
+        await createAuditEntry({
+            entityType: 'File',
+            entityId: dbRecord.id,
+            action: 'CREATE',
+            newState: {
+                name: uploadResult.name,
+                type: uploadResult.type,
+                size: uploadResult.size,
+                storagePath: uploadResult.storagePath,
+                entityType: options.entityType,
+                entityId: options.entityId
+            },
+            userId: options.uploadedBy,
+            userName: options.userName || 'Sistema'
+        });
+
+        return {
+            ...uploadResult,
+            id: dbRecord.id
+        };
+
+    } catch (error) {
+        // ROLLBACK: If DB write failed but upload succeeded
+        if (uploadResult && !dbRecord) {
+            console.error('DB write failed, rolling back Storage upload...');
+            try {
+                await StorageService.deleteFile(uploadResult.storagePath);
+                console.log('Rollback successful: Orphan file removed from Storage');
+            } catch (rollbackError) {
+                // Critical: Rollback failed, orphan file exists
+                console.error('CRITICAL: Rollback failed, orphan file exists:',
+                    uploadResult.storagePath);
+
+                // Log this to audit for manual cleanup
+                await createAuditEntry({
+                    entityType: 'File',
+                    entityId: 'ORPHAN',
+                    action: 'CREATE',
+                    newState: {
+                        storagePath: uploadResult.storagePath,
+                        error: 'ORPHAN_FILE_ROLLBACK_FAILED',
+                        originalError: error.message,
+                        rollbackError: rollbackError.message
+                    },
+                    userId: options.uploadedBy,
+                    userName: 'SISTEMA_ROLLBACK_FALHOU'
+                });
+            }
+        }
+        throw error;
     }
 }
 
@@ -359,13 +425,50 @@ export async function listEntityFiles(entityType, entityId) {
     return result.data.files
 }
 
-export async function deleteFileAndRecord(fileId, storagePath) {
-    // Delete from Storage
-    await StorageService.deleteFile(storagePath)
+/**
+ * Delete file with Atomic Commit pattern
+ * Creates audit log BEFORE deletion for compliance
+ * 
+ * @param {string} fileId - File record ID in database
+ * @param {string} storagePath - Path in Firebase Storage
+ * @param {string} userId - User performing the deletion
+ * @param {string} userName - Name of user performing deletion
+ */
+export async function deleteFileAndRecord(fileId, storagePath, userId = null, userName = null) {
+    const dc = getDataConnectInstance();
+    if (!dc) throw new Error('Data Connect not initialized');
 
-    // Delete from Data Connect
-    const dc = getDataConnectInstance()
-    await executeMutation(mutationRef(dc, 'DeleteFile'), { id: fileId })
+    // Step 1: Get current file state for audit
+    let currentFileState = null;
+    try {
+        const files = await listEntityFiles(
+            storagePath.split('/')[0],
+            storagePath.split('/')[1]
+        );
+        currentFileState = files.find(f => f.storagePath === storagePath);
+    } catch (e) {
+        console.warn('Could not fetch current file state for audit:', e);
+    }
+
+    // Step 2: Create audit log BEFORE deletion (for compliance)
+    await createAuditEntry({
+        entityType: 'File',
+        entityId: fileId,
+        action: 'DELETE',
+        previousState: currentFileState || {
+            id: fileId,
+            storagePath,
+            deletedWithoutState: true
+        },
+        userId: userId,
+        userName: userName || 'Sistema'
+    });
+
+    // Step 3: Delete from DB first (more recoverable if Storage fails)
+    await executeMutation(mutationRef(dc, 'DeleteFile'), { id: fileId });
+
+    // Step 4: Delete from Storage
+    await StorageService.deleteFile(storagePath);
 }
 
 // ===================================================================
@@ -614,4 +717,8 @@ export const DataConnectService = {
     invalidateCache
 }
 
+// Re-export AuditService for convenience
+export { AuditService, createAuditEntry, withAudit, getAuditTrail, getAuditReport } from './auditService'
+
 export default DataConnectService
+
