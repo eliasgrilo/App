@@ -2,11 +2,19 @@
 # Padoca Application
 
 specVersion: v1alpha
-serviceId: padoca-dataconnect
-location: southamerica-east1
+serviceId: padoca-96688-service
+location: northamerica-northeast2
 schema:
-  source: ./schema.gql
+  source: ./schema
+  datasource:
+    postgresql:
+      database: fdcdb
+      cloudSql:
+        instanceId: padoca-96688-instance
 connectorDirs:
   - ./connector
+
+
+
 
 

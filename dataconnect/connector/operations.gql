@@ -1,0 +1,1241 @@
+# Firebase Data Connect - Padoca Application
+# GraphQL Operations (Queries, Mutations, Subscriptions)
+
+# ===========================================================
+# SUPPLIERS OPERATIONS
+# ===========================================================
+
+# Get all suppliers
+query ListSuppliers @auth(level: PUBLIC) {
+  suppliers(orderBy: [{ name: ASC }]) {
+    id
+    name
+    email
+    phone
+    address
+    cnpj
+    category
+    notes
+    isActive
+    createdAt
+    updatedAt
+  }
+}
+
+# Get supplier by ID
+query GetSupplier($id: UUID!) @auth(level: PUBLIC) {
+  supplier(id: $id) {
+    id
+    name
+    email
+    phone
+    address
+    cnpj
+    category
+    notes
+    isActive
+    createdAt
+    updatedAt
+    products_on_supplier {
+      id
+      name
+      category
+      pricePerUnit
+    }
+  }
+}
+
+# Create supplier
+mutation CreateSupplier(
+  $name: String!
+  $email: String
+  $phone: String
+  $address: String
+  $cnpj: String
+  $category: String
+  $notes: String
+) @auth(level: PUBLIC) {
+  supplier_insert(data: {
+    name: $name
+    email: $email
+    phone: $phone
+    address: $address
+    cnpj: $cnpj
+    category: $category
+    notes: $notes
+  })
+}
+
+# Update supplier
+mutation UpdateSupplier(
+  $id: UUID!
+  $name: String
+  $email: String
+  $phone: String
+  $address: String
+  $cnpj: String
+  $category: String
+  $notes: String
+  $isActive: Boolean
+) @auth(level: PUBLIC) {
+  supplier_update(id: $id, data: {
+    name: $name
+    email: $email
+    phone: $phone
+    address: $address
+    cnpj: $cnpj
+    category: $category
+    notes: $notes
+    isActive: $isActive
+    updatedAt_expr: "request.time"
+  })
+}
+
+# Delete supplier
+mutation DeleteSupplier($id: UUID!) @auth(level: PUBLIC) {
+  supplier_delete(id: $id)
+}
+
+# ===========================================================
+# PRODUCTS OPERATIONS
+# ===========================================================
+
+# Get all products with supplier info
+query ListProducts @auth(level: PUBLIC) {
+  products(orderBy: [{ name: ASC }]) {
+    id
+    name
+    category
+    subcategory
+    unit
+    packageQuantity
+    packageCount
+    pricePerUnit
+    totalCost
+    minStock
+    maxStock
+    location
+    barcode
+    imageUrl
+    isActive
+    createdAt
+    updatedAt
+    supplier {
+      id
+      name
+    }
+  }
+}
+
+# Get products by category
+query ListProductsByCategory($category: String!) @auth(level: PUBLIC) {
+  products(where: { category: { eq: $category } }, orderBy: [{ name: ASC }]) {
+    id
+    name
+    category
+    subcategory
+    unit
+    packageQuantity
+    packageCount
+    pricePerUnit
+    supplier {
+      id
+      name
+    }
+  }
+}
+
+# Get product by ID with full details
+query GetProduct($id: UUID!) @auth(level: PUBLIC) {
+  product(id: $id) {
+    id
+    name
+    category
+    subcategory
+    unit
+    packageQuantity
+    packageCount
+    pricePerUnit
+    totalCost
+    minStock
+    maxStock
+    location
+    barcode
+    notes
+    imageUrl
+    isActive
+    createdAt
+    updatedAt
+    supplier {
+      id
+      name
+      email
+      phone
+    }
+    productMovements_on_product(orderBy: [{ createdAt: DESC }], limit: 50) {
+      id
+      type
+      quantity
+      price
+      reason
+      location
+      userName
+      createdAt
+    }
+    productNotes_on_product(orderBy: [{ createdAt: DESC }]) {
+      id
+      category
+      content
+      userName
+      createdAt
+    }
+  }
+}
+
+# Create product
+mutation CreateProduct(
+  $name: String!
+  $category: String
+  $subcategory: String
+  $unit: String!
+  $packageQuantity: Float
+  $packageCount: Int
+  $pricePerUnit: Float
+  $minStock: Float
+  $maxStock: Float
+  $location: String
+  $barcode: String
+  $notes: String
+  $supplierId: UUID
+) @auth(level: PUBLIC) {
+  product_insert(data: {
+    name: $name
+    category: $category
+    subcategory: $subcategory
+    unit: $unit
+    packageQuantity: $packageQuantity
+    packageCount: $packageCount
+    pricePerUnit: $pricePerUnit
+    minStock: $minStock
+    maxStock: $maxStock
+    location: $location
+    barcode: $barcode
+    notes: $notes
+    supplier: { id: $supplierId }
+  })
+}
+
+# Update product
+mutation UpdateProduct(
+  $id: UUID!
+  $name: String
+  $category: String
+  $subcategory: String
+  $unit: String
+  $packageQuantity: Float
+  $packageCount: Int
+  $pricePerUnit: Float
+  $minStock: Float
+  $maxStock: Float
+  $location: String
+  $barcode: String
+  $notes: String
+  $imageUrl: String
+  $supplierId: UUID
+  $isActive: Boolean
+) @auth(level: PUBLIC) {
+  product_update(id: $id, data: {
+    name: $name
+    category: $category
+    subcategory: $subcategory
+    unit: $unit
+    packageQuantity: $packageQuantity
+    packageCount: $packageCount
+    pricePerUnit: $pricePerUnit
+    minStock: $minStock
+    maxStock: $maxStock
+    location: $location
+    barcode: $barcode
+    notes: $notes
+    imageUrl: $imageUrl
+    supplier: { id: $supplierId }
+    isActive: $isActive
+    updatedAt_expr: "request.time"
+  })
+}
+
+# Delete product
+mutation DeleteProduct($id: UUID!) @auth(level: PUBLIC) {
+  product_delete(id: $id)
+}
+
+# ===========================================================
+# PRODUCT MOVEMENTS OPERATIONS
+# ===========================================================
+
+# Get movements for a product
+query ListProductMovements($productId: UUID!) @auth(level: PUBLIC) {
+  productMovements(
+    where: { product: { id: { eq: $productId } } }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    type
+    quantity
+    price
+    reason
+    location
+    userId
+    userName
+    notes
+    createdAt
+    product {
+      id
+      name
+      unit
+    }
+  }
+}
+
+# Get all movements (for reports)
+query ListAllMovements(
+  $startDate: Timestamp
+  $endDate: Timestamp
+  $type: MovementType
+  $limit: Int = 100
+) @auth(level: PUBLIC) {
+  productMovements(
+    where: {
+      createdAt: { ge: $startDate, le: $endDate }
+      type: { eq: $type }
+    }
+    orderBy: [{ createdAt: DESC }]
+    limit: $limit
+  ) {
+    id
+    type
+    quantity
+    price
+    reason
+    location
+    userName
+    createdAt
+    product {
+      id
+      name
+      category
+      unit
+      supplier {
+        name
+      }
+    }
+  }
+}
+
+# Create movement (entry or exit)
+mutation CreateMovement(
+  $productId: UUID!
+  $type: MovementType!
+  $quantity: Float!
+  $price: Float
+  $reason: String
+  $location: String
+  $userId: String
+  $userName: String
+  $notes: String
+) @auth(level: PUBLIC) {
+  productMovement_insert(data: {
+    product: { id: $productId }
+    type: $type
+    quantity: $quantity
+    price: $price
+    reason: $reason
+    location: $location
+    userId: $userId
+    userName: $userName
+    notes: $notes
+  })
+}
+
+# ===========================================================
+# PRODUCT NOTES OPERATIONS
+# ===========================================================
+
+# Get notes for a product
+query ListProductNotes($productId: UUID!) @auth(level: PUBLIC) {
+  productNotes(
+    where: { product: { id: { eq: $productId } } }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    category
+    content
+    userId
+    userName
+    createdAt
+    product {
+      id
+      name
+    }
+  }
+}
+
+# Create note
+mutation CreateProductNote(
+  $productId: UUID!
+  $category: NoteCategory!
+  $content: String!
+  $userId: String
+  $userName: String
+) @auth(level: PUBLIC) {
+  productNote_insert(data: {
+    product: { id: $productId }
+    category: $category
+    content: $content
+    userId: $userId
+    userName: $userName
+  })
+}
+
+# Delete note
+mutation DeleteProductNote($id: UUID!) @auth(level: PUBLIC) {
+  productNote_delete(id: $id)
+}
+
+# ===========================================================
+# COSTS OPERATIONS
+# ===========================================================
+
+# Get all costs
+query ListCosts($startDate: Date, $endDate: Date) @auth(level: PUBLIC) {
+  costs(
+    where: {
+      date: { ge: $startDate, le: $endDate }
+    }
+    orderBy: [{ date: DESC }]
+  ) {
+    id
+    name
+    category
+    type
+    amount
+    date
+    recurrence
+    notes
+    attachmentUrl
+    createdAt
+    supplier {
+      id
+      name
+    }
+  }
+}
+
+# Get costs by category
+query ListCostsByCategory($category: String!) @auth(level: PUBLIC) {
+  costs(
+    where: { category: { eq: $category } }
+    orderBy: [{ date: DESC }]
+  ) {
+    id
+    name
+    amount
+    date
+    type
+  }
+}
+
+# Create cost
+mutation CreateCost(
+  $name: String!
+  $category: String
+  $type: CostType!
+  $amount: Float!
+  $date: Date!
+  $recurrence: String
+  $notes: String
+  $attachmentUrl: String
+  $supplierId: UUID
+) @auth(level: PUBLIC) {
+  cost_insert(data: {
+    name: $name
+    category: $category
+    type: $type
+    amount: $amount
+    date: $date
+    recurrence: $recurrence
+    notes: $notes
+    attachmentUrl: $attachmentUrl
+    supplier: { id: $supplierId }
+  })
+}
+
+# Update cost
+mutation UpdateCost(
+  $id: UUID!
+  $name: String
+  $category: String
+  $type: CostType
+  $amount: Float
+  $date: Date
+  $recurrence: String
+  $notes: String
+  $attachmentUrl: String
+) @auth(level: PUBLIC) {
+  cost_update(id: $id, data: {
+    name: $name
+    category: $category
+    type: $type
+    amount: $amount
+    date: $date
+    recurrence: $recurrence
+    notes: $notes
+    attachmentUrl: $attachmentUrl
+    updatedAt_expr: "request.time"
+  })
+}
+
+# Delete cost
+mutation DeleteCost($id: UUID!) @auth(level: PUBLIC) {
+  cost_delete(id: $id)
+}
+
+# ===========================================================
+# COST CATEGORIES OPERATIONS
+# ===========================================================
+
+query ListCostCategories @auth(level: PUBLIC) {
+  costCategories(orderBy: [{ order: ASC }]) {
+    id
+    name
+    color
+    icon
+    order
+  }
+}
+
+mutation CreateCostCategory(
+  $name: String!
+  $color: String
+  $icon: String
+  $order: Int
+) @auth(level: PUBLIC) {
+  costCategory_insert(data: {
+    name: $name
+    color: $color
+    icon: $icon
+    order: $order
+  })
+}
+
+mutation DeleteCostCategory($id: UUID!) @auth(level: PUBLIC) {
+  costCategory_delete(id: $id)
+}
+
+# ===========================================================
+# INVENTORY CATEGORIES OPERATIONS
+# ===========================================================
+
+query ListInventoryCategories @auth(level: PUBLIC) {
+  inventoryCategories(orderBy: [{ order: ASC }]) {
+    id
+    name
+    color
+    icon
+    order
+  }
+}
+
+mutation CreateInventoryCategory(
+  $name: String!
+  $color: String
+  $icon: String
+  $order: Int
+) @auth(level: PUBLIC) {
+  inventoryCategory_insert(data: {
+    name: $name
+    color: $color
+    icon: $icon
+    order: $order
+  })
+}
+
+mutation DeleteInventoryCategory($id: UUID!) @auth(level: PUBLIC) {
+  inventoryCategory_delete(id: $id)
+}
+
+# ===========================================================
+# RECIPES OPERATIONS
+# ===========================================================
+
+# Get all recipes
+query ListRecipes @auth(level: PUBLIC) {
+  recipes(orderBy: [{ name: ASC }]) {
+    id
+    name
+    category
+    description
+    servings
+    prepTime
+    cookTime
+    totalTime
+    difficulty
+    imageUrl
+    isPublished
+    createdAt
+  }
+}
+
+# Get recipe by ID with full details
+query GetRecipe($id: UUID!) @auth(level: PUBLIC) {
+  recipe(id: $id) {
+    id
+    name
+    category
+    description
+    servings
+    prepTime
+    cookTime
+    totalTime
+    difficulty
+    imageUrl
+    videoUrl
+    notes
+    isPublished
+    createdAt
+    updatedAt
+    recipeIngredients_on_recipe(orderBy: [{ order: ASC }]) {
+      id
+      name
+      quantity
+      unit
+      notes
+      order
+      product {
+        id
+        name
+        pricePerUnit
+      }
+    }
+    recipeInstructions_on_recipe(orderBy: [{ stepNumber: ASC }]) {
+      id
+      stepNumber
+      content
+      duration
+      tip
+      imageUrl
+    }
+  }
+}
+
+# Create recipe
+mutation CreateRecipe(
+  $name: String!
+  $category: String
+  $description: String
+  $servings: Int
+  $prepTime: Int
+  $cookTime: Int
+  $difficulty: String
+  $notes: String
+) @auth(level: PUBLIC) {
+  recipe_insert(data: {
+    name: $name
+    category: $category
+    description: $description
+    servings: $servings
+    prepTime: $prepTime
+    cookTime: $cookTime
+    difficulty: $difficulty
+    notes: $notes
+  })
+}
+
+# Update recipe
+mutation UpdateRecipe(
+  $id: UUID!
+  $name: String
+  $category: String
+  $description: String
+  $servings: Int
+  $prepTime: Int
+  $cookTime: Int
+  $difficulty: String
+  $notes: String
+  $imageUrl: String
+  $videoUrl: String
+  $isPublished: Boolean
+) @auth(level: PUBLIC) {
+  recipe_update(id: $id, data: {
+    name: $name
+    category: $category
+    description: $description
+    servings: $servings
+    prepTime: $prepTime
+    cookTime: $cookTime
+    difficulty: $difficulty
+    notes: $notes
+    imageUrl: $imageUrl
+    videoUrl: $videoUrl
+    isPublished: $isPublished
+    updatedAt_expr: "request.time"
+  })
+}
+
+# Delete recipe
+mutation DeleteRecipe($id: UUID!) @auth(level: PUBLIC) {
+  recipe_delete(id: $id)
+}
+
+# Add ingredient to recipe
+mutation AddRecipeIngredient(
+  $recipeId: UUID!
+  $productId: UUID
+  $name: String!
+  $quantity: Float!
+  $unit: String!
+  $notes: String
+  $order: Int
+) @auth(level: PUBLIC) {
+  recipeIngredient_insert(data: {
+    recipe: { id: $recipeId }
+    product: { id: $productId }
+    name: $name
+    quantity: $quantity
+    unit: $unit
+    notes: $notes
+    order: $order
+  })
+}
+
+# Delete ingredient
+mutation DeleteRecipeIngredient($id: UUID!) @auth(level: PUBLIC) {
+  recipeIngredient_delete(id: $id)
+}
+
+# Add instruction to recipe
+mutation AddRecipeInstruction(
+  $recipeId: UUID!
+  $stepNumber: Int!
+  $content: String!
+  $duration: Int
+  $tip: String
+) @auth(level: PUBLIC) {
+  recipeInstruction_insert(data: {
+    recipe: { id: $recipeId }
+    stepNumber: $stepNumber
+    content: $content
+    duration: $duration
+    tip: $tip
+  })
+}
+
+# Delete instruction
+mutation DeleteRecipeInstruction($id: UUID!) @auth(level: PUBLIC) {
+  recipeInstruction_delete(id: $id)
+}
+
+# ===========================================================
+# RECIPE CATEGORIES OPERATIONS
+# ===========================================================
+
+query ListRecipeCategories @auth(level: PUBLIC) {
+  recipeCategories(orderBy: [{ order: ASC }]) {
+    id
+    name
+    color
+    icon
+    order
+  }
+}
+
+mutation CreateRecipeCategory(
+  $name: String!
+  $color: String
+  $icon: String
+  $order: Int
+) @auth(level: PUBLIC) {
+  recipeCategory_insert(data: {
+    name: $name
+    color: $color
+    icon: $icon
+    order: $order
+  })
+}
+
+mutation DeleteRecipeCategory($id: UUID!) @auth(level: PUBLIC) {
+  recipeCategory_delete(id: $id)
+}
+
+# ===========================================================
+# KANBAN OPERATIONS
+# ===========================================================
+
+query ListKanbanTasks @auth(level: PUBLIC) {
+  kanbanTasks(orderBy: [{ order: ASC }]) {
+    id
+    title
+    description
+    status
+    priority
+    dueDate
+    assignee
+    order
+    createdAt
+    recipe {
+      id
+      name
+    }
+  }
+}
+
+mutation CreateKanbanTask(
+  $title: String!
+  $description: String
+  $status: KanbanStatus!
+  $priority: Int
+  $dueDate: Date
+  $recipeId: UUID
+  $assignee: String
+  $order: Int
+) @auth(level: PUBLIC) {
+  kanbanTask_insert(data: {
+    title: $title
+    description: $description
+    status: $status
+    priority: $priority
+    dueDate: $dueDate
+    recipe: { id: $recipeId }
+    assignee: $assignee
+    order: $order
+  })
+}
+
+mutation UpdateKanbanTask(
+  $id: UUID!
+  $title: String
+  $description: String
+  $status: KanbanStatus
+  $priority: Int
+  $dueDate: Date
+  $assignee: String
+  $order: Int
+) @auth(level: PUBLIC) {
+  kanbanTask_update(id: $id, data: {
+    title: $title
+    description: $description
+    status: $status
+    priority: $priority
+    dueDate: $dueDate
+    assignee: $assignee
+    order: $order
+    updatedAt_expr: "request.time"
+  })
+}
+
+mutation DeleteKanbanTask($id: UUID!) @auth(level: PUBLIC) {
+  kanbanTask_delete(id: $id)
+}
+
+# ===========================================================
+# FILES OPERATIONS
+# ===========================================================
+
+mutation CreateFile(
+  $name: String!
+  $type: FileType!
+  $mimeType: String!
+  $size: Int!
+  $storageUrl: String!
+  $storagePath: String!
+  $thumbnailUrl: String
+  $entityType: String
+  $entityId: String
+  $uploadedBy: String
+) @auth(level: PUBLIC) {
+  file_insert(data: {
+    name: $name
+    type: $type
+    mimeType: $mimeType
+    size: $size
+    storageUrl: $storageUrl
+    storagePath: $storagePath
+    thumbnailUrl: $thumbnailUrl
+    entityType: $entityType
+    entityId: $entityId
+    uploadedBy: $uploadedBy
+  })
+}
+
+query ListFilesByEntity($entityType: String!, $entityId: String!) @auth(level: PUBLIC) {
+  files(
+    where: {
+      entityType: { eq: $entityType }
+      entityId: { eq: $entityId }
+    }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    name
+    type
+    mimeType
+    size
+    storageUrl
+    thumbnailUrl
+    createdAt
+  }
+}
+
+mutation DeleteFile($id: UUID!) @auth(level: PUBLIC) {
+  file_delete(id: $id)
+}
+
+# ===========================================================
+# QUOTATIONS OPERATIONS
+# ===========================================================
+
+query ListQuotations($status: QuotationStatus) @auth(level: PUBLIC) {
+  quotations(
+    where: { status: { eq: $status } }
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    status
+    sentAt
+    respondedAt
+    totalValue
+    notes
+    createdAt
+    supplier {
+      id
+      name
+      email
+    }
+    quotationItems_on_quotation {
+      id
+      requestedQuantity
+      quotedPrice
+      quotedQuantity
+      product {
+        id
+        name
+        unit
+      }
+    }
+  }
+}
+
+mutation CreateQuotation(
+  $supplierId: UUID!
+  $notes: String
+) @auth(level: PUBLIC) {
+  quotation_insert(data: {
+    supplier: { id: $supplierId }
+    notes: $notes
+  })
+}
+
+mutation UpdateQuotationStatus(
+  $id: UUID!
+  $status: QuotationStatus!
+  $sentAt: Timestamp
+  $respondedAt: Timestamp
+  $totalValue: Float
+  $emailThreadId: String
+) @auth(level: PUBLIC) {
+  quotation_update(id: $id, data: {
+    status: $status
+    sentAt: $sentAt
+    respondedAt: $respondedAt
+    totalValue: $totalValue
+    emailThreadId: $emailThreadId
+    updatedAt_expr: "request.time"
+  })
+}
+
+mutation AddQuotationItem(
+  $quotationId: UUID!
+  $productId: UUID!
+  $requestedQuantity: Float!
+) @auth(level: PUBLIC) {
+  quotationItem_insert(data: {
+    quotation: { id: $quotationId }
+    product: { id: $productId }
+    requestedQuantity: $requestedQuantity
+  })
+}
+
+mutation UpdateQuotationItem(
+  $id: UUID!
+  $quotedPrice: Float
+  $quotedQuantity: Float
+  $notes: String
+) @auth(level: PUBLIC) {
+  quotationItem_update(id: $id, data: {
+    quotedPrice: $quotedPrice
+    quotedQuantity: $quotedQuantity
+    notes: $notes
+  })
+}
+
+# ===========================================================
+# NOTIFICATIONS OPERATIONS
+# ===========================================================
+
+query ListNotifications($onlyUnread: Boolean = false) @auth(level: PUBLIC) {
+  notifications(
+    where: {
+      isRead: { eq: $onlyUnread }
+      isDismissed: { eq: false }
+    }
+    orderBy: [{ createdAt: DESC }]
+    limit: 100
+  ) {
+    id
+    type
+    title
+    body
+    productId
+    data
+    isRead
+    createdAt
+  }
+}
+
+mutation CreateNotification(
+  $type: NotificationType!
+  $title: String!
+  $body: String!
+  $productId: String
+  $data: String
+) @auth(level: PUBLIC) {
+  notification_insert(data: {
+    type: $type
+    title: $title
+    body: $body
+    productId: $productId
+    data: $data
+  })
+}
+
+mutation MarkNotificationRead($id: UUID!) @auth(level: PUBLIC) {
+  notification_update(id: $id, data: {
+    isRead: true
+    readAt_expr: "request.time"
+  })
+}
+
+mutation MarkAllNotificationsRead @auth(level: PUBLIC) {
+  notification_updateMany(
+    where: { isRead: { eq: false } }
+    data: {
+      isRead: true
+      readAt_expr: "request.time"
+    }
+  )
+}
+
+mutation DismissNotification($id: UUID!) @auth(level: PUBLIC) {
+  notification_update(id: $id, data: {
+    isDismissed: true
+  })
+}
+
+# ===========================================================
+# APP SETTINGS OPERATIONS
+# ===========================================================
+
+query GetAppSetting($key: String!) @auth(level: PUBLIC) {
+  appSettingsList(where: { key: { eq: $key } }) {
+    id
+    key
+    value
+    updatedAt
+  }
+}
+
+mutation SetAppSetting($key: String!, $value: String!) @auth(level: PUBLIC) {
+  appSettings_insert(data: {
+    key: $key
+    value: $value
+  })
+}
+
+# ===========================================================
+# DASHBOARD ANALYTICS QUERIES
+# ===========================================================
+
+# Get stock value by category
+query GetStockValueByCategory @auth(level: PUBLIC) {
+  products(where: { isActive: { eq: true } }) {
+    category
+    pricePerUnit
+    packageQuantity
+    packageCount
+  }
+}
+
+# Get movement summary for period
+query GetMovementSummary($startDate: Timestamp!, $endDate: Timestamp!) @auth(level: PUBLIC) {
+  productMovements(
+    where: {
+      createdAt: { ge: $startDate, le: $endDate }
+    }
+  ) {
+    type
+    quantity
+    price
+    createdAt
+    product {
+      id
+      name
+      category
+    }
+  }
+}
+
+# Get low stock products
+query GetLowStockProducts @auth(level: PUBLIC) {
+  products(
+    where: { isActive: { eq: true } }
+  ) {
+    id
+    name
+    category
+    unit
+    packageQuantity
+    packageCount
+    minStock
+    pricePerUnit
+    supplier {
+      id
+      name
+    }
+  }
+}
+
+# Get supplier summary
+query GetSupplierSummary @auth(level: PUBLIC) {
+  suppliers(where: { isActive: { eq: true } }) {
+    id
+    name
+    products_on_supplier {
+      id
+      name
+      pricePerUnit
+      packageQuantity
+      packageCount
+      productMovements_on_product(
+        orderBy: [{ createdAt: DESC }]
+        limit: 10
+      ) {
+        type
+        quantity
+        createdAt
+      }
+    }
+  }
+}
+
+# ===========================================================
+# AUDIT LOG OPERATIONS (Fiscal Compliance)
+# ===========================================================
+
+# Create audit log entry
+mutation CreateAuditLog(
+  $entityType: String!
+  $entityId: String!
+  $action: AuditAction!
+  $previousState: String
+  $newState: String
+  $diff: String
+  $userId: String
+  $userName: String
+  $ipAddress: String
+  $userAgent: String
+) @auth(level: PUBLIC) {
+  auditLog_insert(data: {
+    entityType: $entityType
+    entityId: $entityId
+    action: $action
+    previousState: $previousState
+    newState: $newState
+    diff: $diff
+    userId: $userId
+    userName: $userName
+    ipAddress: $ipAddress
+    userAgent: $userAgent
+  })
+}
+
+# Query audit logs for an entity
+query ListAuditLogs(
+  $entityType: String!
+  $entityId: String
+  $limit: Int = 100
+) @auth(level: PUBLIC) {
+  auditLogs(
+    where: {
+      entityType: { eq: $entityType }
+      entityId: { eq: $entityId }
+    }
+    orderBy: [{ createdAt: DESC }]
+    limit: $limit
+  ) {
+    id
+    entityType
+    entityId
+    action
+    previousState
+    newState
+    diff
+    userId
+    userName
+    ipAddress
+    userAgent
+    createdAt
+  }
+}
+
+# Get complete audit trail for fiscal compliance
+query GetAuditTrail(
+  $startDate: Timestamp!
+  $endDate: Timestamp!
+) @auth(level: PUBLIC) {
+  auditLogs(
+    where: {
+      createdAt: { ge: $startDate, le: $endDate }
+    }
+    orderBy: [{ createdAt: ASC }]
+  ) {
+    id
+    entityType
+    entityId
+    action
+    previousState
+    newState
+    userId
+    userName
+    createdAt
+  }
+}
+
+# Get audit logs by user
+query ListAuditLogsByUser(
+  $userId: String!
+  $limit: Int = 50
+) @auth(level: PUBLIC) {
+  auditLogs(
+    where: { userId: { eq: $userId } }
+    orderBy: [{ createdAt: DESC }]
+    limit: $limit
+  ) {
+    id
+    entityType
+    entityId
+    action
+    previousState
+    newState
+    createdAt
+  }
+}
