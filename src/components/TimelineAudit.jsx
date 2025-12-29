@@ -4,9 +4,10 @@
  * Apple 2025 Liquid Glass Design
  */
 
-import React, { useState, useMemo, useRef, useCallback } from 'react'
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { HapticService } from '../services/hapticService'
+import { AuditService } from '../services/auditService'
 
 // Format helpers
 const formatDate = (date) => {
@@ -96,8 +97,8 @@ function StateDiffCard({ previousState, currentState, action }) {
         >
             <div className="flex items-center gap-3 mb-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${action === 'ENTRY' ? 'bg-emerald-500/20 text-emerald-600' :
-                        action === 'EXIT' ? 'bg-rose-500/20 text-rose-600' :
-                            'bg-violet-500/20 text-violet-600'
+                    action === 'EXIT' ? 'bg-rose-500/20 text-rose-600' :
+                        'bg-violet-500/20 text-violet-600'
                     }`}>
                     <span className="text-xl font-bold">
                         {action === 'ENTRY' ? '↓' : action === 'EXIT' ? '↑' : '⟳'}
@@ -167,7 +168,7 @@ function StateDiffCard({ previousState, currentState, action }) {
 }
 
 // Main Timeline Audit Component
-export default function TimelineAudit({ entries = [], onSelectEntry }) {
+export default function TimelineAudit({ entries = [], onSelectEntry, isFromPostgres = false, isLoading = false }) {
     const [activeIndex, setActiveIndex] = useState(entries.length - 1)
     const timelineRef = useRef(null)
     const isDragging = useRef(false)
@@ -226,6 +227,23 @@ export default function TimelineAudit({ entries = [], onSelectEntry }) {
         HapticService.trigger('impactMedium')
     }
 
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-3xl rounded-[2rem] p-8 border border-zinc-200/50 dark:border-white/5 text-center">
+                <motion.div
+                    className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                    <span className="text-3xl">⏳</span>
+                </motion.div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Carregando Histórico</h3>
+                <p className="text-sm text-zinc-500">Buscando dados do PostgreSQL...</p>
+            </div>
+        )
+    }
+
     if (entries.length === 0) {
         return (
             <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-3xl rounded-[2rem] p-8 border border-zinc-200/50 dark:border-white/5 text-center">
@@ -246,11 +264,30 @@ export default function TimelineAudit({ entries = [], onSelectEntry }) {
                     <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Time Travel</h3>
                     <p className="text-lg font-bold text-zinc-900 dark:text-white">Histórico de Auditoria</p>
                 </div>
-                <div className="px-4 py-1.5 bg-zinc-50 dark:bg-white/5 backdrop-blur-md rounded-full border border-zinc-200/50 dark:border-white/10 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-                    <span className="text-[8px] font-bold text-zinc-500 dark:text-white/60 uppercase tracking-widest">
-                        {sortedEntries.length} registros
-                    </span>
+                <div className="flex items-center gap-2">
+                    {/* Data Source Badge */}
+                    {isFromPostgres ? (
+                        <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-full border border-emerald-200/50 dark:border-emerald-500/20 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                                PostgreSQL
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-500/10 rounded-full border border-amber-200/50 dark:border-amber-500/20 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            <span className="text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+                                Local
+                            </span>
+                        </div>
+                    )}
+                    {/* Count Badge */}
+                    <div className="px-4 py-1.5 bg-zinc-50 dark:bg-white/5 backdrop-blur-md rounded-full border border-zinc-200/50 dark:border-white/10 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                        <span className="text-[8px] font-bold text-zinc-500 dark:text-white/60 uppercase tracking-widest">
+                            {sortedEntries.length} registros
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -362,10 +399,62 @@ export default function TimelineAudit({ entries = [], onSelectEntry }) {
     )
 }
 
-// Named export for use hook
+// Named export for use hook - Fetches from PostgreSQL via Data Connect
 export function useTimelineAudit(productId, movements = []) {
-    // Transform movements into audit entries
-    const entries = useMemo(() => {
+    const [auditEntries, setAuditEntries] = useState([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState(null)
+
+    // Fetch audit logs from Data Connect (PostgreSQL)
+    useEffect(() => {
+        const fetchAuditLogs = async () => {
+            if (!productId) {
+                setIsLoading(false)
+                return
+            }
+
+            try {
+                setIsLoading(true)
+                setError(null)
+
+                // Try to fetch from Data Connect
+                const logs = await AuditService.getAuditTrail('Product', productId, { limit: 100 })
+
+                if (logs && logs.length > 0) {
+                    // Transform audit logs to timeline entries
+                    const entries = logs.map(log => ({
+                        id: log.id,
+                        timestamp: log.createdAt,
+                        action: log.action,
+                        productName: 'Produto',
+                        stock: log.newState ? JSON.parse(log.newState).currentStock : null,
+                        price: log.newState ? JSON.parse(log.newState).currentPrice : null,
+                        previousStock: log.previousState ? JSON.parse(log.previousState).currentStock : null,
+                        previousPrice: log.previousState ? JSON.parse(log.previousState).currentPrice : null,
+                        userName: log.userName || 'Sistema',
+                        diff: log.diff ? JSON.parse(log.diff) : null,
+                        source: 'postgresql' // Indicates data from PostgreSQL
+                    }))
+                    setAuditEntries(entries)
+                } else {
+                    // Fallback to movements if no audit logs
+                    console.log('No audit logs found, using movements as fallback')
+                    setAuditEntries([])
+                }
+            } catch (err) {
+                console.warn('Failed to fetch audit logs, using movements fallback:', err)
+                setError(err)
+                setAuditEntries([])
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchAuditLogs()
+    }, [productId])
+
+    // Transform movements into audit entries as fallback
+    const movementEntries = useMemo(() => {
         return movements.map((m, index) => ({
             id: m.id || `movement-${index}`,
             timestamp: m.date || m.createdAt,
@@ -375,9 +464,28 @@ export function useTimelineAudit(productId, movements = []) {
             price: m.price,
             quantity: m.quantity,
             userName: m.userName || 'Sistema',
-            reason: m.reason
+            reason: m.reason,
+            source: 'local' // Indicates data from local state
         }))
     }, [movements])
 
-    return { entries }
+    // Combine audit entries with movements (prefer audit entries)
+    const entries = useMemo(() => {
+        if (auditEntries.length > 0) {
+            return auditEntries
+        }
+        return movementEntries
+    }, [auditEntries, movementEntries])
+
+    return {
+        entries,
+        isLoading,
+        error,
+        isFromPostgres: auditEntries.length > 0,
+        refresh: () => {
+            // Trigger a refetch
+            setAuditEntries([])
+        }
+    }
 }
+

@@ -7,7 +7,9 @@ import {
     deleteDoc,
     query,
     orderBy,
-    getDoc
+    getDoc,
+    onSnapshot,
+    where
 } from "firebase/firestore";
 
 /**
@@ -480,6 +482,48 @@ export const FirebaseService = {
         } catch (e) {
             console.error("Error getting anomaly history:", e);
             return { anomalies: [] };
+        }
+    },
+
+    // --- QUOTATIONS (Real-time Pub/Sub Integration) ---
+    subscribeToQuotations(callback) {
+        // Real-time listener for quotation updates from Gmail Pub/Sub
+        // This eliminates the need for polling
+        try {
+            const q = query(
+                collection(db, "quotations"),
+                orderBy("updatedAt", "desc")
+            );
+
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const quotations = [];
+                snapshot.forEach(doc => {
+                    quotations.push({ id: doc.id, ...doc.data() });
+                });
+                callback(quotations);
+            }, (error) => {
+                console.error("Error in quotations listener:", error);
+                // Return empty array on error to avoid breaking the UI
+                callback([]);
+            });
+
+            return unsubscribe;
+        } catch (e) {
+            console.error("Error setting up quotations listener:", e);
+            return () => { }; // Return no-op function
+        }
+    },
+
+    async syncQuotation(id, data) {
+        try {
+            await setDoc(doc(db, "quotations", id), cleanPayload({
+                ...data,
+                updatedAt: new Date().toISOString()
+            }), { merge: true });
+            return true;
+        } catch (e) {
+            console.error("Error syncing quotation:", e);
+            return false;
         }
     }
 };

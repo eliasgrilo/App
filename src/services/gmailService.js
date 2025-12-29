@@ -211,8 +211,9 @@ class GmailApiService {
 
                 if (response.access_token) {
                     this.accessToken = response.access_token
+                    const expiryDate = Date.now() + 3600000
                     localStorage.setItem('gmail_access_token', response.access_token)
-                    localStorage.setItem('gmail_token_expiry', String(Date.now() + 3600000))
+                    localStorage.setItem('gmail_token_expiry', String(expiryDate))
                     window.gapi.client.setToken({ access_token: response.access_token })
 
                     // Get user email
@@ -224,6 +225,33 @@ class GmailApiService {
                         }
                     } catch (e) {
                         this.userEmail = SENDER_EMAIL
+                    }
+
+                    // 🔄 Sync token to Firestore for Cloud Functions (Gmail Pub/Sub)
+                    try {
+                        console.log('🔄 Syncing token to Cloud Functions...')
+                        const syncResponse = await fetch(
+                            'https://us-central1-padoca-96688.cloudfunctions.net/saveGmailToken',
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    accessToken: response.access_token,
+                                    expiryDate: expiryDate,
+                                    userEmail: this.userEmail,
+                                    clientId: GOOGLE_CLIENT_ID
+                                })
+                            }
+                        )
+                        if (syncResponse.ok) {
+                            const syncData = await syncResponse.json()
+                            console.log('✅ Token synced to Cloud Functions:', syncData.expiresIn)
+                        } else {
+                            console.warn('⚠️ Token sync failed:', await syncResponse.text())
+                        }
+                    } catch (syncError) {
+                        console.warn('⚠️ Could not sync token:', syncError.message)
+                        // Non-blocking - app still works, just Pub/Sub won't work
                     }
 
                     console.log('✅ Gmail conectado:', this.userEmail)
@@ -250,7 +278,58 @@ class GmailApiService {
 
     isConnected() {
         const tokenExpiry = parseInt(localStorage.getItem('gmail_token_expiry')) || 0
-        return !!(this.accessToken && tokenExpiry > Date.now())
+        const hasValidToken = !!(this.accessToken && tokenExpiry > Date.now())
+
+        // Log connection status for debugging
+        if (!hasValidToken && this.accessToken) {
+            console.warn('⚠️ Gmail token expired at:', new Date(tokenExpiry).toLocaleString())
+            console.warn('⚠️ Current time:', new Date().toLocaleString())
+        }
+
+        return hasValidToken
+    }
+
+    /**
+     * Validate token is still working by making a test API call
+     */
+    async validateToken() {
+        if (!this.accessToken) return false
+
+        try {
+            const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+                headers: { 'Authorization': `Bearer ${this.accessToken}` }
+            })
+
+            if (response.status === 401 || response.status === 403) {
+                console.warn('⚠️ Gmail token inválido ou expirado, desconectando...')
+                this.disconnect()
+                return false
+            }
+
+            return response.ok
+        } catch (e) {
+            console.error('❌ Erro ao validar token:', e)
+            return false
+        }
+    }
+
+    /**
+     * Ensure we have a valid connection, prompting re-auth if needed
+     */
+    async ensureValidConnection() {
+        if (!this.isConnected()) {
+            console.log('🔄 Gmail não conectado, precisa autorizar')
+            return false
+        }
+
+        // Validate token is actually working
+        const isValid = await this.validateToken()
+        if (!isValid) {
+            console.log('🔄 Token inválido, precisa reconectar')
+            return false
+        }
+
+        return true
     }
 
     getConnectedEmail() {
@@ -405,23 +484,46 @@ class GmailApiService {
         }
 
         console.log('📧 Enviando email para:', to)
+        console.log('📧 Status Gmail:', this.getStatus())
 
         // Try Gmail API first if connected
         if (this.isConnected()) {
-            try {
-                return await this.sendEmailViaGmail({ to, subject, body })
-            } catch (e) {
-                console.warn('Gmail API falhou, tentando EmailJS...', e.message)
+            // Validate token before attempting to send
+            const tokenValid = await this.validateToken()
+            if (tokenValid) {
+                try {
+                    return await this.sendEmailViaGmail({ to, subject, body })
+                } catch (e) {
+                    console.warn('Gmail API falhou:', e.message)
+                    this.lastError = `Gmail API: ${e.message}`
+
+                    // If auth error, disconnect for clean reconnect
+                    if (e.message.includes('401') || e.message.includes('403') || e.message.includes('auth')) {
+                        console.warn('⚠️ Erro de autenticação, desconectando Gmail...')
+                        this.disconnect()
+                    }
+                }
+            } else {
+                console.warn('⚠️ Token Gmail inválido, pulando para EmailJS...')
             }
+        } else {
+            console.log('ℹ️ Gmail não conectado, usando EmailJS como fallback')
         }
 
         // Fallback to EmailJS
         try {
+            console.log('📧 Tentando enviar via EmailJS...')
             return await this.sendEmailViaEmailJS({ to, subject, body, supplierName })
         } catch (e) {
-            this.lastError = e.message
-            console.error('❌ Ambos os métodos falharam:', e)
-            throw new Error(`Falha ao enviar email: ${e.message}`)
+            this.lastError = `EmailJS: ${e.message}`
+            console.error('❌ EmailJS também falhou:', e)
+
+            // Provide helpful error message
+            const helpMessage = this.isConnected()
+                ? 'Tente reconectar o Gmail clicando em "Conectar Gmail"'
+                : 'Conecte sua conta Gmail para enviar emails'
+
+            throw new Error(`Falha ao enviar email: ${e.message}. ${helpMessage}`)
         }
     }
 

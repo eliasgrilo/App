@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useScrollLock } from './hooks/useScrollLock'
 import { FirebaseService } from './services/firebaseService'
 import { gmailService } from './services/gmailService'
+import { GeminiService } from './services/geminiService'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, formatTime } from './utils/formatUtils'
 
@@ -221,78 +222,251 @@ export default function AI() {
         initGmail()
     }, [])
 
-    // Auto-refresh email replies every 30 seconds
-    // Use refs to avoid unnecessary re-runs and potential loops
+    // ═══════════════════════════════════════════════════════════════
+    // EMAIL REPLY DETECTION (Real-time Firestore Listener + AI Analysis)
+    // ═══════════════════════════════════════════════════════════════
+    // Real-time listener for Firestore quotations - Zero manual intervention
+    // Gmail Pub/Sub -> Cloud Function -> Firestore -> This listener
     const sentEmailsForRepliesRef = useRef(sentEmails)
     sentEmailsForRepliesRef.current = sentEmails
 
+    // Primary: Real-time Firestore listener (zero latency, no polling)
+    useEffect(() => {
+        if (!gmailConnected) return
+
+        console.log('🔔 Setting up Firestore real-time listener for quotations...')
+
+        const unsubscribe = FirebaseService.subscribeToQuotations(async (quotations) => {
+            console.log('📬 Real-time update received:', quotations.length, 'quotations')
+
+            const currentEmails = sentEmailsForRepliesRef.current
+            if (quotations.length === 0 || currentEmails.length === 0) return
+
+            let hasUpdates = false
+            const updatedEmails = await Promise.all(currentEmails.map(async (email) => {
+                // Match quotation by supplier email and status
+                const matchingQuotation = quotations.find(q =>
+                    q.supplierEmail?.toLowerCase() === email.to?.toLowerCase() &&
+                    (q.status === 'reply_received' || q.status === 'quoted')
+                )
+
+                if (matchingQuotation && email.status === 'sent') {
+                    hasUpdates = true
+                    console.log('✅ Auto-update from Pub/Sub:', matchingQuotation.supplierEmail)
+
+                    // If quotation has reply body but not yet processed by AI, process it now
+                    let quotedData = null
+                    const emailBody = matchingQuotation.replyBody || ''
+                    const emailItems = email.items || []
+
+                    if (GeminiService.isReady() && emailBody.length > 20 && !matchingQuotation.quotedValue) {
+                        try {
+                            console.log('🤖 Analyzing email with Gemini AI...')
+                            const analysis = await GeminiService.analyzeSupplierResponse(
+                                emailBody,
+                                emailItems.map(i => ({ name: i.name }))
+                            )
+
+                            if (analysis.success && analysis.data?.hasQuote) {
+                                quotedData = {
+                                    items: analysis.data.items || [],
+                                    totalQuote: analysis.data.totalQuote,
+                                    deliveryDate: analysis.data.deliveryDate,
+                                    deliveryDays: analysis.data.deliveryDays,
+                                    paymentTerms: analysis.data.paymentTerms,
+                                    supplierNotes: analysis.data.supplierNotes,
+                                    sentiment: analysis.data.sentiment,
+                                    hasProblems: analysis.data.hasProblems || false,
+                                    hasDelay: analysis.data.hasDelay || false,
+                                    delayReason: analysis.data.delayReason,
+                                    problemSummary: analysis.data.problemSummary,
+                                    urgency: analysis.data.urgency || 'low',
+                                    suggestedAction: analysis.data.suggestedAction || 'confirm'
+                                }
+                                console.log('✅ AI extracted data:', quotedData)
+                            }
+                        } catch (aiError) {
+                            console.warn('⚠️ AI analysis failed:', aiError)
+                        }
+                    }
+
+                    return {
+                        ...email,
+                        status: quotedData ? 'quoted' : (matchingQuotation.status === 'quoted' ? 'quoted' : 'replied'),
+                        repliedAt: matchingQuotation.replyReceivedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+                        replySnippet: emailBody.substring(0, 150),
+                        replySubject: matchingQuotation.replySubject || '',
+                        replyFrom: matchingQuotation.replyFrom || '',
+                        replyBody: emailBody,
+                        // Quoted data - from AI or from Firestore
+                        quotedData: quotedData || matchingQuotation.quotedData || null,
+                        quotedValue: quotedData?.totalQuote || matchingQuotation.quotedValue || null,
+                        expectedDelivery: quotedData?.deliveryDate || matchingQuotation.expectedDelivery || null,
+                        deliveryDays: quotedData?.deliveryDays || matchingQuotation.deliveryDays || null,
+                        paymentTerms: quotedData?.paymentTerms || matchingQuotation.paymentTerms || null,
+                        // Problem flags
+                        hasProblems: quotedData?.hasProblems || matchingQuotation.hasProblems || false,
+                        hasDelay: quotedData?.hasDelay || matchingQuotation.hasDelay || false,
+                        problemSummary: quotedData?.problemSummary || matchingQuotation.problemSummary || null,
+                        urgency: quotedData?.urgency || matchingQuotation.urgency || 'low',
+                        suggestedAction: quotedData?.suggestedAction || matchingQuotation.suggestedAction || 'confirm',
+                        // Update items with quoted prices
+                        items: emailItems.map(item => {
+                            const quotedItem = quotedData?.items?.find(qi =>
+                                qi.name?.toLowerCase().includes(item.name?.toLowerCase()) ||
+                                item.name?.toLowerCase().includes(qi.name?.toLowerCase())
+                            )
+                            return {
+                                ...item,
+                                quotedPrice: quotedItem?.unitPrice || null,
+                                available: quotedItem?.available ?? true,
+                                partialAvailability: quotedItem?.partialAvailability || false,
+                                availableQuantity: quotedItem?.availableQuantity || null,
+                                unavailableReason: quotedItem?.unavailableReason || null
+                            }
+                        })
+                    }
+                }
+                return email
+            }))
+
+            if (hasUpdates) {
+                setSentEmails(updatedEmails)
+                localStorage.setItem('padoca_sent_emails', JSON.stringify(updatedEmails))
+
+                const newlyQuoted = updatedEmails.filter(e =>
+                    e.status === 'quoted' && currentEmails.find(ce => ce.id === e.id)?.status === 'sent'
+                )
+                if (newlyQuoted.length > 0) {
+                    showToast(`📬 ${newlyQuoted.length} cotação(ões) recebida(s) via Pub/Sub! Zero intervenção manual.`, 'success')
+                } else {
+                    showToast('📬 Resposta recebida em tempo real!', 'success')
+                }
+            }
+        })
+
+        return () => {
+            console.log('🔕 Unsubscribing from Firestore listener')
+            unsubscribe()
+        }
+    }, [gmailConnected, showToast])
+
+    // Fallback: Manual polling every 60s for edge cases (Pub/Sub not configured)
     useEffect(() => {
         if (!gmailConnected) return
 
         let isMounted = true
 
-        const checkForReplies = async () => {
+        const checkForRepliesFallback = async () => {
             if (!isMounted) return
 
             const currentEmails = sentEmailsForRepliesRef.current
-            if (currentEmails.length === 0) return
+            const pendingEmails = currentEmails.filter(e => e.status === 'sent')
+            if (pendingEmails.length === 0) return
 
             try {
-                // Get emails that are pending (sent but not confirmed)
-                const pendingEmails = currentEmails.filter(e => e.status === 'sent')
-                if (pendingEmails.length === 0) return
-
-                // Get unique supplier emails
-                const supplierEmailsSet = new Set(pendingEmails.map(e => e.to).filter(Boolean))
-                const supplierEmailsList = [...supplierEmailsSet]
-
-                // Check for replies from these suppliers
+                const supplierEmailsList = [...new Set(pendingEmails.map(e => e.to).filter(Boolean))]
                 const oldestPending = pendingEmails.reduce((oldest, e) =>
                     new Date(e.sentAt) < new Date(oldest.sentAt) ? e : oldest
                 )
-                const afterDate = new Date(oldestPending.sentAt)
 
-                const replies = await gmailService.checkReplies(supplierEmailsList, afterDate)
+                console.log('🔍 Fallback polling for replies...')
+                const replies = await gmailService.checkReplies(supplierEmailsList, new Date(oldestPending.sentAt))
 
-                if (!isMounted) return
+                if (!isMounted || replies.length === 0) return
 
-                if (replies.length > 0) {
-                    setEmailReplies(replies)
+                setEmailReplies(replies)
+                console.log('📬 Fallback found replies:', replies.length)
 
-                    // Auto-mark emails as received if we got a reply
-                    const updatedEmails = currentEmails.map(email => {
-                        const hasReply = replies.some(r =>
-                            r.supplierEmail.toLowerCase() === email.to?.toLowerCase()
-                        )
-                        if (hasReply && email.status === 'sent') {
-                            return { ...email, status: 'replied' }
+                // Process with AI
+                const updatedEmails = await Promise.all(currentEmails.map(async (email) => {
+                    const matchingReply = replies.find(r =>
+                        r.supplierEmail.toLowerCase() === email.to?.toLowerCase()
+                    )
+
+                    if (matchingReply && email.status === 'sent') {
+                        const emailBody = matchingReply.body || matchingReply.snippet || ''
+                        const emailItems = email.items || []
+                        let quotedData = null
+
+                        if (GeminiService.isReady() && emailBody.length > 20) {
+                            try {
+                                const analysis = await GeminiService.analyzeSupplierResponse(
+                                    emailBody,
+                                    emailItems.map(i => ({ name: i.name }))
+                                )
+                                if (analysis.success && analysis.data?.hasQuote) {
+                                    quotedData = {
+                                        items: analysis.data.items || [],
+                                        totalQuote: analysis.data.totalQuote,
+                                        deliveryDate: analysis.data.deliveryDate,
+                                        deliveryDays: analysis.data.deliveryDays,
+                                        paymentTerms: analysis.data.paymentTerms,
+                                        supplierNotes: analysis.data.supplierNotes,
+                                        sentiment: analysis.data.sentiment,
+                                        hasProblems: analysis.data.hasProblems || false,
+                                        hasDelay: analysis.data.hasDelay || false,
+                                        delayReason: analysis.data.delayReason,
+                                        problemSummary: analysis.data.problemSummary,
+                                        urgency: analysis.data.urgency || 'low',
+                                        suggestedAction: analysis.data.suggestedAction || 'confirm'
+                                    }
+                                }
+                            } catch (e) { console.warn('AI analysis failed:', e) }
                         }
-                        return email
-                    })
 
-                    if (JSON.stringify(updatedEmails) !== JSON.stringify(currentEmails)) {
-                        setSentEmails(updatedEmails)
-                        localStorage.setItem('padoca_sent_emails', JSON.stringify(updatedEmails))
-                        showToast('📬 Nova resposta recebida!', 'success')
+                        return {
+                            ...email,
+                            status: quotedData ? 'quoted' : 'replied',
+                            repliedAt: new Date().toISOString(),
+                            replySnippet: matchingReply.snippet,
+                            replySubject: matchingReply.subject,
+                            replyFrom: matchingReply.from,
+                            replyBody: emailBody,
+                            quotedData,
+                            quotedValue: quotedData?.totalQuote || null,
+                            expectedDelivery: quotedData?.deliveryDate || null,
+                            deliveryDays: quotedData?.deliveryDays || null,
+                            paymentTerms: quotedData?.paymentTerms || null,
+                            hasProblems: quotedData?.hasProblems || false,
+                            hasDelay: quotedData?.hasDelay || false,
+                            problemSummary: quotedData?.problemSummary || null,
+                            urgency: quotedData?.urgency || 'low',
+                            suggestedAction: quotedData?.suggestedAction || 'confirm',
+                            items: emailItems.map(item => {
+                                const quotedItem = quotedData?.items?.find(qi =>
+                                    qi.name?.toLowerCase().includes(item.name?.toLowerCase()) ||
+                                    item.name?.toLowerCase().includes(qi.name?.toLowerCase())
+                                )
+                                return { ...item, quotedPrice: quotedItem?.unitPrice || null, available: quotedItem?.available ?? true }
+                            })
+                        }
                     }
+                    return email
+                }))
+
+                if (JSON.stringify(updatedEmails) !== JSON.stringify(currentEmails)) {
+                    setSentEmails(updatedEmails)
+                    localStorage.setItem('padoca_sent_emails', JSON.stringify(updatedEmails))
+                    showToast('📋 Cotação recebida (via fallback polling)', 'success')
                 }
             } catch (e) {
-                console.warn('Error checking replies:', e)
+                console.warn('Fallback polling error:', e)
             }
         }
 
-        // Initial check after delay to not block initial render
-        const initialTimeout = setTimeout(checkForReplies, 2000)
+        // Fallback polling every 60 seconds (less aggressive than before)
+        const timeout = setTimeout(checkForRepliesFallback, 5000)
+        const interval = setInterval(checkForRepliesFallback, 60000)
 
-        // Set up interval
-        const interval = setInterval(checkForReplies, 30000) // 30 seconds
+        console.log('🔄 Fallback polling ativado (60s interval)')
 
         return () => {
             isMounted = false
-            clearTimeout(initialTimeout)
+            clearTimeout(timeout)
             clearInterval(interval)
         }
-    }, [gmailConnected, showToast]) // Removed sentEmails to avoid re-running interval
+    }, [gmailConnected, showToast])
 
     // Auto-complete orders when stock is replenished
     // When items in confirmed orders are back above minimum, mark as delivered
@@ -1117,6 +1291,21 @@ ${today}`
                                                                         </p>
                                                                     </div>
                                                                 </div>
+                                                                {/* Problems Alert Badge */}
+                                                                {email.hasProblems && (
+                                                                    <div className="w-full px-4 py-2 bg-rose-50 dark:bg-rose-500/10 border-t border-rose-100 dark:border-rose-500/10 flex items-center gap-2">
+                                                                        <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                                        </svg>
+                                                                        <span className="text-[10px] font-medium text-rose-600 dark:text-rose-400">
+                                                                            {email.hasDelay && '⏰ Atraso na entrega • '}
+                                                                            {email.problemSummary || 'Problemas detectados - verifique os detalhes'}
+                                                                        </span>
+                                                                        {email.urgency === 'high' && (
+                                                                            <span className="ml-auto px-2 py-0.5 bg-rose-500 text-white rounded-full text-[8px] font-bold uppercase">Urgente</span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                                 {/* Quote Summary Badge */}
                                                                 {email.quotedValue && (
                                                                     <div className="hidden md:flex flex-col items-end gap-0.5 shrink-0 px-4">

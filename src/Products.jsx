@@ -11,6 +11,7 @@ import PredictiveInsights, { usePredictiveInsights } from './components/Predicti
 import ARScanner from './components/ARScanner'
 import DigitalTwinMap from './components/DigitalTwinMap'
 import SmartSourcing from './components/SmartSourcing'
+import SmartSourcingWorkflow from './components/SmartSourcingWorkflow'
 import { HapticService } from './services/hapticService'
 
 /**
@@ -968,7 +969,12 @@ export default function Products() {
                         price: m.price,
                         userName: m.userName || 'Sistema'
                     }))}
-                    onSelectEntry={(entry) => console.log('Selected:', entry)}
+                    onSelectEntry={(entry) => {
+                        HapticService.trigger('selection')
+                        console.log('Selected:', entry)
+                    }}
+                    isFromPostgres={false} // Will be true when connected to Data Connect
+                    isLoading={false}
                 />
             )}
 
@@ -993,16 +999,17 @@ export default function Products() {
                 />
             )}
 
-            {/* Smart Sourcing View */}
+            {/* Smart Sourcing View - AI Powered Workflow */}
             {activeView === 'sourcing' && (
-                <SmartSourcing
+                <SmartSourcingWorkflow
                     products={products}
                     movements={movements}
-                    onCreateOrders={async (selectedSuppliers) => {
-                        console.log('Creating orders for:', selectedSuppliers)
-                        HapticService.trigger('approval')
-                        // TODO: Integrate with PurchaseOrder creation
+                    onCreateQuotation={async (supplier, items) => {
+                        console.log('Creating quotation for:', supplier, items)
+                        HapticService.trigger('success')
                     }}
+                    userId="user_1"
+                    userName="Operador"
                 />
             )}
         </div>
