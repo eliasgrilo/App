@@ -1,20 +1,44 @@
 /**
- * Gmail API Service - Padoca Pizza
- * Complete Gmail integration with OAuth for automatic email reading
+ * Gmail API Service v2.0 - Padoca Pizza
+ * Senior Engineer Implementation with Robust Error Handling
+ * 
+ * ARCHITECTURE:
+ * - OAuth 2.0 with automatic token refresh
+ * - Gmail API for both sending and reading
+ * - Fallback to EmailJS for sending if Gmail fails
+ * - Comprehensive error logging
  */
 
-// OAuth Configuration
-const GOOGLE_CLIENT_ID = '288245433770-mnrej3g3kud0ai1qn670cd4c6vm00ui5.apps.googleusercontent.com'
-const GMAIL_SCOPES = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send'
+// ============================================================
+// CONFIGURATION - CRITICAL: Update these values
+// ============================================================
 
-// EmailJS for sending (backup)
+// OAuth 2.0 Client ID (from Google Cloud Console)
+const GOOGLE_CLIENT_ID = '689278956648-ti708lsamubui9d33hcohhr6es3tag34.apps.googleusercontent.com'
+
+// Scopes required for full access
+const GMAIL_SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/gmail.compose'
+].join(' ')
+
+// EmailJS fallback configuration
 const EMAILJS_SERVICE_ID = 'service_g2io60e'
 const EMAILJS_TEMPLATE_ID = 'template_at3fl3s'
 const EMAILJS_PUBLIC_KEY = '0CObV7BKHDHwHMDxs'
 
+// Sender info
 const SENDER_EMAIL = 'padocainc@gmail.com'
 const SENDER_NAME = 'Padoca Pizza'
+
+// Timeouts
 const EMAIL_TIMEOUT = 30000
+const API_TIMEOUT = 10000
+
+// ============================================================
+// GMAIL API SERVICE CLASS
+// ============================================================
 
 class GmailApiService {
     constructor() {
@@ -24,18 +48,29 @@ class GmailApiService {
         this.userEmail = null
         this.gsiLoaded = false
         this.gapiLoaded = false
+        this.lastError = null
     }
 
-    /**
-     * Load Google Identity Services script
-     */
+    // --------------------------------------------------------
+    // SCRIPT LOADING
+    // --------------------------------------------------------
+
     async loadGSI() {
         if (this.gsiLoaded) return true
 
         return new Promise((resolve, reject) => {
-            if (window.google?.accounts) {
+            if (window.google?.accounts?.oauth2) {
                 this.gsiLoaded = true
                 resolve(true)
+                return
+            }
+
+            const existingScript = document.querySelector('script[src*="accounts.google.com/gsi"]')
+            if (existingScript) {
+                existingScript.addEventListener('load', () => {
+                    this.gsiLoaded = true
+                    resolve(true)
+                })
                 return
             }
 
@@ -45,17 +80,17 @@ class GmailApiService {
             script.defer = true
             script.onload = () => {
                 this.gsiLoaded = true
-                console.log('✅ Google Identity Services loaded')
+                console.log('✅ GSI loaded')
                 resolve(true)
             }
-            script.onerror = () => reject(new Error('Failed to load GSI'))
+            script.onerror = (e) => {
+                this.lastError = 'Failed to load Google Sign-In'
+                reject(new Error('Failed to load GSI'))
+            }
             document.head.appendChild(script)
         })
     }
 
-    /**
-     * Load GAPI client for Gmail API
-     */
     async loadGAPI() {
         if (this.gapiLoaded) return true
 
@@ -66,151 +101,184 @@ class GmailApiService {
                 return
             }
 
+            const existingScript = document.querySelector('script[src*="apis.google.com/js/api"]')
+            if (existingScript) {
+                existingScript.addEventListener('load', () => {
+                    window.gapi.load('client', async () => {
+                        await window.gapi.client.init({})
+                        this.gapiLoaded = true
+                        resolve(true)
+                    })
+                })
+                return
+            }
+
             const script = document.createElement('script')
             script.src = 'https://apis.google.com/js/api.js'
             script.async = true
             script.defer = true
             script.onload = () => {
                 window.gapi.load('client', async () => {
-                    await window.gapi.client.init({})
-                    this.gapiLoaded = true
-                    console.log('✅ GAPI client loaded')
-                    resolve(true)
+                    try {
+                        await window.gapi.client.init({})
+                        this.gapiLoaded = true
+                        console.log('✅ GAPI loaded')
+                        resolve(true)
+                    } catch (e) {
+                        this.lastError = 'Failed to initialize GAPI client'
+                        reject(e)
+                    }
                 })
             }
-            script.onerror = () => reject(new Error('Failed to load GAPI'))
+            script.onerror = (e) => {
+                this.lastError = 'Failed to load Google API'
+                reject(new Error('Failed to load GAPI'))
+            }
             document.head.appendChild(script)
         })
     }
 
-    /**
-     * Initialize Gmail API with OAuth
-     */
+    // --------------------------------------------------------
+    // INITIALIZATION & AUTH
+    // --------------------------------------------------------
+
     async init() {
         if (this.isInitialized && this.accessToken) return true
 
         try {
             await Promise.all([this.loadGSI(), this.loadGAPI()])
 
-            // Check for stored token
+            // Check stored token
             const storedToken = localStorage.getItem('gmail_access_token')
-            const tokenExpiry = localStorage.getItem('gmail_token_expiry')
+            const tokenExpiry = parseInt(localStorage.getItem('gmail_token_expiry')) || 0
+            const storedEmail = localStorage.getItem('gmail_user_email')
 
-            if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
+            // Token valid for at least 5 more minutes?
+            if (storedToken && tokenExpiry > Date.now() + 300000) {
                 this.accessToken = storedToken
-                this.userEmail = localStorage.getItem('gmail_user_email') || SENDER_EMAIL
+                this.userEmail = storedEmail || SENDER_EMAIL
                 window.gapi.client.setToken({ access_token: storedToken })
                 this.isInitialized = true
-                console.log('✅ Gmail API initialized with stored token')
+                console.log('✅ Gmail auto-conectado:', this.userEmail)
                 return true
             }
 
-            // Initialize token client for new auth
+            // Initialize token client
             this.tokenClient = window.google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
                 scope: GMAIL_SCOPES,
-                callback: (response) => {
-                    if (response.access_token) {
-                        this.accessToken = response.access_token
-                        // Store token with 1 hour expiry
-                        localStorage.setItem('gmail_access_token', response.access_token)
-                        localStorage.setItem('gmail_token_expiry', String(Date.now() + 3600000))
-                        window.gapi.client.setToken({ access_token: response.access_token })
-                        console.log('✅ New Gmail token obtained')
-                    }
-                }
+                callback: () => { } // Will be set dynamically
             })
 
             this.isInitialized = true
-            console.log('✅ Gmail API service initialized')
+            console.log('✅ Gmail service pronto (precisa autenticar)')
             return true
+
         } catch (e) {
-            console.error('❌ Gmail API init failed:', e)
+            this.lastError = e.message
+            console.error('❌ Gmail init erro:', e)
             return false
         }
     }
 
-    /**
-     * Ensure scripts are loaded - call this on component mount!
-     * This MUST be called before authorize() to ensure popup opens correctly
-     */
     async ensureInitialized() {
-        if (this.isInitialized) return true
-        return await this.init()
+        if (!this.isInitialized) {
+            await this.init()
+        }
+        return this.isInitialized
     }
 
-    /**
-     * Request user authorization - MUST be called directly from user click
-     * Scripts must be pre-loaded via ensureInitialized()
-     */
+    // --------------------------------------------------------
+    // AUTHORIZATION (requires user interaction)
+    // --------------------------------------------------------
+
     authorize() {
-        // If not initialized, we can't open popup correctly
-        if (!this.tokenClient) {
-            console.error('❌ Gmail not initialized. Call ensureInitialized() first.')
-            return Promise.reject(new Error('Gmail não inicializado. Recarregue a página.'))
-        }
+        return new Promise(async (resolve, reject) => {
+            await this.ensureInitialized()
 
-        return new Promise((resolve, reject) => {
-            try {
-                this.tokenClient.callback = async (response) => {
-                    if (response.error) {
-                        console.error('OAuth error:', response.error)
-                        reject(new Error(response.error))
-                        return
-                    }
-                    if (response.access_token) {
-                        this.accessToken = response.access_token
-                        localStorage.setItem('gmail_access_token', response.access_token)
-                        localStorage.setItem('gmail_token_expiry', String(Date.now() + 3600000))
-                        window.gapi.client.setToken({ access_token: response.access_token })
-                        console.log('✅ Gmail OAuth token obtained!')
+            if (!this.tokenClient) {
+                reject(new Error('Token client não inicializado'))
+                return
+            }
 
-                        // Get user email
+            this.tokenClient.callback = async (response) => {
+                if (response.error) {
+                    this.lastError = response.error_description || response.error
+                    console.error('❌ OAuth erro:', response)
+                    reject(new Error(this.lastError))
+                    return
+                }
+
+                if (response.access_token) {
+                    this.accessToken = response.access_token
+                    localStorage.setItem('gmail_access_token', response.access_token)
+                    localStorage.setItem('gmail_token_expiry', String(Date.now() + 3600000))
+                    window.gapi.client.setToken({ access_token: response.access_token })
+
+                    // Get user email
+                    try {
                         const profile = await this.getUserProfile()
-                        if (profile) {
+                        if (profile?.emailAddress) {
                             this.userEmail = profile.emailAddress
                             localStorage.setItem('gmail_user_email', profile.emailAddress)
-                            console.log('✅ Gmail connected:', profile.emailAddress)
                         }
-
-                        resolve({ email: this.userEmail, connected: true })
-                    }
-                }
-
-                // Clear any existing token before requesting new one
-                if (this.accessToken) {
-                    try {
-                        window.google.accounts.oauth2.revoke(this.accessToken)
                     } catch (e) {
-                        // Ignore revoke errors
+                        this.userEmail = SENDER_EMAIL
                     }
-                }
 
-                // THIS is the critical call - must happen synchronously from user gesture
-                console.log('🔐 Requesting Gmail access token...')
+                    console.log('✅ Gmail conectado:', this.userEmail)
+                    resolve({ email: this.userEmail, connected: true })
+                }
+            }
+
+            try {
                 this.tokenClient.requestAccessToken({ prompt: 'consent' })
             } catch (e) {
-                console.error('OAuth exception:', e)
+                this.lastError = e.message
                 reject(e)
             }
         })
     }
 
+    async connect() {
+        return this.authorize()
+    }
 
-    /**
-     * Check if connected
-     */
+    // --------------------------------------------------------
+    // STATUS METHODS
+    // --------------------------------------------------------
+
     isConnected() {
-        return !!this.accessToken
+        const tokenExpiry = parseInt(localStorage.getItem('gmail_token_expiry')) || 0
+        return !!(this.accessToken && tokenExpiry > Date.now())
     }
 
     getConnectedEmail() {
-        return this.userEmail || SENDER_EMAIL
+        return this.userEmail || localStorage.getItem('gmail_user_email') || SENDER_EMAIL
     }
 
-    /**
-     * Get user profile
-     */
+    getLastError() {
+        return this.lastError
+    }
+
+    disconnect() {
+        if (this.accessToken) {
+            try {
+                window.google?.accounts?.oauth2?.revoke(this.accessToken)
+            } catch (e) { }
+        }
+        this.accessToken = null
+        this.userEmail = null
+        localStorage.removeItem('gmail_access_token')
+        localStorage.removeItem('gmail_token_expiry')
+        localStorage.removeItem('gmail_user_email')
+        console.log('✅ Gmail desconectado')
+    }
+
+    // --------------------------------------------------------
+    // GMAIL API - Read Profile
+    // --------------------------------------------------------
+
     async getUserProfile() {
         if (!this.accessToken) return null
 
@@ -219,40 +287,74 @@ class GmailApiService {
                 headers: { 'Authorization': `Bearer ${this.accessToken}` }
             })
 
+            if (response.status === 401) {
+                this.disconnect()
+                return null
+            }
+
             if (response.ok) {
                 return await response.json()
             }
             return null
         } catch (e) {
-            console.error('Error getting profile:', e)
+            console.error('Profile erro:', e)
             return null
         }
     }
 
-    /**
-     * Disconnect / Revoke access
-     */
-    disconnect() {
-        if (this.accessToken) {
-            window.google?.accounts?.oauth2?.revoke(this.accessToken)
+    // --------------------------------------------------------
+    // GMAIL API - Send Email
+    // --------------------------------------------------------
+
+    async sendEmailViaGmail({ to, subject, body }) {
+        if (!this.accessToken) {
+            throw new Error('Gmail não conectado')
         }
-        this.accessToken = null
-        this.userEmail = null
-        localStorage.removeItem('gmail_access_token')
-        localStorage.removeItem('gmail_token_expiry')
-        localStorage.removeItem('gmail_user_email')
+
+        // Create RFC 2822 formatted email
+        const email = [
+            `To: ${to}`,
+            `From: ${SENDER_NAME} <${this.getConnectedEmail()}>`,
+            `Subject: ${subject}`,
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset=UTF-8',
+            '',
+            body
+        ].join('\r\n')
+
+        // Base64 encode for Gmail API
+        const encodedMessage = btoa(unescape(encodeURIComponent(email)))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '')
+
+        const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${this.accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ raw: encodedMessage })
+        })
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                this.disconnect()
+            }
+            const error = await response.json()
+            throw new Error(error.error?.message || 'Falha ao enviar email')
+        }
+
+        const result = await response.json()
+        console.log('✅ Email enviado via Gmail API:', result.id)
+        return { success: true, method: 'gmail', messageId: result.id }
     }
 
-    /**
-     * Send email via EmailJS (remains the same for reliability)
-     */
-    async sendEmail({ to, subject, body, supplierName }) {
-        console.log('📧 Enviando email para:', to)
+    // --------------------------------------------------------
+    // EMAILJS FALLBACK - Send Email
+    // --------------------------------------------------------
 
-        if (!to || !to.includes('@')) {
-            throw new Error('Email do destinatário inválido')
-        }
-
+    async sendEmailViaEmailJS({ to, subject, body, supplierName }) {
         // Load EmailJS if needed
         if (!window.emailjs) {
             await new Promise((resolve, reject) => {
@@ -275,7 +377,7 @@ class GmailApiService {
             .replace(/&quot;/g, '"')
             .replace(/&#39;/g, "'")
 
-        const sendPromise = window.emailjs.send(
+        const response = await window.emailjs.send(
             EMAILJS_SERVICE_ID,
             EMAILJS_TEMPLATE_ID,
             {
@@ -289,34 +391,58 @@ class GmailApiService {
             }
         )
 
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Timeout ao enviar email')), EMAIL_TIMEOUT)
-        })
-
-        const response = await Promise.race([sendPromise, timeoutPromise])
-
-        console.log('✅ Email enviado com sucesso!')
+        console.log('✅ Email enviado via EmailJS')
         return { success: true, method: 'emailjs', status: response.status }
     }
 
-    /**
-     * CRITICAL: Check for email replies - THE MAIN AUTOMATION FUNCTION
-     */
+    // --------------------------------------------------------
+    // UNIFIED SEND EMAIL (tries Gmail first, then EmailJS)
+    // --------------------------------------------------------
+
+    async sendEmail({ to, subject, body, supplierName }) {
+        if (!to || !to.includes('@')) {
+            throw new Error('Email do destinatário inválido')
+        }
+
+        console.log('📧 Enviando email para:', to)
+
+        // Try Gmail API first if connected
+        if (this.isConnected()) {
+            try {
+                return await this.sendEmailViaGmail({ to, subject, body })
+            } catch (e) {
+                console.warn('Gmail API falhou, tentando EmailJS...', e.message)
+            }
+        }
+
+        // Fallback to EmailJS
+        try {
+            return await this.sendEmailViaEmailJS({ to, subject, body, supplierName })
+        } catch (e) {
+            this.lastError = e.message
+            console.error('❌ Ambos os métodos falharam:', e)
+            throw new Error(`Falha ao enviar email: ${e.message}`)
+        }
+    }
+
+    // --------------------------------------------------------
+    // GMAIL API - Check Replies
+    // --------------------------------------------------------
+
     async checkReplies(supplierEmails, afterDate) {
-        if (!this.accessToken) {
-            console.log('⚠️ Gmail não conectado, não é possível verificar respostas')
+        if (!this.isConnected()) {
+            console.log('⚠️ Gmail não conectado para verificar respostas')
             return []
         }
 
         try {
-            // Build search query for emails from suppliers after the date
+            // Build search query
             const fromQuery = supplierEmails.map(e => `from:${e}`).join(' OR ')
             const dateStr = afterDate.toISOString().split('T')[0].replace(/-/g, '/')
             const searchQuery = `(${fromQuery}) after:${dateStr}`
 
             console.log('🔍 Buscando respostas:', searchQuery)
 
-            // Search for messages
             const searchResponse = await fetch(
                 `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=20`,
                 { headers: { 'Authorization': `Bearer ${this.accessToken}` } }
@@ -324,17 +450,16 @@ class GmailApiService {
 
             if (!searchResponse.ok) {
                 if (searchResponse.status === 401) {
-                    // Token expired, clear it
                     this.disconnect()
                 }
-                console.error('Gmail search failed:', searchResponse.status)
+                console.error('❌ Busca falhou:', searchResponse.status)
                 return []
             }
 
             const searchData = await searchResponse.json()
 
-            if (!searchData.messages || searchData.messages.length === 0) {
-                console.log('📭 Nenhuma resposta encontrada')
+            if (!searchData.messages?.length) {
+                console.log('📭 Nenhuma resposta nova')
                 return []
             }
 
@@ -343,12 +468,14 @@ class GmailApiService {
             // Fetch message details
             const replies = []
             for (const msg of searchData.messages.slice(0, 10)) {
-                const msgResponse = await fetch(
-                    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-                    { headers: { 'Authorization': `Bearer ${this.accessToken}` } }
-                )
+                try {
+                    const msgResponse = await fetch(
+                        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+                        { headers: { 'Authorization': `Bearer ${this.accessToken}` } }
+                    )
 
-                if (msgResponse.ok) {
+                    if (!msgResponse.ok) continue
+
                     const msgData = await msgResponse.json()
                     const headers = msgData.payload?.headers || []
 
@@ -356,41 +483,63 @@ class GmailApiService {
                     const subjectHeader = headers.find(h => h.name.toLowerCase() === 'subject')?.value || ''
                     const dateHeader = headers.find(h => h.name.toLowerCase() === 'date')?.value || ''
 
-                    // Extract email from "Name <email@domain.com>" format
+                    // Extract email
                     const emailMatch = fromHeader.match(/<(.+?)>/) || [null, fromHeader]
-                    const supplierEmail = emailMatch[1]?.toLowerCase() || fromHeader.toLowerCase()
+                    const supplierEmail = (emailMatch[1] || fromHeader).toLowerCase().trim()
 
-                    if (supplierEmails.some(e => supplierEmail.includes(e.toLowerCase().split('@')[0]))) {
+                    // Get body text
+                    let bodyText = msgData.snippet || ''
+                    if (msgData.payload?.parts) {
+                        const textPart = msgData.payload.parts.find(p => p.mimeType === 'text/plain')
+                        if (textPart?.body?.data) {
+                            bodyText = atob(textPart.body.data.replace(/-/g, '+').replace(/_/g, '/'))
+                        }
+                    } else if (msgData.payload?.body?.data) {
+                        bodyText = atob(msgData.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'))
+                    }
+
+                    // Match against supplier emails
+                    const isFromSupplier = supplierEmails.some(e => {
+                        const supplierDomain = e.toLowerCase().split('@')[0]
+                        return supplierEmail.includes(supplierDomain)
+                    })
+
+                    if (isFromSupplier) {
                         replies.push({
                             id: msg.id,
                             supplierEmail,
                             from: fromHeader,
                             subject: subjectHeader,
                             date: new Date(dateHeader),
-                            snippet: msgData.snippet || ''
+                            snippet: msgData.snippet || '',
+                            body: bodyText
                         })
                     }
+                } catch (e) {
+                    console.warn('Erro ao processar mensagem:', e)
                 }
             }
 
-            console.log(`✅ ${replies.length} respostas de fornecedores encontradas`)
+            console.log(`✅ ${replies.length} respostas de fornecedores`)
             return replies
 
         } catch (error) {
+            this.lastError = error.message
             console.error('❌ Erro ao verificar respostas:', error)
             return []
         }
     }
 
-    /**
-     * Get unread email count
-     */
+    // --------------------------------------------------------
+    // GMAIL API - Get Unread Count
+    // --------------------------------------------------------
+
     async getUnreadCount() {
-        if (!this.accessToken) return 0
+        if (!this.isConnected()) return 0
 
         try {
             const response = await fetch(
-                'https://gmail.googleapis.com/gmail/v1/users/me/labels/UNREAD',
+                'https://gmail.googleapis.com/gmail/v1/users/me/labels/INBOX',
                 { headers: { 'Authorization': `Bearer ${this.accessToken}` } }
             )
 
@@ -404,13 +553,27 @@ class GmailApiService {
         }
     }
 
-    /**
-     * Connect with popup (for UI button)
-     */
-    async connect() {
-        return await this.authorize()
+    // --------------------------------------------------------
+    // DEBUG - Get Status
+    // --------------------------------------------------------
+
+    getStatus() {
+        return {
+            isInitialized: this.isInitialized,
+            isConnected: this.isConnected(),
+            userEmail: this.getConnectedEmail(),
+            gsiLoaded: this.gsiLoaded,
+            gapiLoaded: this.gapiLoaded,
+            lastError: this.lastError,
+            tokenExpiry: localStorage.getItem('gmail_token_expiry'),
+            hasToken: !!this.accessToken
+        }
     }
 }
+
+// ============================================================
+// EXPORT SINGLETON
+// ============================================================
 
 export const gmailService = new GmailApiService()
 export default gmailService
