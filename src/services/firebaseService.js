@@ -342,5 +342,144 @@ export const FirebaseService = {
             console.error("Error getting products:", e);
             return null;
         }
+    },
+
+    // --- PRODUCT MOVEMENTS (Audit System) ---
+    async syncProductMovements(movements) {
+        try {
+            await setDoc(doc(db, COLLECTIONS.SETTINGS, "product_movements"), cleanPayload({
+                movements,
+                updatedAt: new Date().toISOString()
+            }));
+            return true;
+        } catch (e) {
+            console.error("Error syncing product movements:", e);
+            return false;
+        }
+    },
+
+    async getProductMovements() {
+        try {
+            const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "product_movements"));
+            return docSnap.exists() ? docSnap.data().movements : [];
+        } catch (e) {
+            console.error("Error getting product movements:", e);
+            return [];
+        }
+    },
+
+    async addProductMovement(movement) {
+        try {
+            // Get existing movements
+            const existing = await this.getProductMovements();
+            const updated = [...existing, { ...movement, id: Date.now(), createdAt: new Date().toISOString() }];
+            await this.syncProductMovements(updated);
+            return true;
+        } catch (e) {
+            console.error("Error adding product movement:", e);
+            return false;
+        }
+    },
+
+    // --- PRODUCT AUDIT DATA ---
+    async syncProductAuditData(auditData) {
+        try {
+            await setDoc(doc(db, COLLECTIONS.SETTINGS, "product_audit"), cleanPayload({
+                ...auditData,
+                updatedAt: new Date().toISOString()
+            }));
+            return true;
+        } catch (e) {
+            console.error("Error syncing product audit data:", e);
+            return false;
+        }
+    },
+
+    async getProductAuditData() {
+        try {
+            const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "product_audit"));
+            return docSnap.exists() ? docSnap.data() : null;
+        } catch (e) {
+            console.error("Error getting product audit data:", e);
+            return null;
+        }
+    },
+
+    // --- NOTIFICATION SETTINGS ---
+    async syncNotificationSettings(settings) {
+        try {
+            await setDoc(doc(db, COLLECTIONS.SETTINGS, "notifications"), cleanPayload({
+                ...settings,
+                updatedAt: new Date().toISOString()
+            }));
+            return true;
+        } catch (e) {
+            console.error("Error syncing notification settings:", e);
+            return false;
+        }
+    },
+
+    async getNotificationSettings() {
+        try {
+            const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "notifications"));
+            return docSnap.exists() ? docSnap.data() : {
+                enabled: true,
+                lowStockAlerts: true,
+                priceAlerts: true,
+                restockReminders: true,
+                respectBusinessHours: true
+            };
+        } catch (e) {
+            console.error("Error getting notification settings:", e);
+            return null;
+        }
+    },
+
+    // --- FORECAST DATA ---
+    async syncForecastData(forecastData) {
+        try {
+            await setDoc(doc(db, COLLECTIONS.SETTINGS, "forecast"), cleanPayload({
+                ...forecastData,
+                updatedAt: new Date().toISOString()
+            }));
+            return true;
+        } catch (e) {
+            console.error("Error syncing forecast data:", e);
+            return false;
+        }
+    },
+
+    async getForecastData() {
+        try {
+            const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "forecast"));
+            return docSnap.exists() ? docSnap.data() : null;
+        } catch (e) {
+            console.error("Error getting forecast data:", e);
+            return null;
+        }
+    },
+
+    // --- ANOMALY HISTORY ---
+    async syncAnomalyHistory(anomalies) {
+        try {
+            await setDoc(doc(db, COLLECTIONS.SETTINGS, "anomaly_history"), cleanPayload({
+                anomalies,
+                updatedAt: new Date().toISOString()
+            }));
+            return true;
+        } catch (e) {
+            console.error("Error syncing anomaly history:", e);
+            return false;
+        }
+    },
+
+    async getAnomalyHistory() {
+        try {
+            const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "anomaly_history"));
+            return docSnap.exists() ? docSnap.data() : { anomalies: [] };
+        } catch (e) {
+            console.error("Error getting anomaly history:", e);
+            return { anomalies: [] };
+        }
     }
 };

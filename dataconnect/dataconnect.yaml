@@ -1,0 +1,10 @@
+# Firebase Data Connect Configuration
+# Padoca Application
+
+specVersion: v1alpha
+serviceId: padoca-dataconnect
+location: southamerica-east1
+schema:
+  source: ./schema.gql
+connectorDirs:
+  - ./connector

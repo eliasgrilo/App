@@ -1,0 +1,455 @@
+# Firebase Data Connect - Padoca Application
+# PostgreSQL Schema Definition
+
+# ===========================================================
+# SUPPLIERS
+# ===========================================================
+
+type Supplier @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  email: String
+  phone: String
+  address: String
+  cnpj: String
+  category: String
+  notes: String
+  isActive: Boolean! @default(value: true)
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# PRODUCTS (Inventory Items)
+# ===========================================================
+
+type Product @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  category: String
+  subcategory: String
+  unit: String! @default(value: "un")
+  packageQuantity: Float @default(value: 1)
+  packageCount: Int @default(value: 1)
+  pricePerUnit: Float @default(value: 0)
+  totalCost: Float @default(value: 0)
+  minStock: Float @default(value: 0)
+  maxStock: Float @default(value: 0)
+  location: String
+  barcode: String
+  supplier: Supplier @relation
+  notes: String
+  imageUrl: String
+  isActive: Boolean! @default(value: true)
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# PRODUCT MOVEMENTS (Audit Trail)
+# ===========================================================
+
+enum MovementType {
+  ENTRY
+  EXIT
+}
+
+type ProductMovement @table {
+  id: UUID! @default(expr: "uuidV4()")
+  product: Product! @relation
+  type: MovementType!
+  quantity: Float!
+  price: Float
+  reason: String
+  location: String
+  userId: String
+  userName: String
+  notes: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# PRODUCT NOTES
+# ===========================================================
+
+enum NoteCategory {
+  GENERAL
+  QUALITY
+  DELIVERY
+  PRICE
+}
+
+type ProductNote @table {
+  id: UUID! @default(expr: "uuidV4()")
+  product: Product! @relation
+  category: NoteCategory! @default(value: GENERAL)
+  content: String!
+  userId: String
+  userName: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# COSTS (Operating Expenses)
+# ===========================================================
+
+enum CostType {
+  FIXED
+  VARIABLE
+}
+
+type Cost @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  category: String
+  type: CostType! @default(value: VARIABLE)
+  amount: Float!
+  date: Date!
+  recurrence: String
+  supplier: Supplier @relation
+  notes: String
+  attachmentUrl: String
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# COST CATEGORIES
+# ===========================================================
+
+type CostCategory @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  color: String @default(value: "#8b5cf6")
+  icon: String @default(value: "📦")
+  order: Int @default(value: 0)
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# INVENTORY CATEGORIES
+# ===========================================================
+
+type InventoryCategory @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  color: String @default(value: "#8b5cf6")
+  icon: String @default(value: "📦")
+  order: Int @default(value: 0)
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# RECIPES
+# ===========================================================
+
+type Recipe @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  category: String
+  description: String
+  servings: Int @default(value: 1)
+  prepTime: Int
+  cookTime: Int
+  totalTime: Int
+  difficulty: String
+  imageUrl: String
+  videoUrl: String
+  notes: String
+  isPublished: Boolean! @default(value: false)
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# RECIPE INGREDIENTS
+# ===========================================================
+
+type RecipeIngredient @table {
+  id: UUID! @default(expr: "uuidV4()")
+  recipe: Recipe! @relation
+  product: Product @relation
+  name: String!
+  quantity: Float!
+  unit: String!
+  notes: String
+  order: Int @default(value: 0)
+}
+
+# ===========================================================
+# RECIPE INSTRUCTIONS
+# ===========================================================
+
+type RecipeInstruction @table {
+  id: UUID! @default(expr: "uuidV4()")
+  recipe: Recipe! @relation
+  stepNumber: Int!
+  content: String!
+  duration: Int
+  tip: String
+  imageUrl: String
+}
+
+# ===========================================================
+# RECIPE CATEGORIES
+# ===========================================================
+
+type RecipeCategory @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  color: String @default(value: "#8b5cf6")
+  icon: String @default(value: "🍕")
+  order: Int @default(value: 0)
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# KANBAN BOARD
+# ===========================================================
+
+enum KanbanStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+type KanbanTask @table {
+  id: UUID! @default(expr: "uuidV4()")
+  title: String!
+  description: String
+  status: KanbanStatus! @default(value: TODO)
+  priority: Int @default(value: 0)
+  dueDate: Date
+  recipe: Recipe @relation
+  assignee: String
+  order: Int @default(value: 0)
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# FILES (Storage References)
+# ===========================================================
+
+enum FileType {
+  IMAGE
+  PDF
+  DOCUMENT
+  OTHER
+}
+
+type File @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  type: FileType!
+  mimeType: String!
+  size: Int!
+  storageUrl: String!
+  storagePath: String!
+  thumbnailUrl: String
+  entityType: String
+  entityId: String
+  uploadedBy: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# QUOTATIONS (AI Module)
+# ===========================================================
+
+enum QuotationStatus {
+  PENDING
+  SENT
+  WAITING
+  RECEIVED
+  APPROVED
+  REJECTED
+}
+
+type Quotation @table {
+  id: UUID! @default(expr: "uuidV4()")
+  supplier: Supplier! @relation
+  status: QuotationStatus! @default(value: PENDING)
+  sentAt: Timestamp
+  respondedAt: Timestamp
+  totalValue: Float
+  notes: String
+  emailThreadId: String
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+type QuotationItem @table {
+  id: UUID! @default(expr: "uuidV4()")
+  quotation: Quotation! @relation
+  product: Product! @relation
+  requestedQuantity: Float!
+  quotedPrice: Float
+  quotedQuantity: Float
+  notes: String
+}
+
+# ===========================================================
+# NOTIFICATION HISTORY
+# ===========================================================
+
+enum NotificationType {
+  LOW_STOCK
+  OUT_OF_STOCK
+  PRICE_SPIKE
+  PRICE_DROP
+  RESTOCK_NEEDED
+  ANOMALY_DETECTED
+  REPORT_READY
+  QUOTATION_RECEIVED
+}
+
+type Notification @table {
+  id: UUID! @default(expr: "uuidV4()")
+  type: NotificationType!
+  title: String!
+  body: String!
+  productId: String
+  data: String
+  isRead: Boolean! @default(value: false)
+  isDismissed: Boolean! @default(value: false)
+  createdAt: Timestamp! @default(expr: "request.time")
+  readAt: Timestamp
+}
+
+# ===========================================================
+# APP SETTINGS
+# ===========================================================
+
+type AppSettings @table(singular: "appSettings", plural: "appSettingsList") {
+  id: UUID! @default(expr: "uuidV4()")
+  key: String! @unique
+  value: String!
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# AUDIT LOG (Time Travel)
+# ===========================================================
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  MOVEMENT
+  ADJUSTMENT
+  APPROVAL
+}
+
+type AuditLog @table {
+  id: UUID! @default(expr: "uuidV4()")
+  entityType: String!
+  entityId: String!
+  action: AuditAction!
+  previousState: String
+  newState: String
+  diff: String
+  userId: String
+  userName: String
+  ipAddress: String
+  userAgent: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# PURCHASE ORDERS (Smart Sourcing)
+# ===========================================================
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING
+  SENT
+  CONFIRMED
+  RECEIVED
+  CANCELLED
+}
+
+type PurchaseOrder @table {
+  id: UUID! @default(expr: "uuidV4()")
+  orderNumber: String!
+  supplier: Supplier! @relation
+  status: PurchaseOrderStatus! @default(value: DRAFT)
+  totalValue: Float! @default(value: 0)
+  notes: String
+  expectedDelivery: Date
+  sentAt: Timestamp
+  confirmedAt: Timestamp
+  receivedAt: Timestamp
+  createdBy: String
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+type PurchaseOrderItem @table {
+  id: UUID! @default(expr: "uuidV4()")
+  purchaseOrder: PurchaseOrder! @relation
+  product: Product! @relation
+  quantity: Float!
+  unitPrice: Float!
+  totalPrice: Float!
+  receivedQuantity: Float @default(value: 0)
+  notes: String
+}
+
+# ===========================================================
+# STOCK SNAPSHOTS (Time Travel States)
+# ===========================================================
+
+type StockSnapshot @table {
+  id: UUID! @default(expr: "uuidV4()")
+  product: Product! @relation
+  stock: Float!
+  price: Float!
+  value: Float!
+  triggeredBy: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# INDEXES for Performance
+# ===========================================================
+
+extend type Product {
+  # Query products by category
+  productsByCategory: [Product!]! @index(fields: ["category"])
+  # Query products by supplier
+  productsBySupplier: [Product!]! @index(fields: ["supplier"])
+}
+
+extend type ProductMovement {
+  # Query movements by product
+  movementsByProduct: [ProductMovement!]! @index(fields: ["product"])
+  # Query movements by date range
+  movementsByDate: [ProductMovement!]! @index(fields: ["createdAt"])
+  # Query movements by type
+  movementsByType: [ProductMovement!]! @index(fields: ["type"])
+}
+
+extend type Cost {
+  # Query costs by date
+  costsByDate: [Cost!]! @index(fields: ["date"])
+  # Query costs by category
+  costsByCategory: [Cost!]! @index(fields: ["category"])
+}
+
+extend type Recipe {
+  # Query recipes by category
+  recipesByCategory: [Recipe!]! @index(fields: ["category"])
+}
+
+extend type Quotation {
+  # Query quotations by status
+  quotationsByStatus: [Quotation!]! @index(fields: ["status"])
+  # Query quotations by supplier
+  quotationsBySupplier: [Quotation!]! @index(fields: ["supplier"])
+}
+
+extend type Notification {
+  # Query notifications by read status
+  notificationsByRead: [Notification!]! @index(fields: ["isRead"])
+}

@@ -1,0 +1,8 @@
+# Data Connect Connector Configuration
+# Generates TypeScript/JavaScript SDK for React
+
+connectorId: padoca-connector
+generate:
+  javascriptSdk:
+    outputDir: ../../src/generated/dataconnect
+    package: "@padoca/dataconnect"
