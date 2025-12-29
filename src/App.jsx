@@ -237,8 +237,8 @@ export default function App() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="fixed inset-0 z-[9999] bg-white/95 dark:bg-black/95 backdrop-blur-xl md:hidden"
+                  transition={{ duration: 0.2 }}
+                  className="fixed inset-0 z-[9999] bg-white dark:bg-black md:hidden overflow-hidden"
                   style={{ top: 0 }}
                 >
                   {/* Close Button */}
@@ -258,7 +258,7 @@ export default function App() {
                   </div>
 
                   {/* Menu Items */}
-                  <div className="flex flex-col justify-center h-full px-6 pb-20">
+                  <div className="flex flex-col justify-center h-full px-6 pb-20 overflow-y-auto scrollbar-hide">
                     <motion.p
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -288,8 +288,8 @@ export default function App() {
                               }`}
                           >
                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isActive
-                                ? 'bg-indigo-500 text-white'
-                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                              ? 'bg-indigo-500 text-white'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
                               }`}>
                               <Icon active={isActive} />
                             </div>

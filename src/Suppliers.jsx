@@ -742,8 +742,8 @@ export default function Suppliers() {
                                                             />
                                                         ) : (
                                                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${doc.type === 'application/pdf'
-                                                                    ? 'bg-red-100 dark:bg-red-500/20'
-                                                                    : 'bg-blue-100 dark:bg-blue-500/20'
+                                                                ? 'bg-red-100 dark:bg-red-500/20'
+                                                                : 'bg-blue-100 dark:bg-blue-500/20'
                                                                 }`}>
                                                                 {doc.type === 'application/pdf' ? (
                                                                     <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
@@ -1259,7 +1259,7 @@ export default function Suppliers() {
                 {confirmModal && <ConfirmationModal {...confirmModal} />}
             </AnimatePresence>
 
-            {/* Image Viewer Modal - Premium Full Screen */}
+            {/* Document Viewer Modal - Apple Quick Look Style */}
             {createPortal(
                 <AnimatePresence>
                     {viewingDocument && (
@@ -1267,50 +1267,115 @@ export default function Suppliers() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-2xl"
+                            className="fixed inset-0 z-[20000] flex items-center justify-center bg-black/95 backdrop-blur-3xl"
                             onClick={() => setViewingDocument(null)}
                         >
                             <ModalScrollLock />
 
-                            {/* Close Button */}
-                            <button
-                                onClick={() => setViewingDocument(null)}
-                                className="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all z-10 touch-manipulation"
+                            {/* Top Bar - Blurred Glass */}
+                            <motion.div
+                                initial={{ y: -20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.1 }}
+                                className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-6 bg-gradient-to-b from-black/50 to-transparent z-20"
                             >
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
+                                {/* File Info */}
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                        {viewingDocument.type.startsWith('image/') ? (
+                                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-5 h-5 text-red-400" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-white truncate max-w-[200px] md:max-w-none">{viewingDocument.name}</p>
+                                        <p className="text-xs text-white/50">{formatFileSize(viewingDocument.size)}</p>
+                                    </div>
+                                </div>
 
-                            {/* Download Button */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); downloadDocument(viewingDocument) }}
-                                className="absolute top-6 left-6 px-4 py-3 rounded-xl bg-white/10 backdrop-blur-xl flex items-center gap-2 text-white hover:bg-white/20 transition-all z-10 touch-manipulation"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                <span className="text-sm font-bold">Baixar</span>
-                            </button>
+                                {/* Actions */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); downloadDocument(viewingDocument) }}
+                                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold flex items-center gap-2 transition-all touch-manipulation"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        <span className="hidden md:inline">Download</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setViewingDocument(null)}
+                                        className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all touch-manipulation"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </motion.div>
 
-                            {/* Image */}
-                            <motion.img
-                                initial={{ scale: 0.9, opacity: 0 }}
+                            {/* Content Area */}
+                            <motion.div
+                                initial={{ scale: 0.95, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0.9, opacity: 0 }}
-                                src={viewingDocument.dataUrl}
-                                alt={viewingDocument.name}
-                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                                exit={{ scale: 0.95, opacity: 0 }}
+                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                className="relative max-w-5xl max-h-[85vh] w-full mx-4 flex items-center justify-center"
                                 onClick={(e) => e.stopPropagation()}
-                            />
+                            >
+                                {viewingDocument.type.startsWith('image/') ? (
+                                    /* Image Viewer */
+                                    <img
+                                        src={viewingDocument.dataUrl}
+                                        alt={viewingDocument.name}
+                                        className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl ring-1 ring-white/10"
+                                    />
+                                ) : viewingDocument.type === 'application/pdf' ? (
+                                    /* PDF Viewer */
+                                    <div className="w-full h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden">
+                                        <iframe
+                                            src={viewingDocument.dataUrl}
+                                            title={viewingDocument.name}
+                                            className="w-full h-full"
+                                        />
+                                    </div>
+                                ) : (
+                                    /* Other File Types - Download Prompt */
+                                    <div className="bg-zinc-900 rounded-3xl p-12 text-center max-w-md">
+                                        <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6">
+                                            <svg className="w-10 h-10 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                            </svg>
+                                        </div>
+                                        <h3 className="text-xl font-bold text-white mb-2">{viewingDocument.name}</h3>
+                                        <p className="text-sm text-white/50 mb-6">
+                                            Este tipo de arquivo não pode ser visualizado diretamente.
+                                        </p>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); downloadDocument(viewingDocument) }}
+                                            className="px-8 py-4 bg-white text-zinc-900 rounded-2xl font-bold text-sm uppercase tracking-wider hover:scale-105 active:scale-95 transition-all"
+                                        >
+                                            Baixar Arquivo
+                                        </button>
+                                    </div>
+                                )}
+                            </motion.div>
 
-                            {/* File Name */}
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl bg-white/10 backdrop-blur-xl">
-                                <p className="text-sm font-medium text-white text-center">{viewingDocument.name}</p>
-                                <p className="text-xs text-white/60 text-center mt-0.5">
-                                    {formatFileSize(viewingDocument.size)}
-                                </p>
-                            </div>
+                            {/* Bottom Hint */}
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.3 }}
+                                className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-white/30"
+                            >
+                                Pressione ESC ou clique fora para fechar
+                            </motion.p>
                         </motion.div>
                     )}
                 </AnimatePresence>,

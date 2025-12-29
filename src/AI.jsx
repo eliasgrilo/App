@@ -4,6 +4,7 @@ import { useScrollLock } from './hooks/useScrollLock'
 import { FirebaseService } from './services/firebaseService'
 import { gmailService } from './services/gmailService'
 import { motion, AnimatePresence } from 'framer-motion'
+import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, formatTime } from './utils/formatUtils'
 
 /**
  * AI Intelligence - Premium Automation Dashboard
@@ -37,6 +38,11 @@ export default function AI() {
     const [selectedSupplier, setSelectedSupplier] = useState(null)
     const [emailDraft, setEmailDraft] = useState({ to: '', subject: '', body: '' })
     const [sentEmails, setSentEmails] = useState([])
+
+    // Quote Details Modal State
+    const [quoteModalOpen, setQuoteModalOpen] = useState(false)
+    const [selectedEmailForQuote, setSelectedEmailForQuote] = useState(null)
+    const [quoteDetails, setQuoteDetails] = useState({ quotedValue: '', expectedDelivery: '' })
 
     // Premium Toast System
     const [toastMessage, setToastMessage] = useState(null)
@@ -109,12 +115,56 @@ export default function AI() {
         }
         loadData()
 
-        // Load sent emails history - Safe parsing
+        // Load sent emails history with migration for legacy data
         try {
             const savedEmails = localStorage.getItem('padoca_sent_emails')
             if (savedEmails) {
                 const parsed = JSON.parse(savedEmails)
-                setSentEmails(Array.isArray(parsed) ? parsed : [])
+                if (Array.isArray(parsed)) {
+                    // Migration: Parse body to extract items for legacy emails
+                    const migrated = parsed.map(email => {
+                        // Skip if already has items array
+                        if (email.items && email.items.length > 0) return email
+
+                        // Try to parse items from body text (format: "• Item Name: 90kg" or "Item Name: 90 kg")
+                        if (email.body) {
+                            const itemRegex = /[•\-]\s*([^:]+):\s*(\d+(?:\.\d+)?)\s*(kg|g|un|L|ml|pç|cx|pac)?/gi
+                            const parsedItems = []
+                            let match
+                            while ((match = itemRegex.exec(email.body)) !== null) {
+                                parsedItems.push({
+                                    id: `legacy-${Date.now()}-${parsedItems.length}`,
+                                    name: match[1].trim(),
+                                    quantityToOrder: parseFloat(match[2]),
+                                    unit: match[3] || '',
+                                    currentStock: 0,
+                                    maxStock: 0
+                                })
+                            }
+                            if (parsedItems.length > 0) {
+                                return { ...email, items: parsedItems }
+                            }
+                        }
+                        // Fallback: create items from itemNames if available
+                        if (email.itemNames && email.itemNames.length > 0) {
+                            return {
+                                ...email,
+                                items: email.itemNames.map((name, idx) => ({
+                                    id: `legacy-name-${idx}`,
+                                    name,
+                                    quantityToOrder: 0,
+                                    unit: '',
+                                    currentStock: 0,
+                                    maxStock: 0
+                                }))
+                            }
+                        }
+                        return email
+                    })
+                    setSentEmails(migrated)
+                    // Save migrated data back
+                    localStorage.setItem('padoca_sent_emails', JSON.stringify(migrated))
+                }
             }
         } catch (e) {
             console.warn('Sent emails load failed:', e)
@@ -125,18 +175,46 @@ export default function AI() {
     // GMAIL INTEGRATION
     // ═══════════════════════════════════════════════════════════════
 
-    // Initialize Gmail service (auto-connected mode)
+    // Initialize Gmail service - AUTO-CONNECT if valid token exists
     useEffect(() => {
         const initGmail = async () => {
             try {
-                await gmailService.init()
-                // Auto-connected mode: always connected
-                setGmailConnected(true)
-                setGmailEmail(gmailService.getConnectedEmail() || 'padocainc@gmail.com')
+                // Pre-load OAuth scripts - this MUST happen before user clicks Connect Gmail
+                await gmailService.ensureInitialized()
+                const connected = gmailService.isConnected()
+
+                if (connected) {
+                    setGmailConnected(true)
+                    setGmailEmail(gmailService.getConnectedEmail() || 'padocainc@gmail.com')
+                    console.log('✅ Gmail API AUTO-CONNECTED:', gmailService.getConnectedEmail())
+                    // Test the connection by validating the token
+                    const profile = await gmailService.getUserProfile()
+                    if (profile) {
+                        console.log('✅ Gmail token validated, email:', profile.emailAddress)
+                    } else {
+                        console.warn('⚠️ Token expired, will need to reconnect')
+                        gmailService.disconnect()
+                        setGmailConnected(false)
+                    }
+                } else {
+                    // Check if we have a stored token that just needs refreshing
+                    const storedToken = localStorage.getItem('gmail_access_token')
+                    const tokenExpiry = localStorage.getItem('gmail_token_expiry')
+
+                    if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
+                        // We have a valid token in storage - initialize with it
+                        console.log('🔄 Found stored Gmail token, reconnecting...')
+                        setGmailConnected(true)
+                        setGmailEmail(localStorage.getItem('gmail_user_email') || 'padocainc@gmail.com')
+                    } else {
+                        console.log('⚠️ Gmail API not connected - click "Conectar Gmail" to authorize')
+                        setGmailConnected(false)
+                        setGmailEmail('padocainc@gmail.com')
+                    }
+                }
             } catch (e) {
                 console.warn('Gmail init failed:', e)
-                // Still show as connected in auto mode
-                setGmailConnected(true)
+                setGmailConnected(false)
                 setGmailEmail('padocainc@gmail.com')
             }
         }
@@ -144,13 +222,24 @@ export default function AI() {
     }, [])
 
     // Auto-refresh email replies every 30 seconds
+    // Use refs to avoid unnecessary re-runs and potential loops
+    const sentEmailsForRepliesRef = useRef(sentEmails)
+    sentEmailsForRepliesRef.current = sentEmails
+
     useEffect(() => {
-        if (!gmailConnected || sentEmails.length === 0) return
+        if (!gmailConnected) return
+
+        let isMounted = true
 
         const checkForReplies = async () => {
+            if (!isMounted) return
+
+            const currentEmails = sentEmailsForRepliesRef.current
+            if (currentEmails.length === 0) return
+
             try {
                 // Get emails that are pending (sent but not confirmed)
-                const pendingEmails = sentEmails.filter(e => e.status === 'sent')
+                const pendingEmails = currentEmails.filter(e => e.status === 'sent')
                 if (pendingEmails.length === 0) return
 
                 // Get unique supplier emails
@@ -165,11 +254,13 @@ export default function AI() {
 
                 const replies = await gmailService.checkReplies(supplierEmailsList, afterDate)
 
+                if (!isMounted) return
+
                 if (replies.length > 0) {
                     setEmailReplies(replies)
 
                     // Auto-mark emails as received if we got a reply
-                    const updatedEmails = sentEmails.map(email => {
+                    const updatedEmails = currentEmails.map(email => {
                         const hasReply = replies.some(r =>
                             r.supplierEmail.toLowerCase() === email.to?.toLowerCase()
                         )
@@ -179,7 +270,7 @@ export default function AI() {
                         return email
                     })
 
-                    if (JSON.stringify(updatedEmails) !== JSON.stringify(sentEmails)) {
+                    if (JSON.stringify(updatedEmails) !== JSON.stringify(currentEmails)) {
                         setSentEmails(updatedEmails)
                         localStorage.setItem('padoca_sent_emails', JSON.stringify(updatedEmails))
                         showToast('📬 Nova resposta recebida!', 'success')
@@ -190,14 +281,18 @@ export default function AI() {
             }
         }
 
-        // Initial check
-        checkForReplies()
+        // Initial check after delay to not block initial render
+        const initialTimeout = setTimeout(checkForReplies, 2000)
 
         // Set up interval
         const interval = setInterval(checkForReplies, 30000) // 30 seconds
 
-        return () => clearInterval(interval)
-    }, [gmailConnected, sentEmails, showToast])
+        return () => {
+            isMounted = false
+            clearTimeout(initialTimeout)
+            clearInterval(interval)
+        }
+    }, [gmailConnected, showToast]) // Removed sentEmails to avoid re-running interval
 
     // Auto-complete orders when stock is replenished
     // When items in confirmed orders are back above minimum, mark as delivered
@@ -419,14 +514,31 @@ ${today}`
             })
             console.log('✅ Email service completed!')
 
-            // Save to history with full tracking data
+            // Save to history with COMPLETE tracking data for audit log
+            const itemsWithDetails = selectedItems.map(item => {
+                const atual = item.totalQty || 0
+                const maximo = item.maxStock || 0
+                const quantidadePedir = Math.max(0, maximo - atual)
+                return {
+                    id: item.id,
+                    name: item.name,
+                    currentStock: atual,
+                    maxStock: maximo,
+                    quantityToOrder: quantidadePedir,
+                    unit: item.unit || '',
+                    supplierId: item.supplierId
+                }
+            })
+
             const newEmail = {
                 id: Date.now().toString(),
                 ...emailDraft,
                 supplierName: selectedSupplier?.name,
-                supplierId: selectedSupplier?.id, // Track supplier for flow
-                itemIds: selectedItems.map(i => i.id), // Track items for flow
-                itemNames: selectedItems.map(i => i.name),
+                supplierId: selectedSupplier?.id,
+                // Complete item tracking for all tabs
+                items: itemsWithDetails,
+                itemNames: selectedItems.map(i => i.name), // Keep for backwards compat
+                totalItems: selectedItems.length,
                 sentAt: new Date().toISOString(),
                 status: 'sent',
                 sentViaGmail: gmailConnected
@@ -468,11 +580,14 @@ ${today}`
         showToast('Email copiado para área de transferência!')
     }
 
-    // Format currency
+    // Format currency - Canadian Dollar
     const formatCurrency = (val) => {
         const n = Number(val) || 0
-        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            .replace(/^/, '$ ')
+        return new Intl.NumberFormat('en-CA', {
+            style: 'currency',
+            currency: 'CAD',
+            minimumFractionDigits: 2
+        }).format(n)
     }
 
     const scoreColor = stats.healthScore >= 80 ? 'emerald' : stats.healthScore >= 60 ? 'amber' : 'rose'
@@ -508,51 +623,50 @@ ${today}`
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                    {/* Gmail Connect Button */}
+                    {/* Gmail Connection Button - Click to authorize Gmail API */}
                     {gmailConnected ? (
-                        <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl border border-emerald-200 dark:border-emerald-500/20">
+                        <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-200/50 dark:border-emerald-500/20">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+                                <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
                                 </svg>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Gmail Conectado</span>
-                                <span className="text-[10px] text-emerald-500/70 truncate max-w-[150px]">{gmailEmail}</span>
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Gmail Conectado</span>
+                                <span className="text-[9px] text-emerald-500/70">{gmailEmail}</span>
                             </div>
-                            <button
-                                onClick={disconnectGmail}
-                                className="ml-2 p-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-lg transition-colors"
-                                title="Desconectar"
-                            >
-                                <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
                         </div>
                     ) : (
                         <button
-                            onClick={connectGmail}
-                            disabled={gmailConnecting}
-                            className="px-5 py-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 text-zinc-700 dark:text-zinc-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            onClick={() => {
+                                // CRITICAL: authorize() must be called synchronously from user click
+                                // Do NOT use async/await before this call or popup will be blocked!
+                                showToast('Abrindo autorização do Gmail...', 'info')
+                                gmailService.authorize()
+                                    .then((result) => {
+                                        if (result.connected) {
+                                            setGmailConnected(true)
+                                            setGmailEmail(result.email)
+                                            showToast('✅ Gmail conectado! Respostas serão detectadas automaticamente.', 'success')
+                                        }
+                                    })
+                                    .catch((e) => {
+                                        showToast('Erro ao conectar: ' + e.message, 'error')
+                                    })
+                            }}
+                            className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200/50 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all cursor-pointer group"
                         >
-                            {gmailConnecting ? (
-                                <>
-                                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                    </svg>
-                                    Conectando...
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
-                                    </svg>
-                                    Conectar Gmail
-                                </>
-                            )}
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
+                                </svg>
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 group-hover:underline">Conectar Gmail</span>
+                                <span className="text-[9px] text-amber-500/70">Para detectar respostas</span>
+                            </div>
                         </button>
                     )}
 
@@ -672,34 +786,35 @@ ${today}`
                     <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Automation Protocol</h2>
                     <h3 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight leading-none mb-6">Gestão de Cotações</h3>
 
-                    {/* Apple-Style Segmented Control */}
-                    <div className="flex p-1 bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200/50 dark:border-white/5 overflow-x-auto">
+                    {/* Apple-Style Segmented Control - Premium Design */}
+                    <div className="flex p-1.5 bg-zinc-100/80 dark:bg-zinc-800/60 rounded-2xl border border-zinc-200/30 dark:border-white/5 overflow-x-auto scrollbar-hide -mx-2 md:mx-0 backdrop-blur-sm">
                         {[
-                            { key: 'pending', label: 'Pendente', count: alertsBySupplier.length, color: 'rose' },
-                            { key: 'awaiting', label: 'Aguardando', count: sentEmails.filter(e => e.status === 'sent').length, color: 'amber' },
-                            { key: 'delivered', label: 'Entregue', count: sentEmails.filter(e => e.status === 'delivered').length, color: 'emerald' },
-                            { key: 'history', label: 'Histórico', count: sentEmails.length, color: 'zinc' }
+                            { key: 'pending', label: 'Pendente', count: alertsBySupplier.length, color: 'zinc', icon: '○' },
+                            { key: 'awaiting', label: 'Aguardando', count: sentEmails.filter(e => e.status === 'sent' || e.status === 'quoted').length, color: 'zinc', icon: '◔' },
+                            { key: 'ordered', label: 'Ordens', count: sentEmails.filter(e => e.status === 'confirmed').length, color: 'zinc', icon: '◑' },
+                            { key: 'received', label: 'Recebido', count: sentEmails.filter(e => e.status === 'delivered').length, color: 'zinc', icon: '●' },
+                            { key: 'history', label: 'Histórico', count: sentEmails.length, color: 'zinc', icon: '◷' }
                         ].map((tab) => (
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveProtocolTab(tab.key)}
-                                className={`relative flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all duration-300 ${activeProtocolTab === tab.key
+                                className={`relative flex-shrink-0 flex-1 min-w-[70px] flex items-center justify-center gap-1 py-2.5 md:py-3 px-2.5 md:px-4 rounded-xl text-[9px] md:text-[10px] font-semibold uppercase tracking-wide transition-all duration-300 whitespace-nowrap ${activeProtocolTab === tab.key
                                     ? 'text-zinc-900 dark:text-white'
-                                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                    : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-400'
                                     }`}
                             >
                                 {activeProtocolTab === tab.key && (
                                     <motion.div
                                         layoutId="protocol-tab-indicator"
-                                        className="absolute inset-0 bg-white dark:bg-zinc-700 rounded-xl shadow-md"
-                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        className="absolute inset-0 bg-white dark:bg-zinc-700/80 rounded-xl shadow-sm"
+                                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
                                     />
                                 )}
                                 <span className="relative z-10">{tab.label}</span>
                                 {tab.count > 0 && (
-                                    <span className={`relative z-10 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${activeProtocolTab === tab.key
-                                        ? `bg-${tab.color}-500/20 text-${tab.color}-600 dark:text-${tab.color}-400`
-                                        : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'
+                                    <span className={`relative z-10 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[8px] font-bold ${activeProtocolTab === tab.key
+                                        ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                                        : 'bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-500 dark:text-zinc-400'
                                         }`}>
                                         {tab.count}
                                     </span>
@@ -713,7 +828,7 @@ ${today}`
                 <div className="p-6 md:p-10 pt-6">
                     <AnimatePresence mode="wait">
 
-                        {/* TAB 1: Cotação Pendente */}
+                        {/* TAB 1: Cotação Pendente - Apple Premium Design */}
                         {activeProtocolTab === 'pending' && (
                             <motion.div
                                 key="pending"
@@ -724,33 +839,47 @@ ${today}`
                             >
                                 {alertsBySupplier.length === 0 ? (
                                     <div className="py-20 text-center flex flex-col items-center gap-4">
-                                        <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-100 dark:border-emerald-500/10">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         </div>
-                                        <p className="text-sm font-semibold text-zinc-400 dark:text-zinc-500">Estoque em dia</p>
-                                        <p className="text-[10px] text-zinc-300 dark:text-zinc-600 uppercase tracking-widest">Nenhuma cotação pendente</p>
+                                        <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">Estoque em dia</p>
+                                        <p className="text-[10px] text-zinc-300 dark:text-zinc-600">Nenhuma cotação pendente</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
                                         {alertsBySupplier.map(({ supplier, items }) => (
                                             <motion.div
                                                 key={supplier.id}
-                                                className="flex flex-col md:flex-row md:items-center gap-4 py-5 px-5 rounded-2xl border border-rose-100 dark:border-rose-500/10 bg-rose-50/30 dark:bg-rose-500/5 hover:bg-rose-50/50 dark:hover:bg-rose-500/10 transition-all cursor-pointer group"
-                                                onClick={() => openEmailComposer(supplier, items)}
-                                                whileHover={{ scale: 1.01 }}
-                                                whileTap={{ scale: 0.99 }}
+                                                className="rounded-2xl bg-zinc-50/80 dark:bg-zinc-800/30 border border-zinc-200/50 dark:border-white/5 overflow-hidden hover:border-zinc-300 dark:hover:border-white/10 transition-all"
+                                                whileHover={{ scale: 1.002 }}
                                             >
-                                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-rose-500/25 shrink-0">
-                                                        {supplier.name?.charAt(0)?.toUpperCase()}
+                                                {/* Supplier Header */}
+                                                <div
+                                                    className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-5 cursor-pointer"
+                                                    onClick={() => openEmailComposer(supplier, items)}
+                                                >
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                        <div className="w-11 h-11 rounded-xl bg-zinc-900 dark:bg-white flex items-center justify-center text-white dark:text-zinc-900 text-base font-semibold shrink-0">
+                                                            {supplier.name?.charAt(0)?.toUpperCase()}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{supplier.name}</p>
+                                                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{items.length} {items.length === 1 ? 'item' : 'itens'} abaixo do mínimo</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{supplier.name}</p>
-                                                        <p className="text-[10px] text-rose-600 dark:text-rose-400 truncate">{items.length} item{items.length > 1 ? 's' : ''} abaixo do mínimo</p>
-                                                    </div>
+                                                    <button className="w-full md:w-auto px-5 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:opacity-90 transition-all flex items-center justify-center gap-2">
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                        Solicitar Cotação
+                                                    </button>
                                                 </div>
-                                                {/* Items List - Clean Apple Design */}
-                                                <div className="w-full mt-3 space-y-1.5">
+
+                                                {/* Items List */}
+                                                <div className="border-t border-zinc-200/50 dark:border-white/5 bg-white/50 dark:bg-zinc-900/20">
+                                                    <div className="hidden md:grid grid-cols-3 gap-4 px-5 py-2 text-[9px] font-medium text-zinc-400 uppercase tracking-wider">
+                                                        <span>Item</span>
+                                                        <span className="text-center">Estoque Atual</span>
+                                                        <span className="text-right">Quantidade a Pedir</span>
+                                                    </div>
                                                     {items.map(item => {
                                                         const atual = item.totalQty || 0
                                                         const maximo = item.maxStock || 0
@@ -758,21 +887,21 @@ ${today}`
                                                         return (
                                                             <div
                                                                 key={item.id}
-                                                                className="flex items-center justify-between py-2 px-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50"
+                                                                className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 py-3 px-4 md:px-5 border-b border-zinc-100 dark:border-white/5 last:border-b-0 hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors"
                                                             >
-                                                                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{item.name}</span>
-                                                                <div className="flex items-center gap-4">
-                                                                    <span className="text-xs text-zinc-400">Atual: {atual.toFixed(0)}{item.unit || ''}</span>
-                                                                    <span className="text-sm font-semibold text-rose-500">+{pedir.toFixed(0)}{item.unit || ''}</span>
-                                                                </div>
+                                                                <span className="col-span-2 md:col-span-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.name}</span>
+                                                                <span className="text-xs text-zinc-400 md:text-center tabular-nums">
+                                                                    <span className="md:hidden text-[10px] text-zinc-300 mr-1">Atual:</span>
+                                                                    {atual.toFixed(0)}{item.unit || ''}
+                                                                </span>
+                                                                <span className="text-sm font-semibold text-zinc-900 dark:text-white md:text-right tabular-nums">
+                                                                    <span className="md:hidden text-[10px] text-zinc-300 mr-1">Pedir:</span>
+                                                                    +{pedir.toFixed(0)}{item.unit || ''}
+                                                                </span>
                                                             </div>
                                                         )
                                                     })}
                                                 </div>
-                                                <button className="px-5 py-2.5 bg-rose-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-md group-hover:scale-105 transition-all flex items-center gap-2">
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                                    Solicitar
-                                                </button>
                                             </motion.div>
                                         ))}
                                     </div>
@@ -780,7 +909,7 @@ ${today}`
                             </motion.div>
                         )}
 
-                        {/* TAB 2: Aguardando Resposta */}
+                        {/* TAB 2: Aguardando - Com sub-estados */}
                         {activeProtocolTab === 'awaiting' && (
                             <motion.div
                                 key="awaiting"
@@ -789,70 +918,245 @@ ${today}`
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {sentEmails.filter(e => e.status === 'sent').length === 0 ? (
-                                    <div className="py-20 text-center flex flex-col items-center gap-4">
-                                        <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
-                                            <svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                        </div>
-                                        <p className="text-sm font-semibold text-zinc-400 dark:text-zinc-500">Nenhum email pendente</p>
-                                        <p className="text-[10px] text-zinc-300 dark:text-zinc-600 uppercase tracking-widest">Envie cotações na aba "Pendente"</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {sentEmails.filter(e => e.status === 'sent').map((email) => (
-                                            <motion.div
-                                                key={email.id}
-                                                className="flex flex-col md:flex-row md:items-center gap-4 py-5 px-5 rounded-2xl border border-amber-100 dark:border-amber-500/10 bg-amber-50/30 dark:bg-amber-500/5"
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                            >
-                                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-amber-500/25 shrink-0 relative">
-                                                        {email.supplierName?.charAt(0)?.toUpperCase() || '?'}
-                                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center animate-pulse">
-                                                            <div className="w-2 h-2 bg-white rounded-full" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{email.supplierName || email.to}</p>
-                                                        <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                            Enviado {new Date(email.sentAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            const updated = sentEmails.map(e => e.id === email.id ? { ...e, status: 'confirmed' } : e)
-                                                            setSentEmails(updated)
-                                                            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
-                                                            showToast('✓ Pedido confirmado!', 'success')
-                                                        }}
-                                                        className="px-5 py-2.5 bg-emerald-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                                        Confirmar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => openEmailComposer(suppliers.find(s => s.name === email.supplierName) || { name: email.supplierName, email: email.to }, [])}
-                                                        className="px-5 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
-                                                    >
-                                                        Reenviar
-                                                    </button>
-                                                </div>
-                                            </motion.div>
-                                        ))}
+                                {sentEmails.filter(e => e.status === 'sent' || e.status === 'quoted').length === 0 ? (
+                                    <motion.div
+                                        className="py-16 md:py-24 text-center flex flex-col items-center gap-6"
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                                    >
+                                        {/* Animated Icon Container */}
+                                        <motion.div
+                                            className="relative"
+                                            animate={{ scale: [1, 1.05, 1] }}
+                                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                        >
+                                            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-100 to-orange-50 dark:from-amber-500/20 dark:to-orange-500/10 flex items-center justify-center shadow-lg shadow-amber-500/10">
+                                                <svg className="w-10 h-10 text-amber-500 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                                </svg>
+                                            </div>
+                                            {/* Decorative rings */}
+                                            <div className="absolute inset-0 rounded-3xl border-2 border-amber-200/30 dark:border-amber-500/10 animate-ping" style={{ animationDuration: '3s' }} />
+                                        </motion.div>
 
-                                        {/* Gmail Auto-Read Status */}
-                                        {gmailConnected && (
-                                            <div className="mt-6 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0">
-                                                    <svg className="w-4 h-4 text-white animate-pulse" viewBox="0 0 24 24" fill="currentColor"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" /></svg>
+                                        <div className="space-y-2">
+                                            <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-200">
+                                                Nenhuma cotação em andamento
+                                            </h3>
+                                            <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-xs mx-auto">
+                                                Envie uma nova cotação para fornecedores através da aba Pendente
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            onClick={() => setActiveProtocolTab('pending')}
+                                            className="mt-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl text-sm font-semibold shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center gap-2"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                            </svg>
+                                            Nova Cotação
+                                        </button>
+                                    </motion.div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {/* Sem Resposta Section */}
+                                        {sentEmails.filter(e => e.status === 'sent').length > 0 && (
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Aguardando Resposta</span>
+                                                    <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/20 rounded text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                                                        {sentEmails.filter(e => e.status === 'sent').length}
+                                                    </span>
                                                 </div>
-                                                <div>
-                                                    <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300">Gmail Monitorando</p>
-                                                    <p className="text-[10px] text-indigo-500 dark:text-indigo-400">Respostas são detectadas automaticamente</p>
+                                                <div className="space-y-3">
+                                                    {sentEmails.filter(e => e.status === 'sent').map((email) => (
+                                                        <motion.div
+                                                            key={email.id}
+                                                            className="rounded-2xl bg-amber-50/30 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/10 overflow-hidden"
+                                                            initial={{ opacity: 0, y: 10 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                        >
+                                                            {/* Header */}
+                                                            <div className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
+                                                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                                    <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center text-white text-base font-semibold shrink-0 shadow-lg shadow-amber-500/20">
+                                                                        {email.supplierName?.charAt(0)?.toUpperCase() || '?'}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{email.supplierName}</p>
+                                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                                                                {/* Use items array, fallback to itemNames, or show "Cotação enviada" */}
+                                                                                {email.items?.length > 0
+                                                                                    ? `${email.items.length} itens solicitados`
+                                                                                    : email.itemNames?.length > 0
+                                                                                        ? `${email.itemNames.length} itens`
+                                                                                        : 'Cotação enviada'
+                                                                                }
+                                                                            </span>
+                                                                            <span className="text-[10px] text-zinc-300">•</span>
+                                                                            <span className="text-[10px] text-zinc-400">
+                                                                                {formatRelativeTime(email.sentAt)}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setSelectedEmailForQuote(email)
+                                                                            setQuoteDetails({ quotedValue: '', expectedDelivery: '' })
+                                                                            setQuoteModalOpen(true)
+                                                                        }}
+                                                                        className="px-4 py-2.5 bg-amber-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-amber-600 transition-all shadow-md"
+                                                                    >
+                                                                        Registrar Cotação
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => openEmailComposer(suppliers.find(s => s.name === email.supplierName) || { name: email.supplierName, email: email.to }, [])}
+                                                                        className="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                                                                    >
+                                                                        Reenviar
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Items List - Show what was ordered (with fallback for legacy data) */}
+                                                            {email.items && email.items.length > 0 ? (
+                                                                <div className="border-t border-amber-100 dark:border-amber-500/10 bg-white/50 dark:bg-zinc-900/30">
+                                                                    <div className="hidden md:grid grid-cols-4 gap-4 px-5 py-2 text-[9px] font-medium text-zinc-400 uppercase tracking-wider border-b border-zinc-100 dark:border-white/5">
+                                                                        <span>Item</span>
+                                                                        <span className="text-center">Estoque Atual</span>
+                                                                        <span className="text-center">Máximo</span>
+                                                                        <span className="text-right">Qtd. Solicitada</span>
+                                                                    </div>
+                                                                    {email.items.slice(0, 5).map((item, idx) => (
+                                                                        <div
+                                                                            key={item.id || idx}
+                                                                            className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 py-2.5 px-4 md:px-5 border-b border-zinc-100 dark:border-white/5 last:border-b-0"
+                                                                        >
+                                                                            <span className="col-span-2 md:col-span-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.name}</span>
+                                                                            <span className="text-xs text-zinc-400 md:text-center tabular-nums">
+                                                                                <span className="md:hidden text-[10px] text-zinc-300 mr-1">Atual:</span>
+                                                                                {item.currentStock}{item.unit}
+                                                                            </span>
+                                                                            <span className="text-xs text-zinc-400 md:text-center tabular-nums">
+                                                                                <span className="md:hidden text-[10px] text-zinc-300 mr-1">Máx:</span>
+                                                                                {item.maxStock}{item.unit}
+                                                                            </span>
+                                                                            <span className="text-sm font-bold text-amber-600 dark:text-amber-400 md:text-right tabular-nums">
+                                                                                <span className="md:hidden text-[10px] text-zinc-300 mr-1">Pedido:</span>
+                                                                                +{item.quantityToOrder}{item.unit}
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                    {email.items.length > 5 && (
+                                                                        <div className="px-5 py-2 text-[10px] text-zinc-400 text-center border-t border-zinc-100 dark:border-white/5">
+                                                                            +{email.items.length - 5} mais itens
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : email.itemNames && email.itemNames.length > 0 ? (
+                                                                /* Fallback for legacy emails with only itemNames */
+                                                                <div className="border-t border-amber-100 dark:border-amber-500/10 bg-white/50 dark:bg-zinc-900/30 p-4">
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {email.itemNames.slice(0, 5).map((name, idx) => (
+                                                                            <span key={idx} className="px-3 py-1.5 bg-amber-100/80 dark:bg-amber-500/20 rounded-lg text-xs font-medium text-amber-700 dark:text-amber-300">
+                                                                                {name}
+                                                                            </span>
+                                                                        ))}
+                                                                        {email.itemNames.length > 5 && (
+                                                                            <span className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs text-zinc-500">
+                                                                                +{email.itemNames.length - 5} mais
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-[10px] text-zinc-400 mt-2 italic">
+                                                                        * Detalhes de quantidade não disponíveis para cotações antigas
+                                                                    </p>
+                                                                </div>
+                                                            ) : null}
+                                                        </motion.div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Cotação Recebida Section */}
+                                        {sentEmails.filter(e => e.status === 'quoted').length > 0 && (
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Cotação Recebida</span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {sentEmails.filter(e => e.status === 'quoted').map((email) => (
+                                                        <motion.div
+                                                            key={email.id}
+                                                            className="rounded-2xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10 overflow-hidden"
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                        >
+                                                            <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-5">
+                                                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                                    <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                                                                        {email.supplierName?.charAt(0)?.toUpperCase() || '?'}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{email.supplierName || email.to}</p>
+                                                                        <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                                                                            {email.quotedValue ? (
+                                                                                <>Cotação: <span className="font-bold">{formatCurrency(email.quotedValue)}</span></>
+                                                                            ) : 'Aguardando aprovação'}
+                                                                            {email.expectedDelivery && (
+                                                                                <span className="ml-2 text-zinc-400">• Entrega: {formatDate(email.expectedDelivery, { month: 'short', day: '2-digit' })}</span>
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Quote Summary Badge */}
+                                                                {email.quotedValue && (
+                                                                    <div className="hidden md:flex flex-col items-end gap-0.5 shrink-0 px-4">
+                                                                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
+                                                                        {email.expectedDelivery && (
+                                                                            <span className="text-[9px] text-zinc-400 uppercase tracking-wider">
+                                                                                Entrega: {formatDate(email.expectedDelivery, { month: 'short', day: '2-digit' })}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const updated = sentEmails.map(e => e.id === email.id ? { ...e, status: 'confirmed', confirmedAt: new Date().toISOString() } : e)
+                                                                            setSentEmails(updated)
+                                                                            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
+                                                                            showToast('✓ Ordem de compra criada!', 'success')
+                                                                        }}
+                                                                        className="px-4 py-2 bg-blue-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-blue-600 transition-all flex items-center gap-1.5"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                                        Aprovar
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const updated = sentEmails.map(e => e.id === email.id ? { ...e, status: 'sent', quotedValue: null, expectedDelivery: null } : e)
+                                                                            setSentEmails(updated)
+                                                                            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
+                                                                            showToast('Solicitando nova cotação...', 'info')
+                                                                            openEmailComposer(suppliers.find(s => s.name === email.supplierName) || { name: email.supplierName, email: email.to }, [])
+                                                                        }}
+                                                                        className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                                                                    >
+                                                                        Nova Cotação
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    ))}
                                                 </div>
                                             </div>
                                         )}
@@ -861,10 +1165,142 @@ ${today}`
                             </motion.div>
                         )}
 
-                        {/* TAB 3: Pedido Entregue */}
-                        {activeProtocolTab === 'delivered' && (
+                        {/* TAB 3: Ordens de Compra */}
+                        {activeProtocolTab === 'ordered' && (
                             <motion.div
-                                key="delivered"
+                                key="ordered"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                {sentEmails.filter(e => e.status === 'confirmed').length === 0 ? (
+                                    <motion.div
+                                        className="py-16 md:py-24 text-center flex flex-col items-center gap-6"
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.5 }}
+                                    >
+                                        <motion.div
+                                            className="relative"
+                                            animate={{ y: [0, -4, 0] }}
+                                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                        >
+                                            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-100 to-purple-50 dark:from-indigo-500/20 dark:to-purple-500/10 flex items-center justify-center shadow-lg shadow-indigo-500/10">
+                                                <svg className="w-10 h-10 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                                                </svg>
+                                            </div>
+                                        </motion.div>
+
+                                        <div className="space-y-2">
+                                            <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-200">
+                                                Nenhuma ordem de compra
+                                            </h3>
+                                            <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-xs mx-auto">
+                                                Aprove cotações recebidas para criar ordens de compra
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            onClick={() => setActiveProtocolTab('awaiting')}
+                                            className="mt-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center gap-2"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Ver Cotações
+                                        </button>
+                                    </motion.div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {sentEmails.filter(e => e.status === 'confirmed').map((email) => (
+                                            <motion.div
+                                                key={email.id}
+                                                className="rounded-2xl bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10 overflow-hidden"
+                                                initial={{ opacity: 0, scale: 0.98 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                            >
+                                                <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-5">
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                        <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{email.supplierName || email.to}</p>
+                                                            <p className="text-[10px] text-indigo-600 dark:text-indigo-400">
+                                                                Ordem criada em {formatDate(email.confirmedAt || email.sentAt, { month: 'short', day: '2-digit' })}
+                                                                {email.expectedDelivery && (
+                                                                    <span className="ml-2 text-zinc-400">• Entrega prev.: {formatDate(email.expectedDelivery, { month: 'short', day: '2-digit' })}</span>
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {/* Value Badge */}
+                                                    {email.quotedValue && (
+                                                        <div className="hidden md:block px-4 py-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl">
+                                                            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
+                                                        </div>
+                                                    )}
+                                                    <button
+                                                        onClick={() => {
+                                                            const updated = sentEmails.map(e => e.id === email.id ? { ...e, status: 'delivered', deliveredAt: new Date().toISOString() } : e)
+                                                            setSentEmails(updated)
+                                                            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
+                                                            showToast('📦 Produto recebido!', 'success')
+                                                        }}
+                                                        className="w-full md:w-auto px-5 py-2.5 bg-indigo-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                                                        Confirmar Recebimento
+                                                    </button>
+                                                </div>
+                                                {/* Mobile value display */}
+                                                {email.quotedValue && (
+                                                    <div className="md:hidden px-5 pb-4 flex items-center justify-between">
+                                                        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Valor:</span>
+                                                        <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Items List - Show what was ordered */}
+                                                {email.items && email.items.length > 0 && (
+                                                    <div className="border-t border-indigo-100 dark:border-indigo-500/10 bg-white/50 dark:bg-zinc-900/30">
+                                                        <div className="hidden md:grid grid-cols-3 gap-4 px-5 py-2 text-[9px] font-medium text-zinc-400 uppercase tracking-wider border-b border-zinc-100 dark:border-white/5">
+                                                            <span>Item</span>
+                                                            <span className="text-center">Quantidade Solicitada</span>
+                                                            <span className="text-right">Unidade</span>
+                                                        </div>
+                                                        {email.items.slice(0, 4).map((item, idx) => (
+                                                            <div
+                                                                key={item.id || idx}
+                                                                className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 py-2.5 px-4 md:px-5 border-b border-zinc-100 dark:border-white/5 last:border-b-0"
+                                                            >
+                                                                <span className="col-span-2 md:col-span-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.name}</span>
+                                                                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 md:text-center tabular-nums">
+                                                                    {item.quantityToOrder}{item.unit}
+                                                                </span>
+                                                                <span className="text-xs text-zinc-400 md:text-right">{item.unit || '—'}</span>
+                                                            </div>
+                                                        ))}
+                                                        {email.items.length > 4 && (
+                                                            <div className="px-5 py-2 text-[10px] text-zinc-400 text-center">
+                                                                +{email.items.length - 4} mais itens
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
+
+                        {/* TAB 4: Recebido */}
+                        {activeProtocolTab === 'received' && (
+                            <motion.div
+                                key="received"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
@@ -872,32 +1308,81 @@ ${today}`
                             >
                                 {sentEmails.filter(e => e.status === 'delivered').length === 0 ? (
                                     <div className="py-20 text-center flex flex-col items-center gap-4">
-                                        <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
-                                            <svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                                        <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
+                                            <svg className="w-8 h-8 text-zinc-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                                         </div>
-                                        <p className="text-sm font-semibold text-zinc-400 dark:text-zinc-500">Nenhum pedido entregue</p>
-                                        <p className="text-[10px] text-zinc-300 dark:text-zinc-600 uppercase tracking-widest">Confirme pedidos na aba "Aguardando"</p>
+                                        <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">Nenhum recebimento</p>
+                                        <p className="text-[10px] text-zinc-300 dark:text-zinc-600">Confirme entregas na aba "Ordens"</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
                                         {sentEmails.filter(e => e.status === 'delivered').map((email) => (
                                             <motion.div
                                                 key={email.id}
-                                                className="flex items-center gap-4 py-4 px-5 rounded-2xl border border-emerald-100 dark:border-emerald-500/10 bg-emerald-50/30 dark:bg-emerald-500/5"
-                                                initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 1, scale: 1 }}
+                                                className="rounded-2xl bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 overflow-hidden"
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
                                             >
-                                                <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
-                                                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-5">
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                        <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
+                                                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{email.supplierName || email.to}</p>
+                                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                                                Recebido em {formatDate(email.deliveredAt || email.sentAt, { month: 'short', day: '2-digit' })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {/* Value Badge */}
+                                                    {email.quotedValue && (
+                                                        <div className="hidden md:block px-4 py-2 bg-emerald-100 dark:bg-emerald-500/20 rounded-xl">
+                                                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="shrink-0">
+                                                        <span className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-wider">
+                                                            ✓ Recebido
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{email.supplierName || email.to}</p>
-                                                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400">{email.subject}</p>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ Entregue</p>
-                                                    <p className="text-[9px] text-zinc-400">{new Date(email.sentAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</p>
-                                                </div>
+                                                {/* Mobile value display */}
+                                                {email.quotedValue && (
+                                                    <div className="md:hidden px-5 pb-4 flex items-center justify-between border-t border-emerald-100 dark:border-emerald-500/10 pt-3">
+                                                        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Valor pago:</span>
+                                                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Items List - Show what was received */}
+                                                {email.items && email.items.length > 0 && (
+                                                    <div className="border-t border-emerald-100 dark:border-emerald-500/10 bg-white/50 dark:bg-zinc-900/30">
+                                                        <div className="hidden md:grid grid-cols-2 gap-4 px-5 py-2 text-[9px] font-medium text-zinc-400 uppercase tracking-wider border-b border-zinc-100 dark:border-white/5">
+                                                            <span>Item Recebido</span>
+                                                            <span className="text-right">Quantidade</span>
+                                                        </div>
+                                                        {email.items.slice(0, 3).map((item, idx) => (
+                                                            <div
+                                                                key={item.id || idx}
+                                                                className="flex items-center justify-between py-2.5 px-4 md:px-5 border-b border-zinc-100 dark:border-white/5 last:border-b-0"
+                                                            >
+                                                                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 flex items-center gap-2">
+                                                                    <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                                    {item.name}
+                                                                </span>
+                                                                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                                                    {item.quantityToOrder}{item.unit}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        {email.items.length > 3 && (
+                                                            <div className="px-5 py-2 text-[10px] text-zinc-400 text-center">
+                                                                +{email.items.length - 3} mais itens
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </motion.div>
                                         ))}
                                     </div>
@@ -936,19 +1421,19 @@ ${today}`
 
                                         {/* Table Body */}
                                         <div className="space-y-2">
-                                            {sentEmails.slice(0, 10).map((email) => {
+                                            {sentEmails.slice(0, 20).map((email) => {
                                                 const statusConfig = {
-                                                    sent: { color: 'amber', icon: '⏳', label: 'Aguardando' },
-                                                    replied: { color: 'blue', icon: '📩', label: 'Respondido' },
-                                                    confirmed: { color: 'indigo', icon: '✓', label: 'Confirmado' },
-                                                    delivered: { color: 'emerald', icon: '📦', label: 'Entregue' }
+                                                    sent: { color: 'amber', icon: '◔', label: 'Sem Resposta' },
+                                                    quoted: { color: 'blue', icon: '◑', label: 'Cotado' },
+                                                    confirmed: { color: 'indigo', icon: '◕', label: 'Em Ordem' },
+                                                    delivered: { color: 'emerald', icon: '●', label: 'Recebido' }
                                                 }
                                                 const status = statusConfig[email.status] || statusConfig.sent
 
                                                 return (
                                                     <motion.div
                                                         key={email.id}
-                                                        className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-100 dark:border-white/5"
+                                                        className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 p-4 rounded-2xl bg-zinc-50/50 dark:bg-white/[0.02] border border-zinc-100/50 dark:border-white/5"
                                                         initial={{ opacity: 0 }}
                                                         animate={{ opacity: 1 }}
                                                     >
@@ -957,12 +1442,12 @@ ${today}`
                                                             <div className={`w-8 h-8 rounded-lg bg-${status.color}-100 dark:bg-${status.color}-500/10 flex items-center justify-center text-sm shrink-0`}>
                                                                 {status.icon}
                                                             </div>
-                                                            <span className={`md:hidden text-[10px] font-bold text-${status.color}-600 dark:text-${status.color}-400 uppercase`}>{status.label}</span>
+                                                            <span className={`md:hidden text-[10px] font-semibold text-${status.color}-600 dark:text-${status.color}-400`}>{status.label}</span>
                                                         </div>
 
                                                         {/* Supplier */}
                                                         <div className="md:col-span-3 flex items-center gap-3">
-                                                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-zinc-500 to-zinc-600 flex items-center justify-center text-white text-sm font-bold shadow shrink-0">
+                                                            <div className="w-9 h-9 rounded-xl bg-zinc-900 dark:bg-white flex items-center justify-center text-white dark:text-zinc-900 text-sm font-semibold shrink-0">
                                                                 {email.supplierName?.charAt(0)?.toUpperCase() || '?'}
                                                             </div>
                                                             <div className="min-w-0">
@@ -971,18 +1456,40 @@ ${today}`
                                                             </div>
                                                         </div>
 
-                                                        {/* Items */}
-                                                        <div className="md:col-span-3 flex flex-wrap gap-1.5 items-center">
-                                                            {(email.itemNames || []).slice(0, 2).map((name, i) => (
-                                                                <span key={i} className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md text-[9px] font-medium text-zinc-600 dark:text-zinc-400 truncate max-w-[80px]">
-                                                                    {name}
-                                                                </span>
-                                                            ))}
-                                                            {(email.itemNames?.length || 0) > 2 && (
-                                                                <span className="text-[9px] text-zinc-400">+{email.itemNames.length - 2}</span>
-                                                            )}
-                                                            {(!email.itemNames || email.itemNames.length === 0) && (
+                                                        {/* Items - Show names AND quantities */}
+                                                        <div className="md:col-span-3 flex flex-col gap-1">
+                                                            {/* Use new items array if available, fallback to itemNames */}
+                                                            {email.items && email.items.length > 0 ? (
+                                                                <>
+                                                                    {email.items.slice(0, 2).map((item, i) => (
+                                                                        <div key={item.id || i} className="flex items-center justify-between">
+                                                                            <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300 truncate max-w-[100px]">{item.name}</span>
+                                                                            <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 tabular-nums ml-2">+{item.quantityToOrder}{item.unit}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                    {email.items.length > 2 && (
+                                                                        <span className="text-[9px] text-zinc-400">+{email.items.length - 2} mais</span>
+                                                                    )}
+                                                                </>
+                                                            ) : (email.itemNames || []).length > 0 ? (
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {(email.itemNames || []).slice(0, 2).map((name, i) => (
+                                                                        <span key={i} className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md text-[9px] font-medium text-zinc-600 dark:text-zinc-400 truncate max-w-[80px]">
+                                                                            {name}
+                                                                        </span>
+                                                                    ))}
+                                                                    {(email.itemNames?.length || 0) > 2 && (
+                                                                        <span className="text-[9px] text-zinc-400">+{email.itemNames.length - 2}</span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
                                                                 <span className="text-[10px] text-zinc-300 dark:text-zinc-600">—</span>
+                                                            )}
+                                                            {/* Show total value if available */}
+                                                            {email.quotedValue && (
+                                                                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                                                                    Total: {formatCurrency(email.quotedValue)}
+                                                                </span>
                                                             )}
                                                         </div>
 
@@ -990,15 +1497,15 @@ ${today}`
                                                         <div className="md:col-span-2 flex items-center">
                                                             <div>
                                                                 <p className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
-                                                                    {new Date(email.sentAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                                                    {formatDate(email.sentAt, { day: '2-digit', month: 'short' })}
                                                                 </p>
                                                                 <p className="text-[9px] text-zinc-400">
-                                                                    {new Date(email.sentAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                    {formatTime(email.sentAt)}
                                                                 </p>
                                                             </div>
                                                         </div>
 
-                                                        {/* Updated Date */}
+                                                        {/* Status Badge */}
                                                         <div className="md:col-span-2 flex items-center">
                                                             <div>
                                                                 <p className={`text-[11px] font-medium text-${status.color}-600 dark:text-${status.color}-400`}>
@@ -1006,8 +1513,10 @@ ${today}`
                                                                 </p>
                                                                 <p className="text-[9px] text-zinc-400">
                                                                     {email.deliveredAt
-                                                                        ? new Date(email.deliveredAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-                                                                        : '—'
+                                                                        ? formatDate(email.deliveredAt, { day: '2-digit', month: 'short' })
+                                                                        : email.confirmedAt
+                                                                            ? formatDate(email.confirmedAt, { day: '2-digit', month: 'short' })
+                                                                            : '—'
                                                                     }
                                                                 </p>
                                                             </div>
@@ -1056,10 +1565,10 @@ ${today}`
                         )}
                     </AnimatePresence>
                 </div>
-            </section>
+            </section >
 
             {/* Email Composer Modal - Matching exactly Costs.jsx modal pattern */}
-            <AnimatePresence>
+            < AnimatePresence >
                 {isComposerOpen && (
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -1182,92 +1691,222 @@ ${today}`
                             </div>
                         </motion.div>
                     </motion.div>
-                )}
-            </AnimatePresence>
+                )
+                }
+            </AnimatePresence >
 
             {/* Email Success Modal */}
-            {showSuccessModal && lastSentEmail && createPortal(
-                <AnimatePresence>
+            {
+                showSuccessModal && lastSentEmail && createPortal(
+                    <AnimatePresence>
+                        <motion.div
+                            key="success-modal"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+                            onClick={() => setShowSuccessModal(false)}
+                        >
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm"
+                            />
+
+                            <motion.div
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.8, opacity: 0 }}
+                                transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                                className="relative bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl shadow-2xl border border-zinc-200/50 dark:border-white/10 overflow-hidden text-center p-8"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                {/* Success Animation */}
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 0.1, type: "spring", stiffness: 500, damping: 25 }}
+                                    className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/30"
+                                >
+                                    <svg
+                                        className="w-10 h-10 text-white"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth={3}
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </motion.div>
+
+                                <motion.h3
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="text-xl font-bold text-zinc-900 dark:text-white mb-2"
+                                >
+                                    Email Enviado!
+                                </motion.h3>
+
+                                <motion.p
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                                >
+                                    Cotação enviada para<br />
+                                    <span className="font-semibold text-zinc-700 dark:text-zinc-300">{lastSentEmail.supplierName || lastSentEmail.to}</span>
+                                </motion.p>
+
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4 }}
+                                    className="space-y-2"
+                                >
+                                    <button
+                                        onClick={() => setShowSuccessModal(false)}
+                                        className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                                    >
+                                        Continuar
+                                    </button>
+                                </motion.div>
+                            </motion.div>
+                        </motion.div>
+                    </AnimatePresence>,
+                    document.body
+                )
+            }
+
+            {/* Premium Toast - EXACT match from Costs.jsx */}
+
+            {/* Quote Details Modal - Apple Premium Design */}
+            <AnimatePresence>
+                {quoteModalOpen && selectedEmailForQuote && createPortal(
                     <motion.div
-                        key="success-modal"
+                        key="quote-modal"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
-                        onClick={() => setShowSuccessModal(false)}
+                        onClick={() => setQuoteModalOpen(false)}
                     >
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm"
                         />
 
                         <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
+                            initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.8, opacity: 0 }}
-                            transition={{ type: "spring", damping: 20, stiffness: 300 }}
-                            className="relative bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl shadow-2xl border border-zinc-200/50 dark:border-white/10 overflow-hidden text-center p-8"
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            className="relative bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl border border-zinc-200/50 dark:border-white/10 overflow-hidden"
                             onClick={e => e.stopPropagation()}
                         >
-                            {/* Success Animation */}
-                            <motion.div
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                transition={{ delay: 0.1, type: "spring", stiffness: 500, damping: 25 }}
-                                className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/30"
-                            >
-                                <svg
-                                    className="w-10 h-10 text-white"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                            </motion.div>
+                            {/* Header */}
+                            <div className="p-6 pb-4 border-b border-zinc-100 dark:border-white/5">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white text-lg font-semibold shrink-0">
+                                        {selectedEmailForQuote.supplierName?.charAt(0)?.toUpperCase() || '?'}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Detalhes da Cotação</h3>
+                                        <p className="text-sm text-zinc-500">{selectedEmailForQuote.supplierName}</p>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <motion.h3
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="text-xl font-bold text-zinc-900 dark:text-white mb-2"
-                            >
-                                Email Enviado!
-                            </motion.h3>
+                            {/* Form */}
+                            <div className="p-6 space-y-5">
+                                {/* Quoted Value */}
+                                <div>
+                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">
+                                        Valor Cotado (CAD)
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-semibold">$</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            value={quoteDetails.quotedValue}
+                                            onChange={e => setQuoteDetails(d => ({ ...d, quotedValue: e.target.value }))}
+                                            className="w-full pl-8 pr-4 py-3.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-xl text-lg font-semibold text-zinc-900 dark:text-white placeholder:text-zinc-300 dark:placeholder:text-zinc-600 outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                                        />
+                                    </div>
+                                </div>
 
-                            <motion.p
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
-                            >
-                                Cotação enviada para<br />
-                                <span className="font-semibold text-zinc-700 dark:text-zinc-300">{lastSentEmail.supplierName || lastSentEmail.to}</span>
-                            </motion.p>
+                                {/* Expected Delivery */}
+                                <div>
+                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">
+                                        Data de Entrega Prevista
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={quoteDetails.expectedDelivery}
+                                        onChange={e => setQuoteDetails(d => ({ ...d, expectedDelivery: e.target.value }))}
+                                        className="w-full px-4 py-3.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 rounded-xl text-base font-medium text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/30 transition-all"
+                                    />
+                                </div>
 
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="space-y-2"
-                            >
+                                {/* Items Preview */}
+                                {selectedEmailForQuote.itemNames?.length > 0 && (
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">
+                                            Itens
+                                        </label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {selectedEmailForQuote.itemNames.map((name, i) => (
+                                                <span key={i} className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
+                                                    {name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="p-6 pt-0 space-y-2">
                                 <button
-                                    onClick={() => setShowSuccessModal(false)}
-                                    className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                                    onClick={() => {
+                                        const updated = sentEmails.map(e => e.id === selectedEmailForQuote.id ? {
+                                            ...e,
+                                            status: 'quoted',
+                                            quotedAt: new Date().toISOString(),
+                                            quotedValue: quoteDetails.quotedValue ? parseFloat(quoteDetails.quotedValue) : null,
+                                            expectedDelivery: quoteDetails.expectedDelivery || null
+                                        } : e)
+                                        setSentEmails(updated)
+                                        localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
+                                        setQuoteModalOpen(false)
+                                        setSelectedEmailForQuote(null)
+                                        showToast(quoteDetails.quotedValue ? `Cotação de ${formatCurrency(quoteDetails.quotedValue)} registrada!` : 'Cotação recebida!', 'success')
+                                    }}
+                                    className="w-full py-4 bg-blue-500 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest shadow-lg hover:bg-blue-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                                 >
-                                    Continuar
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    Confirmar Cotação
                                 </button>
-                            </motion.div>
+                                <button
+                                    onClick={() => {
+                                        setQuoteModalOpen(false)
+                                        setSelectedEmailForQuote(null)
+                                    }}
+                                    className="w-full py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
                         </motion.div>
-                    </motion.div>
-                </AnimatePresence>,
-                document.body
-            )}
-
-            {/* Premium Toast - EXACT match from Costs.jsx */}
+                    </motion.div>,
+                    document.body
+                )}
+            </AnimatePresence>
             <AnimatePresence>
                 {toastMessage && createPortal(
                     <motion.div
@@ -1287,6 +1926,6 @@ ${today}`
                     document.body
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     )
 }
