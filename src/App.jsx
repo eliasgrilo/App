@@ -237,62 +237,90 @@ export default function App() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="fixed inset-0 z-[9999] bg-white dark:bg-black md:hidden"
+                  transition={{ duration: 0.25 }}
+                  className="fixed inset-0 z-[9999] bg-white/95 dark:bg-black/95 backdrop-blur-xl md:hidden"
                   style={{ top: 0 }}
                 >
                   {/* Close Button */}
-                  <div className="absolute top-3 right-4 z-10">
-                    <button
+                  <div className="absolute top-4 right-4 z-10">
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.1 }}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="w-11 h-11 flex items-center justify-center"
+                      className="w-10 h-10 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800"
                       aria-label="Close"
                     >
-                      <div className="relative w-[18px] h-[10px]">
-                        <span className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-zinc-800 dark:bg-zinc-200 rotate-45 -translate-y-1/2" />
-                        <span className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-zinc-800 dark:bg-zinc-200 -rotate-45 -translate-y-1/2" />
-                      </div>
-                    </button>
+                      <svg className="w-5 h-5 text-zinc-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </motion.button>
                   </div>
 
                   {/* Menu Items */}
-                  <div className="flex flex-col justify-center h-full px-8 -mt-16">
-                    {NAV_ITEMS.map(({ key, label }, index) => {
-                      const isActive = view === key
-                      return (
-                        <motion.button
-                          key={key}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{
-                            delay: index * 0.05,
-                            duration: 0.3,
-                            ease: [0.25, 0.46, 0.45, 0.94]
-                          }}
-                          onClick={() => handleViewChange(key)}
-                          className={`text-left py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-0 transition-colors ${isActive
-                            ? 'text-zinc-900 dark:text-white'
-                            : 'text-zinc-400 dark:text-zinc-500'
-                            }`}
-                        >
-                          <span className="text-[28px] font-semibold tracking-tight">
-                            {label}
-                          </span>
-                        </motion.button>
-                      )
-                    })}
+                  <div className="flex flex-col justify-center h-full px-6 pb-20">
+                    <motion.p
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6"
+                    >
+                      Navegação
+                    </motion.p>
+
+                    <div className="space-y-1">
+                      {NAV_ITEMS.map(({ key, label, icon: Icon }, index) => {
+                        const isActive = view === key
+                        return (
+                          <motion.button
+                            key={key}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{
+                              delay: index * 0.04,
+                              duration: 0.25,
+                              ease: [0.25, 0.46, 0.45, 0.94]
+                            }}
+                            onClick={() => handleViewChange(key)}
+                            className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all ${isActive
+                              ? 'bg-indigo-50 dark:bg-white/10 text-indigo-600 dark:text-white'
+                              : 'text-zinc-600 dark:text-zinc-400 active:bg-zinc-100 dark:active:bg-white/5'
+                              }`}
+                          >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isActive
+                                ? 'bg-indigo-500 text-white'
+                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                              }`}>
+                              <Icon active={isActive} />
+                            </div>
+                            <span className="text-[17px] font-semibold tracking-tight">
+                              {label}
+                            </span>
+                            {isActive && (
+                              <motion.div
+                                layoutId="mobile-active-check"
+                                className="ml-auto"
+                              >
+                                <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </motion.div>
+                            )}
+                          </motion.button>
+                        )
+                      })}
+                    </div>
                   </div>
 
                   {/* Bottom Branding */}
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="absolute bottom-8 left-8 right-8 text-center"
+                    transition={{ delay: 0.35 }}
+                    className="absolute bottom-6 left-0 right-0 text-center"
                   >
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-600 uppercase tracking-widest font-medium">
-                      Padoca Pizza
+                    <p className="text-[10px] text-zinc-300 dark:text-zinc-700 uppercase tracking-widest font-medium">
+                      Padoca Pizza • 2024
                     </p>
                   </motion.div>
                 </motion.div>
@@ -301,11 +329,11 @@ export default function App() {
 
             {/* Desktop Navigation */}
             <nav className="relative hidden md:block">
-              <motion.div
+              <motion.nav
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, ...spring }}
-                className="flex items-center gap-1 p-1.5 bg-zinc-100/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-2xl border border-zinc-200/50 dark:border-white/5 shadow-sm"
+                className="inline-flex items-center p-1.5 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl rounded-2xl border border-zinc-200/50 dark:border-white/10 shadow-lg"
               >
                 {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
                   const isActive = view === key
@@ -313,26 +341,26 @@ export default function App() {
                     <button
                       key={key}
                       onClick={() => handleViewChange(key)}
-                      className={`relative flex items-center justify-center gap-2 px-5 py-3 text-[11px] font-semibold rounded-xl transition-all duration-200 whitespace-nowrap ${isActive
-                        ? 'text-zinc-900 dark:text-white'
-                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                      className={`relative px-4 py-2.5 rounded-xl transition-colors duration-200 ${isActive
+                        ? 'text-indigo-600 dark:text-white'
+                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
                         }`}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="nav-active-desktop"
-                          className="absolute inset-0 bg-white dark:bg-zinc-800 rounded-xl shadow-lg shadow-zinc-900/5 dark:shadow-black/20"
-                          transition={spring}
+                          className="absolute inset-0 bg-indigo-50 dark:bg-white/10 rounded-xl"
+                          transition={{ type: "spring", stiffness: 400, damping: 30 }}
                         />
                       )}
-                      <span className="relative z-10">
+                      <span className="relative z-10 flex items-center gap-2">
                         <Icon active={isActive} />
+                        <span className="text-[11px] font-semibold uppercase tracking-wide">{label}</span>
                       </span>
-                      <span className="relative z-10 uppercase tracking-wider">{label}</span>
                     </button>
                   )
                 })}
-              </motion.div>
+              </motion.nav>
 
               {/* Unit Toggle - Mobile */}
               <AnimatePresence mode="wait">

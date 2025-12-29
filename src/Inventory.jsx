@@ -189,11 +189,25 @@ export default function Inventory() {
         maxStock: ''
     })
 
+    // Track if initial load is complete
+    const hasInitialLoadRef = useRef(false)
+
     // Cloud Sync Debounce
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
         localStorage.setItem(STORAGE_KEY + '_categories', JSON.stringify(categories))
         localStorage.setItem(STORAGE_KEY + '_subcategories', JSON.stringify(subcategories))
+
+        // Only dispatch event and sync after initial load
+        if (!hasInitialLoadRef.current) {
+            hasInitialLoadRef.current = true
+            return
+        }
+
+        // Dispatch custom event for same-tab updates (debounced to prevent loops)
+        const eventTimer = setTimeout(() => {
+            window.dispatchEvent(new Event('inventory-updated'))
+        }, 100)
 
         if (isCloudSynced) {
             setSyncStatus('syncing')
@@ -206,11 +220,13 @@ export default function Inventory() {
                 }
             }, 1500) // 1.5s debounce
 
-            return () => clearTimeout(timer)
+            return () => {
+                clearTimeout(timer)
+                clearTimeout(eventTimer)
+            }
         }
 
-        // Dispatch custom event for same-tab updates
-        window.dispatchEvent(new Event('inventory-updated'))
+        return () => clearTimeout(eventTimer)
     }, [items, categories, subcategories, isCloudSynced])
 
     // Calculate total quantity for an item (total weight/volume)
