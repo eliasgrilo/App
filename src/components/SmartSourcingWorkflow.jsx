@@ -15,6 +15,8 @@ import {
 } from '../services/smartSourcingService'
 import { GeminiService } from '../services/geminiService'
 import { gmailService } from '../services/gmailService'
+import { db } from '../firebase'
+import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore'
 
 // ===================================================================
 // FORMAT HELPERS
@@ -79,28 +81,43 @@ function QuotationCard({ quotation, onAction, isExpanded, onToggle }) {
             >
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                        {/* Status Indicator */}
+                        {/* Status Indicator - Enhanced Liquid Glass */}
                         {isPending && (
                             <motion.div
-                                className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center"
-                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400/30 to-orange-500/20 flex items-center justify-center overflow-hidden"
+                                animate={{ opacity: [0.6, 1, 0.6] }}
                                 transition={{ duration: 2, repeat: Infinity }}
                             >
-                                <span className="text-lg">⏳</span>
+                                {/* Shimmer effect */}
+                                <motion.div
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                                    animate={{ x: ['-100%', '100%'] }}
+                                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                                />
+                                <span className="text-lg relative z-10">⏳</span>
                             </motion.div>
                         )}
                         {isQuoted && (
-                            <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                            <motion.div
+                                className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/30 to-indigo-500/20 flex items-center justify-center"
+                                initial={{ scale: 0.9 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', stiffness: 300 }}
+                            >
                                 <span className="text-lg">📋</span>
-                            </div>
+                            </motion.div>
                         )}
                         {isOrdered && (
-                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                            <motion.div
+                                className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/30 to-blue-500/20 flex items-center justify-center"
+                                animate={{ x: [0, 2, 0] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                            >
                                 <span className="text-lg">🚚</span>
-                            </div>
+                            </motion.div>
                         )}
                         {isReceived && (
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-green-500/20 flex items-center justify-center">
                                 <span className="text-lg">✓</span>
                             </div>
                         )}
@@ -110,16 +127,50 @@ function QuotationCard({ quotation, onAction, isExpanded, onToggle }) {
                                 {quotation.supplierName}
                             </h4>
                             <p className="text-xs text-zinc-500">
-                                {quotation.items.length} itens · {timeAgo(quotation.updatedAt)}
+                                {quotation.items?.length || 0} itens · {timeAgo(quotation.updatedAt)}
                             </p>
                         </div>
                     </div>
 
-                    {/* Status Badge - Liquid Glass */}
-                    <div className={`px-3 py-1.5 rounded-full backdrop-blur-md ${statusColors.bg} ${statusColors.border} border`}>
-                        <span className={`text-[9px] font-bold uppercase tracking-wider ${statusColors.text}`}>
-                            {statusLabel}
-                        </span>
+                    {/* Status Badge + Problem Indicators */}
+                    <div className="flex flex-col items-end gap-1.5">
+                        {/* Main Status Badge - Liquid Glass */}
+                        <div className={`px-3 py-1.5 rounded-full backdrop-blur-xl shadow-sm ${statusColors.bg} ${statusColors.border} border`}>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${statusColors.text}`}>
+                                {statusLabel}
+                            </span>
+                        </div>
+
+                        {/* Problem Indicators */}
+                        {quotation.hasDelay && (
+                            <motion.div
+                                className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/30"
+                                animate={{ opacity: [0.7, 1, 0.7] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                            >
+                                <span className="text-[8px] font-bold text-orange-600 dark:text-orange-400 uppercase">
+                                    ⚠️ Atraso
+                                </span>
+                            </motion.div>
+                        )}
+                        {quotation.hasProblems && !quotation.hasDelay && (
+                            <motion.div
+                                className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30"
+                                animate={{ scale: [1, 1.05, 1] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                            >
+                                <span className="text-[8px] font-bold text-rose-600 dark:text-rose-400 uppercase">
+                                    ⚠️ Não Tem
+                                </span>
+                            </motion.div>
+                        )}
+                        {quotation.aiProcessed && (
+                            <div className="px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/20">
+                                <span className="text-[7px] font-bold text-violet-500 uppercase">
+                                    🤖 AI
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -319,11 +370,59 @@ export default function SmartSourcingWorkflow({
         checkGmail()
     }, [])
 
-    // Load quotations on mount
+    // Load quotations: Real-time Firestore subscription with local fallback
     useEffect(() => {
-        const loaded = SmartSourcingService.getAll()
-        setQuotations(loaded)
-    }, [])
+        // First, load from local storage for immediate display
+        const localQuotations = SmartSourcingService.getAll()
+        setQuotations(localQuotations)
+
+        // Then subscribe to Firestore for real-time updates
+        let unsubscribe = null
+
+        try {
+            const quotationsRef = collection(db, 'quotations')
+            const q = query(quotationsRef, orderBy('createdAt', 'desc'))
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    console.log('📭 No quotations in Firestore, using local storage')
+                    return
+                }
+
+                const firestoreQuotations = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    // Convert Firestore timestamps
+                    createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+                    updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
+                    emailSentAt: doc.data().emailSentAt?.toDate?.()?.toISOString() || doc.data().emailSentAt,
+                    replyReceivedAt: doc.data().replyReceivedAt?.toDate?.()?.toISOString() || doc.data().replyReceivedAt
+                }))
+
+                // Check for status changes and trigger haptic feedback
+                const previousIds = new Map(quotations.map(q => [q.id, q.status]))
+                for (const q of firestoreQuotations) {
+                    const prevStatus = previousIds.get(q.id)
+                    if (prevStatus && prevStatus !== q.status) {
+                        console.log(`🔔 Quotation ${q.id} changed: ${prevStatus} → ${q.status}`)
+                        HapticService.trigger('notification')
+                    }
+                }
+
+                setQuotations(firestoreQuotations)
+                console.log(`📊 Real-time update: ${firestoreQuotations.length} quotations`)
+            }, (error) => {
+                console.error('❌ Firestore subscription error:', error)
+                // Keep using local data on error
+            })
+        } catch (error) {
+            console.warn('⚠️ Firestore not available, using local storage only')
+        }
+
+        return () => {
+            if (unsubscribe) unsubscribe()
+        }
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     // =========================================================
     // AUTOMATIC EMAIL POLLING - Checks for replies every 30s
@@ -381,33 +480,44 @@ export default function SmartSourcingWorkflow({
 
                     // Process each reply
                     for (const reply of replies) {
-                        // Find matching quotation
+                        // Find matching quotation - EXACT email matching
                         const matchingQuotation = pendingQuotations.find(q => {
-                            const quotEmail = q.supplierEmail?.toLowerCase() || ''
-                            const replyEmail = reply.supplierEmail?.toLowerCase() || ''
-                            return quotEmail.includes(replyEmail.split('@')[0]) ||
-                                replyEmail.includes(quotEmail.split('@')[0])
+                            const quotEmail = q.supplierEmail?.toLowerCase().trim() || ''
+                            const replyEmail = reply.supplierEmail?.toLowerCase().trim() || ''
+
+                            // Exact match (preferred)
+                            if (quotEmail === replyEmail) return true
+
+                            // Domain-level fallback
+                            const quotDomain = quotEmail.split('@')[1]
+                            const replyDomain = replyEmail.split('@')[1]
+                            return quotDomain && replyDomain && quotDomain === replyDomain
                         })
 
                         if (matchingQuotation) {
                             console.log(`🤖 Processando resposta para: ${matchingQuotation.supplierName}`)
 
-                            // Use the snippet as email body (full body would require another API call)
-                            const emailBody = reply.snippet || reply.subject || ''
+                            // Use the full body if available, otherwise snippet
+                            const emailBody = reply.body || reply.snippet || reply.subject || ''
 
                             // Auto-process with AI
-                            await SmartSourcingService.processResponse(
+                            const result = await SmartSourcingService.processResponse(
                                 matchingQuotation.id,
                                 `De: ${reply.from}\nAssunto: ${reply.subject}\n\n${emailBody}`,
                                 userId,
                                 userName
                             )
 
-                            console.log(`✅ Cotação ${matchingQuotation.id} processada automaticamente!`)
+                            if (result.success) {
+                                console.log(`✅ Cotação ${matchingQuotation.id} processada automaticamente!`)
+                                // BUG #3 FIXED: Update UI immediately after each successful processing
+                                setQuotations(SmartSourcingService.getAll())
+                                HapticService.trigger('notification')
+                            }
                         }
                     }
 
-                    // Refresh quotations list
+                    // Final refresh to ensure all changes are visible
                     setQuotations(SmartSourcingService.getAll())
                 } else {
                     console.log('📭 Nenhuma resposta nova encontrada')
@@ -463,6 +573,116 @@ export default function SmartSourcingWorkflow({
     const lowStockProducts = useMemo(() => {
         return products.filter(p => (p.currentStock || 0) <= (p.minStock || 0))
     }, [products])
+
+    // =========================================================
+    // MANUAL EMAIL CHECK - Immediately check and process emails
+    // =========================================================
+    const handleCheckEmailsNow = useCallback(async () => {
+        if (!gmailConnected) {
+            alert('Gmail não conectado. Clique em "Ativar Automação 24/7" primeiro.')
+            return
+        }
+
+        setIsCheckingEmails(true)
+        HapticService.trigger('impactMedium')
+
+        try {
+            // Get pending quotations
+            const currentQuotations = SmartSourcingService.getAll()
+            const pendingQuotations = currentQuotations.filter(q =>
+                [QUOTATION_STATUS.PENDING, QUOTATION_STATUS.AWAITING].includes(q.status)
+            )
+
+            if (pendingQuotations.length === 0) {
+                alert('📭 Nenhuma cotação pendente para verificar')
+                return
+            }
+
+            console.log(`🔍 Checking emails for ${pendingQuotations.length} pending quotations...`)
+
+            // Get unique supplier emails
+            const supplierEmails = [...new Set(
+                pendingQuotations.map(q => q.supplierEmail).filter(Boolean)
+            )]
+
+            if (supplierEmails.length === 0) {
+                alert('📭 Nenhum email de fornecedor cadastrado')
+                return
+            }
+
+            // Find oldest quotation for date filter  
+            const oldestQuotation = pendingQuotations.reduce((oldest, q) =>
+                new Date(q.emailSentAt || q.createdAt) < new Date(oldest.emailSentAt || oldest.createdAt) ? q : oldest
+            )
+            const afterDate = new Date(oldestQuotation.emailSentAt || oldestQuotation.createdAt)
+
+            // Check for replies via Gmail API
+            const replies = await gmailService.checkReplies(supplierEmails, afterDate)
+
+            if (replies.length === 0) {
+                alert('📭 Nenhuma resposta nova encontrada')
+                return
+            }
+
+            console.log(`📬 Found ${replies.length} replies!`, replies)
+            let processedCount = 0
+
+            // Process each reply with AI
+            for (const reply of replies) {
+                // Find matching quotation - EXACT email matching
+                const matchingQuotation = pendingQuotations.find(q => {
+                    const quotEmail = q.supplierEmail?.toLowerCase().trim() || ''
+                    const replyEmail = reply.supplierEmail?.toLowerCase().trim() || ''
+
+                    // Exact match (preferred)
+                    if (quotEmail === replyEmail) return true
+
+                    // Domain-level fallback
+                    const quotDomain = quotEmail.split('@')[1]
+                    const replyDomain = replyEmail.split('@')[1]
+                    return quotDomain && replyDomain && quotDomain === replyDomain
+                })
+
+                if (matchingQuotation) {
+                    console.log(`🤖 Processing response for: ${matchingQuotation.supplierName}`)
+
+                    // Use full body if available, otherwise use snippet
+                    const emailBody = reply.body || reply.snippet || reply.subject || ''
+
+                    // Process with AI
+                    const result = await SmartSourcingService.processResponse(
+                        matchingQuotation.id,
+                        `De: ${reply.from}\nAssunto: ${reply.subject}\n\n${emailBody}`,
+                        userId,
+                        userName
+                    )
+
+                    if (result.success) {
+                        console.log(`✅ Quotation ${matchingQuotation.id} processed successfully!`)
+                        processedCount++
+                    }
+                }
+            }
+
+            // Refresh quotations list
+            setQuotations(SmartSourcingService.getAll())
+
+            if (processedCount > 0) {
+                HapticService.trigger('success')
+                alert(`✅ ${processedCount} resposta(s) processada(s) com sucesso!\nCards movidos para "Ordens".`)
+                setActiveTab('orders')
+            } else {
+                alert('📧 Emails encontrados, mas nenhum corresponde às cotações pendentes.')
+            }
+
+        } catch (error) {
+            console.error('❌ Error checking emails:', error)
+            HapticService.trigger('error')
+            alert(`Erro ao verificar emails: ${error.message}`)
+        } finally {
+            setIsCheckingEmails(false)
+        }
+    }, [gmailConnected, userId, userName])
 
     // Refresh quotations
     const refreshQuotations = useCallback(() => {
@@ -582,7 +802,7 @@ ${quotation.supplierName}`
                         </motion.div>
                     )}
 
-                    {/* Gmail Status */}
+                    {/* Gmail Status - Clickable to reconnect */}
                     {gmailConnected ? (
                         <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-full border border-emerald-200/50 dark:border-emerald-500/20 flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -591,12 +811,50 @@ ${quotation.supplierName}`
                             </span>
                         </div>
                     ) : (
-                        <div className="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 rounded-full border border-rose-200/50 dark:border-rose-500/20 flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                                HapticService.trigger('impactMedium')
+                                // Use full OAuth flow to get refresh token for 24/7 automation
+                                gmailService.startFullAuthorization()
+                            }}
+                            className="px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 rounded-full border border-rose-200/50 dark:border-rose-500/20 flex items-center gap-2 cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors"
+                        >
+                            <motion.div
+                                className="w-1.5 h-1.5 rounded-full bg-rose-500"
+                                animate={{ scale: [1, 1.3, 1] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                            />
                             <span className="text-[8px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest">
-                                Gmail Offline
+                                🔐 Ativar Automação 24/7
                             </span>
-                        </div>
+                        </motion.button>
+                    )}
+
+                    {/* CHECK EMAILS NOW BUTTON - Only when Gmail connected */}
+                    {gmailConnected && (
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleCheckEmailsNow}
+                            disabled={isCheckingEmails}
+                            className={`px-3 py-1.5 rounded-full border flex items-center gap-2 cursor-pointer transition-colors ${isCheckingEmails
+                                ? 'bg-violet-100 dark:bg-violet-500/20 border-violet-300 dark:border-violet-500/30'
+                                : 'bg-violet-50 dark:bg-violet-500/10 border-violet-200/50 dark:border-violet-500/20 hover:bg-violet-100 dark:hover:bg-violet-500/20'
+                                }`}
+                        >
+                            {isCheckingEmails ? (
+                                <motion.div
+                                    className="w-3 h-3 border-2 border-violet-500 border-t-transparent rounded-full"
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                />
+                            ) : (
+                                <span className="text-sm">🔍</span>
+                            )}
+                            <span className="text-[8px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest">
+                                {isCheckingEmails ? 'Verificando...' : 'Verificar Emails'}
+                            </span>
+                        </motion.button>
                     )}
 
                     {/* AI Status */}
