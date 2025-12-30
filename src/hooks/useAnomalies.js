@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
+import { StockService } from '../services/stockService'
 
 /**
  * useAnomalies - Apple-Quality Anomaly Detection Hook
  * Detects price spikes, stock issues, and inactivity
+ * Uses centralized StockService for consistent stock calculations
  */
 
 const ANOMALY_TYPES = {
@@ -88,8 +90,11 @@ export const detectProductAnomalies = (product, options = {}) => {
         }
     }
 
-    // Stock Analysis
-    const { currentStock = 0, minStock = 0, maxStock = 0, unit = 'un' } = product
+    // Stock Analysis - Using centralized StockService
+    const currentStock = StockService.getCurrentStock(product)
+    const minStock = StockService.getMinStock(product)
+    const maxStock = StockService.getMaxStock(product)
+    const unit = product.unit || 'un'
 
     if (currentStock === 0) {
         anomalies.push({
@@ -97,7 +102,7 @@ export const detectProductAnomalies = (product, options = {}) => {
             message: 'Produto sem estoque',
             priority: 4
         })
-    } else if (minStock > 0 && currentStock < minStock) {
+    } else if (StockService.needsReorder(product)) {
         anomalies.push({
             ...ANOMALY_TYPES.LOW_STOCK,
             message: `Estoque ${currentStock}/${minStock} ${unit}`,
@@ -106,7 +111,7 @@ export const detectProductAnomalies = (product, options = {}) => {
         })
     }
 
-    if (maxStock > 0 && currentStock > maxStock) {
+    if (StockService.isOverstocked(product)) {
         anomalies.push({
             ...ANOMALY_TYPES.HIGH_STOCK,
             message: `Estoque acima do máximo (${maxStock} ${unit})`,

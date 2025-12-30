@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useScrollLock } from './hooks/useScrollLock'
 import { FirebaseService } from './services/firebaseService'
+import UISwitch from './components/UISwitch'
+import { HapticService } from './services/hapticService'
+import QuickLookModal from './components/QuickLookModal'
 
 /**
  * Suppliers - Apple-Quality Supplier Management
@@ -124,7 +127,8 @@ export default function Suppliers() {
         address: '',
         notes: '',
         linkedItems: [],
-        documents: [] // { id, name, type, size, dataUrl, uploadedAt, category }
+        documents: [], // { id, name, type, size, dataUrl, uploadedAt, category }
+        autoOrderEnabled: false // Smart Procurement toggle
     })
 
     // Document categories
@@ -139,6 +143,8 @@ export default function Suppliers() {
     // File upload state
     const [isDragging, setIsDragging] = useState(false)
     const [uploadingFile, setUploadingFile] = useState(null)
+    const [uploadingFileType, setUploadingFileType] = useState(null) // Track file type for dynamic icon
+    const [uploadProgress, setUploadProgress] = useState(0) // 0-100 for progress bar
     const [viewingDocument, setViewingDocument] = useState(null)
     const [selectedDocCategory, setSelectedDocCategory] = useState('cotacao')
     const fileInputRef = useRef(null)
@@ -233,7 +239,8 @@ export default function Suppliers() {
             address: '',
             notes: '',
             linkedItems: [],
-            documents: []
+            documents: [],
+            autoOrderEnabled: false
         })
         setEditingSupplier(null)
         setIsModalOpen(true)
@@ -250,7 +257,8 @@ export default function Suppliers() {
             address: supplier.address || '',
             notes: supplier.notes || '',
             linkedItems: supplier.linkedItems || [],
-            documents: supplier.documents || []
+            documents: supplier.documents || [],
+            autoOrderEnabled: supplier.autoOrderEnabled || false
         })
         setEditingSupplier(supplier)
         setSelectedSupplier(null)
@@ -340,7 +348,7 @@ export default function Suppliers() {
         return '📄'
     }
 
-    // Handle file selection
+    // Handle file selection with progress tracking
     const handleFileSelect = useCallback((files) => {
         const maxSize = 5 * 1024 * 1024 // 5MB limit
         const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf',
@@ -361,9 +369,22 @@ export default function Suppliers() {
             }
 
             setUploadingFile(file.name)
+            setUploadingFileType(file.type) // Track type for dynamic icon
+            setUploadProgress(0)
 
             const reader = new FileReader()
+
+            // Track progress (Safari-style progress bar)
+            reader.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const progress = Math.round((e.loaded / e.total) * 100)
+                    setUploadProgress(progress)
+                }
+            }
+
             reader.onload = (e) => {
+                setUploadProgress(100)
+
                 const newDoc = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                     name: file.name,
@@ -374,17 +395,23 @@ export default function Suppliers() {
                     category: selectedDocCategory
                 }
 
-                setFormData(prev => ({
-                    ...prev,
-                    documents: [...prev.documents, newDoc]
-                }))
-
-                setUploadingFile(null)
-                showToast('Documento anexado!')
+                // Small delay to show 100% before clearing
+                setTimeout(() => {
+                    setFormData(prev => ({
+                        ...prev,
+                        documents: [...prev.documents, newDoc]
+                    }))
+                    setUploadingFile(null)
+                    setUploadingFileType(null)
+                    setUploadProgress(0)
+                    showToast('Documento anexado!')
+                }, 200)
             }
 
             reader.onerror = () => {
                 setUploadingFile(null)
+                setUploadingFileType(null)
+                setUploadProgress(0)
                 showToast('Erro ao ler arquivo', 'error')
             }
 
@@ -425,14 +452,42 @@ export default function Suppliers() {
         showToast('Documento removido')
     }
 
-    // Download document
+    // Download document with binary integrity (Raw Blob)
     const downloadDocument = (doc) => {
-        const link = document.createElement('a')
-        link.href = doc.dataUrl
-        link.download = doc.name
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+        // Convert base64 dataUrl to Blob for proper binary handling
+        const fetchAndDownload = async () => {
+            try {
+                const response = await fetch(doc.dataUrl)
+                const blob = await response.blob()
+
+                // Create blob URL with proper MIME type
+                const blobUrl = URL.createObjectURL(
+                    new Blob([blob], { type: doc.type || 'application/octet-stream' })
+                )
+
+                const link = document.createElement('a')
+                link.href = blobUrl
+                link.download = doc.name
+                // Set content type header attribute
+                link.setAttribute('type', 'application/octet-stream')
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+
+                // Cleanup blob URL
+                URL.revokeObjectURL(blobUrl)
+            } catch (error) {
+                console.error('Download error:', error)
+                // Fallback to direct dataUrl download
+                const link = document.createElement('a')
+                link.href = doc.dataUrl
+                link.download = doc.name
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+            }
+        }
+        fetchAndDownload()
     }
 
     // Contact actions
@@ -732,26 +787,47 @@ export default function Suppliers() {
                                                 {quotes.map(doc => (
                                                     <div
                                                         key={doc.id}
-                                                        className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl group hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
+                                                        className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl group hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                                                        onClick={(e) => {
+                                                            // Open Quick Look preview on file click
+                                                            setViewingDocument({ doc, originRect: e.currentTarget.getBoundingClientRect() })
+                                                        }}
                                                     >
-                                                        {/* File Icon */}
+                                                        {/* File Icon - SF Symbol Style */}
                                                         {doc.type.startsWith('image/') ? (
                                                             <div
-                                                                className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 shadow-sm"
+                                                                className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 shadow-sm ring-1 ring-black/5"
                                                                 style={{ backgroundImage: `url(${doc.dataUrl})` }}
                                                             />
                                                         ) : (
-                                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${doc.type === 'application/pdf'
+                                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative ${doc.type === 'application/pdf'
                                                                 ? 'bg-red-100 dark:bg-red-500/20'
-                                                                : 'bg-blue-100 dark:bg-blue-500/20'
+                                                                : doc.type.includes('spreadsheet') || doc.type.includes('excel')
+                                                                    ? 'bg-emerald-100 dark:bg-emerald-500/20'
+                                                                    : 'bg-blue-100 dark:bg-blue-500/20'
                                                                 }`}>
                                                                 {doc.type === 'application/pdf' ? (
-                                                                    <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
-                                                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z" />
+                                                                    /* PDF Icon - SF Symbol style */
+                                                                    <svg className="w-6 h-6 text-red-500" viewBox="0 0 24 24" fill="none">
+                                                                        <rect x="4" y="2" width="16" height="20" rx="2" fill="currentColor" />
+                                                                        <text x="12" y="13" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">PDF</text>
+                                                                    </svg>
+                                                                ) : doc.type.includes('spreadsheet') || doc.type.includes('excel') ? (
+                                                                    /* Excel Icon - tablecells SF Symbol style */
+                                                                    <svg className="w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none">
+                                                                        <rect x="4" y="2" width="16" height="20" rx="2" fill="currentColor" />
+                                                                        <rect x="6" y="6" width="4" height="3" rx="0.5" fill="white" opacity="0.9" />
+                                                                        <rect x="11" y="6" width="4" height="3" rx="0.5" fill="white" opacity="0.9" />
+                                                                        <rect x="6" y="10" width="4" height="3" rx="0.5" fill="white" opacity="0.9" />
+                                                                        <rect x="11" y="10" width="4" height="3" rx="0.5" fill="white" opacity="0.9" />
+                                                                        <rect x="6" y="14" width="4" height="3" rx="0.5" fill="white" opacity="0.9" />
+                                                                        <rect x="11" y="14" width="4" height="3" rx="0.5" fill="white" opacity="0.9" />
                                                                     </svg>
                                                                 ) : (
-                                                                    <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                                                    /* Word/Doc Icon - doc.text SF Symbol style */
+                                                                    <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none">
+                                                                        <rect x="4" y="2" width="16" height="20" rx="2" fill="currentColor" />
+                                                                        <path d="M8 8h8M8 12h8M8 16h5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
                                                                     </svg>
                                                                 )}
                                                             </div>
@@ -768,7 +844,10 @@ export default function Suppliers() {
                                                         {/* Actions */}
                                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <button
-                                                                onClick={() => downloadDocument(doc)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    downloadDocument(doc)
+                                                                }}
                                                                 className="w-8 h-8 flex items-center justify-center rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors touch-manipulation"
                                                                 title="Baixar"
                                                             >
@@ -777,7 +856,8 @@ export default function Suppliers() {
                                                                 </svg>
                                                             </button>
                                                             <button
-                                                                onClick={() => {
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
                                                                     setSuppliers(prev => prev.map(s =>
                                                                         s.id === supplier.id
                                                                             ? { ...s, documents: s.documents.filter(d => d.id !== doc.id) }
@@ -970,6 +1050,50 @@ export default function Suppliers() {
                                         )}
                                     </div>
 
+                                    {/* ========== SMART PROCUREMENT TOGGLE - Inset Grouped ========== */}
+                                    <div className="pt-5 border-t border-zinc-100 dark:border-white/5">
+                                        <h4 className="text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-4">Automação</h4>
+
+                                        <div className="bg-white dark:bg-zinc-800/50 rounded-2xl border border-zinc-200/50 dark:border-zinc-700/50 overflow-hidden">
+                                            <div className="flex items-center justify-between px-4 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    {/* SF Symbol-style Icon */}
+                                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                                                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">Solicitação Automática</p>
+                                                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Criar cotação ao atingir estoque mínimo</p>
+                                                    </div>
+                                                </div>
+                                                <UISwitch
+                                                    checked={formData.autoOrderEnabled}
+                                                    onChange={(val) => {
+                                                        setFormData(prev => ({ ...prev, autoOrderEnabled: val }))
+                                                        HapticService.trigger('selection')
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {formData.autoOrderEnabled && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="mt-3 space-y-3"
+                                            >
+                                                <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl border border-emerald-100 dark:border-emerald-500/20">
+                                                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                                                        ⚡ Quando o estoque de um item vinculado atingir o mínimo, uma cotação será criada automaticamente.
+                                                    </p>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </div>
+
                                     {/* ========== ANEXOS - Ultra Minimal ========== */}
                                     <div className="pt-5 border-t border-zinc-100 dark:border-white/5">
                                         {/* Hidden File Input */}
@@ -991,12 +1115,15 @@ export default function Suppliers() {
                                                         <div key={doc.id} className="flex items-center gap-3">
                                                             {isImage ? (
                                                                 <div
-                                                                    className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 cursor-pointer"
+                                                                    className="w-10 h-10 rounded-lg bg-cover bg-center shrink-0 cursor-pointer hover:scale-105 transition-transform"
                                                                     style={{ backgroundImage: `url(${doc.dataUrl})` }}
-                                                                    onClick={() => setViewingDocument(doc)}
+                                                                    onClick={(e) => setViewingDocument({ doc, originRect: e.currentTarget.getBoundingClientRect() })}
                                                                 />
                                                             ) : (
-                                                                <div className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-zinc-400">
+                                                                <div
+                                                                    className="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-zinc-400 cursor-pointer hover:scale-105 transition-transform"
+                                                                    onClick={(e) => setViewingDocument({ doc, originRect: e.currentTarget.getBoundingClientRect() })}
+                                                                >
                                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                                                                     </svg>
@@ -1021,27 +1148,75 @@ export default function Suppliers() {
                                             </div>
                                         )}
 
-                                        {/* Add Attachment - Simple Link Style */}
-                                        <button
-                                            type="button"
-                                            onDragOver={handleDragOver}
-                                            onDragLeave={handleDragLeave}
-                                            onDrop={handleDrop}
-                                            onClick={() => fileInputRef.current?.click()}
-                                            disabled={!!uploadingFile}
-                                            className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors touch-manipulation"
-                                        >
-                                            {uploadingFile ? (
-                                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                            ) : (
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
-                                                </svg>
+                                        {/* Add Attachment - Simple Link Style with Safari Progress Bar */}
+                                        <div className="flex flex-col gap-2">
+                                            <button
+                                                type="button"
+                                                onDragOver={handleDragOver}
+                                                onDragLeave={handleDragLeave}
+                                                onDrop={handleDrop}
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={!!uploadingFile}
+                                                className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors touch-manipulation"
+                                            >
+                                                {uploadingFile ? (
+                                                    /* Dynamic SF Symbol icon based on file type */
+                                                    <div className="relative">
+                                                        {uploadingFileType === 'application/pdf' ? (
+                                                            <svg className="w-5 h-5 animate-pulse" viewBox="0 0 24 24" fill="none">
+                                                                <rect x="4" y="2" width="16" height="20" rx="2" className="fill-red-500" />
+                                                                <text x="12" y="13" textAnchor="middle" className="fill-white text-[6px] font-bold">PDF</text>
+                                                            </svg>
+                                                        ) : uploadingFileType?.includes('spreadsheet') || uploadingFileType?.includes('excel') ? (
+                                                            <svg className="w-5 h-5 animate-pulse" viewBox="0 0 24 24" fill="none">
+                                                                <rect x="4" y="2" width="16" height="20" rx="2" className="fill-emerald-500" />
+                                                                <rect x="6" y="6" width="4" height="3" rx="0.5" className="fill-white/90" />
+                                                                <rect x="11" y="6" width="4" height="3" rx="0.5" className="fill-white/90" />
+                                                                <rect x="6" y="10" width="4" height="3" rx="0.5" className="fill-white/90" />
+                                                                <rect x="11" y="10" width="4" height="3" rx="0.5" className="fill-white/90" />
+                                                            </svg>
+                                                        ) : uploadingFileType?.includes('word') || uploadingFileType?.includes('document') ? (
+                                                            <svg className="w-5 h-5 animate-pulse" viewBox="0 0 24 24" fill="none">
+                                                                <rect x="4" y="2" width="16" height="20" rx="2" className="fill-blue-500" />
+                                                                <path d="M8 8h8M8 12h8M8 16h5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                                                            </svg>
+                                                        ) : uploadingFileType?.startsWith('image/') ? (
+                                                            <svg className="w-5 h-5 animate-pulse" viewBox="0 0 24 24" fill="none">
+                                                                <rect x="4" y="4" width="16" height="16" rx="2" className="fill-purple-500" />
+                                                                <circle cx="9" cy="10" r="2" className="fill-white/80" />
+                                                                <path d="M20 16l-4-4-3 3-2-2-7 7h16v-4z" className="fill-white/60" />
+                                                            </svg>
+                                                        ) : (
+                                                            <svg className="w-5 h-5 animate-pulse" viewBox="0 0 24 24" fill="none">
+                                                                <rect x="4" y="2" width="16" height="20" rx="2" className="fill-zinc-400" />
+                                                                <path d="M8 8h8M8 12h8M8 16h4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                                                            </svg>
+                                                        )}
+                                                        {/* Small progress ring overlay */}
+                                                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2">
+                                                            <div className="w-full h-full border border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                                                    </svg>
+                                                )}
+                                                <span className="text-sm font-medium">
+                                                    {uploadingFile ? uploadingFile : 'Anexar arquivo'}
+                                                </span>
+                                            </button>
+
+                                            {/* Safari-style Progress Bar */}
+                                            {uploadingFile && (
+                                                <div className="w-full h-[3px] bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full transition-all duration-200 ease-out"
+                                                        style={{ width: `${uploadProgress}%` }}
+                                                    />
+                                                </div>
                                             )}
-                                            <span className="text-sm font-medium">
-                                                {uploadingFile ? 'Enviando...' : 'Anexar arquivo'}
-                                            </span>
-                                        </button>
+                                        </div>
                                     </div>
 
                                     {/* Notes */}
@@ -1259,127 +1434,14 @@ export default function Suppliers() {
                 {confirmModal && <ConfirmationModal {...confirmModal} />}
             </AnimatePresence>
 
-            {/* Document Viewer Modal - Apple Quick Look Style */}
-            {createPortal(
-                <AnimatePresence>
-                    {viewingDocument && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[20000] flex items-center justify-center bg-black/95 backdrop-blur-3xl"
-                            onClick={() => setViewingDocument(null)}
-                        >
-                            <ModalScrollLock />
-
-                            {/* Top Bar - Blurred Glass */}
-                            <motion.div
-                                initial={{ y: -20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.1 }}
-                                className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-6 bg-gradient-to-b from-black/50 to-transparent z-20"
-                            >
-                                {/* File Info */}
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                                        {viewingDocument.type.startsWith('image/') ? (
-                                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-5 h-5 text-red-400" viewBox="0 0 24 24" fill="currentColor">
-                                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4z" />
-                                            </svg>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-white truncate max-w-[200px] md:max-w-none">{viewingDocument.name}</p>
-                                        <p className="text-xs text-white/50">{formatFileSize(viewingDocument.size)}</p>
-                                    </div>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); downloadDocument(viewingDocument) }}
-                                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold flex items-center gap-2 transition-all touch-manipulation"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                        </svg>
-                                        <span className="hidden md:inline">Download</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setViewingDocument(null)}
-                                        className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all touch-manipulation"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </motion.div>
-
-                            {/* Content Area */}
-                            <motion.div
-                                initial={{ scale: 0.95, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0.95, opacity: 0 }}
-                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                className="relative max-w-5xl max-h-[85vh] w-full mx-4 flex items-center justify-center"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {viewingDocument.type.startsWith('image/') ? (
-                                    /* Image Viewer */
-                                    <img
-                                        src={viewingDocument.dataUrl}
-                                        alt={viewingDocument.name}
-                                        className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl ring-1 ring-white/10"
-                                    />
-                                ) : viewingDocument.type === 'application/pdf' ? (
-                                    /* PDF Viewer */
-                                    <div className="w-full h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden">
-                                        <iframe
-                                            src={viewingDocument.dataUrl}
-                                            title={viewingDocument.name}
-                                            className="w-full h-full"
-                                        />
-                                    </div>
-                                ) : (
-                                    /* Other File Types - Download Prompt */
-                                    <div className="bg-zinc-900 rounded-3xl p-12 text-center max-w-md">
-                                        <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6">
-                                            <svg className="w-10 h-10 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                            </svg>
-                                        </div>
-                                        <h3 className="text-xl font-bold text-white mb-2">{viewingDocument.name}</h3>
-                                        <p className="text-sm text-white/50 mb-6">
-                                            Este tipo de arquivo não pode ser visualizado diretamente.
-                                        </p>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); downloadDocument(viewingDocument) }}
-                                            className="px-8 py-4 bg-white text-zinc-900 rounded-2xl font-bold text-sm uppercase tracking-wider hover:scale-105 active:scale-95 transition-all"
-                                        >
-                                            Baixar Arquivo
-                                        </button>
-                                    </div>
-                                )}
-                            </motion.div>
-
-                            {/* Bottom Hint */}
-                            <motion.p
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.3 }}
-                                className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-white/30"
-                            >
-                                Pressione ESC ou clique fora para fechar
-                            </motion.p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>,
-                document.body
+            {/* Document Viewer - Quick Look Modal */}
+            {viewingDocument && (
+                <QuickLookModal
+                    document={viewingDocument.doc}
+                    originRect={viewingDocument.originRect}
+                    onClose={() => setViewingDocument(null)}
+                    onDownload={() => showToast('Arquivo baixado com sucesso!')}
+                />
             )}
 
             {/* Toast */}

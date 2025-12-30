@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail Auth - Padoca Pizza</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 420px;
+            width: 90%;
+        }
+
+        h1 {
+            margin: 0 0 16px;
+            font-size: 22px;
+        }
+
+        .status {
+            font-size: 48px;
+            margin: 24px 0;
+        }
+
+        .message {
+            opacity: 0.9;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            text-decoration: none;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: transform 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: scale(1.03);
+        }
+
+        .email {
+            font-size: 14px;
+            background: rgba(99, 102, 241, 0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            margin: 12px 0;
+            display: inline-block;
+        }
+
+        .steps {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981, #059669);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="container">
+        <div class="status loading">⏳</div>
+        <h1>Ativando Automação 24/7...</h1>
+        <p class="message">Obtendo refresh token permanente</p>
+    </div>
+
+    <script>
+        const container = document.getElementById('container');
+        const CLOUD_FUNCTIONS_URL = 'https://us-central1-padoca-96688.cloudfunctions.net';
+
+        function showError(msg) {
+            container.innerHTML = `
+                <div class="status">❌</div>
+                <h1>Erro</h1>
+                <p class="message">${msg}</p>
+                <a href="/" class="btn">Voltar</a>
+            `;
+        }
+
+        function showSuccess(email, hasRefreshToken) {
+            container.innerHTML = `
+                <div class="status">✅</div>
+                <h1>Automação 24/7 Ativada!</h1>
+                <div class="email">📧 ${email}</div>
+                ${hasRefreshToken ? '<div class="badge">🔄 Refresh Token Salvo</div>' : ''}
+                <p class="message">
+                    Emails serão processados<br>
+                    automaticamente, sem intervenção.
+                </p>
+                <p class="steps">Redirecionando em 2s...</p>
+            `;
+            setTimeout(() => window.location.href = '/', 2000);
+        }
+
+        async function processAuth() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // Check for error in URL params
+            if (urlParams.get('error')) {
+                showError(urlParams.get('error_description') || 'Autorização negada');
+                return;
+            }
+
+            // AUTHORIZATION CODE FLOW (gives refresh token!)
+            const code = urlParams.get('code');
+            if (code) {
+                console.log('🔑 Authorization code received, exchanging for tokens...');
+
+                try {
+                    // Exchange code for tokens via Cloud Function
+                    const response = await fetch(`${CLOUD_FUNCTIONS_URL}/exchangeGmailCode`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code: code,
+                            redirectUri: window.location.origin + '/oauth-callback.html'
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.error || 'Falha ao trocar código');
+                    }
+
+                    console.log('✅ Tokens received:', {
+                        hasAccessToken: !!result.accessToken,
+                        hasRefreshToken: !!result.refreshToken,
+                        email: result.email
+                    });
+
+                    // Store locally for frontend use
+                    if (result.accessToken) {
+                        localStorage.setItem('gmail_access_token', result.accessToken);
+                        localStorage.setItem('gmail_token_expiry', String(result.expiryDate));
+                        localStorage.setItem('gmail_user_email', result.email);
+                    }
+
+                    showSuccess(result.email, !!result.refreshToken);
+                    return;
+
+                } catch (err) {
+                    console.error('❌ Token exchange error:', err);
+                    showError(err.message);
+                    return;
+                }
+            }
+
+            // IMPLICIT FLOW FALLBACK (hash params - no refresh token)
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const expiresIn = parseInt(hashParams.get('expires_in')) || 3600;
+
+            if (accessToken) {
+                console.log('⚠️ Implicit flow detected (no refresh token)');
+
+                try {
+                    const profileRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+
+                    if (!profileRes.ok) throw new Error('Falha ao obter perfil');
+
+                    const profile = await profileRes.json();
+                    const email = profile.emailAddress;
+                    const expiryDate = Date.now() + (expiresIn * 1000);
+
+                    localStorage.setItem('gmail_access_token', accessToken);
+                    localStorage.setItem('gmail_token_expiry', String(expiryDate));
+                    localStorage.setItem('gmail_user_email', email);
+
+                    // Sync to Cloud Functions (without refresh token)
+                    await fetch(`${CLOUD_FUNCTIONS_URL}/saveGmailToken`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ accessToken, expiryDate, userEmail: email })
+                    });
+
+                    showSuccess(email, false);
+
+                } catch (err) {
+                    showError(err.message);
+                }
+                return;
+            }
+
+            showError('Nenhum código ou token recebido. Tente novamente.');
+        }
+
+        processAuth();
+    </script>
+</body>
+
+</html>

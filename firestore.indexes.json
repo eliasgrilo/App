@@ -1,0 +1,15 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "quotations",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "replyMessageId",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

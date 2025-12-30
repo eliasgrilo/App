@@ -55,8 +55,8 @@ function TrendIndicator({ current, previous, inverse = false }) {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${isPositive
-                    ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                    : 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400'
+                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400'
                 }`}
         >
             {change > 0 ? '↑' : '↓'} {absChange}%
@@ -125,8 +125,8 @@ function PeriodSelector({ value, onChange, options }) {
                     key={opt.value}
                     onClick={() => onChange(opt.value)}
                     className={`relative px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wide transition-colors ${value === opt.value
-                            ? 'text-zinc-900 dark:text-white'
-                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                        ? 'text-zinc-900 dark:text-white'
+                        : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                         }`}
                 >
                     {value === opt.value && (
@@ -219,8 +219,9 @@ export default function Dashboard({
         }
     }, [products, movements, selectedPeriod])
 
+    // Use centralized FormatService for consistent CAD formatting
     const formatCurrency = (val) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+        return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val || 0)
     }
 
     return (

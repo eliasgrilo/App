@@ -43,6 +43,15 @@ type Product @table {
   isActive: Boolean! @default(value: true)
   createdAt: Timestamp! @default(expr: "request.time")
   updatedAt: Timestamp! @default(expr: "request.time")
+  
+  # ═══════════════════════════════════════════════════════════════
+  # AI Enhancement Fields (Apple-Google Integration)
+  # ═══════════════════════════════════════════════════════════════
+  confidenceScore: Float @default(value: 0)       # AI prediction confidence (0-1)
+  semanticMapping: String                          # JSON: {"canonical": "Coca-Cola 350ml", "aliases": ["Refri Lata"]}
+  aiMetadata: String                               # JSON: {"lastAnalyzed": "...", "source": "invoice", "model": "gemini-1.5-pro"}
+  priceHistory: String                             # JSON array: [{"date": "...", "price": ..., "source": "..."}]
+  spatialAnchor: String                            # AR: JSON {"x": 0, "y": 0, "z": 0, "shelf": "A1"}
 }
 
 # ===========================================================

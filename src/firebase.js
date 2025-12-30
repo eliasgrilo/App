@@ -1,22 +1,24 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Your web app's Firebase configuration
+/**
+ * Firebase Configuration
+ * Credentials are loaded from environment variables for security.
+ * See .env.example for required variables.
+ */
 const firebaseConfig = {
-    apiKey: "AIzaSyC3vn3PYoKpN5BUyV_9y_gPi3U61XDdfAw",
-    authDomain: "padoca-96688.firebaseapp.com",
-    projectId: "padoca-96688",
-    storageBucket: "padoca-96688.firebasestorage.app",
-    messagingSenderId: "689278956648",
-    appId: "1:689278956648:web:f20a74b51736c2d956b7dd",
-    measurementId: "G-B2KD6YHMJM"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export default app;

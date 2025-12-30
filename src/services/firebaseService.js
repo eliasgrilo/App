@@ -13,8 +13,9 @@ import {
 } from "firebase/firestore";
 
 /**
- * FirebaseService - Unified data layer for Padoca Pizza
- * Handles syncing between Cloud Firestore and local state
+ * FirebaseService - FIXED QUOTATIONS LISTENER
+ * BUG FIX: subscribeToQuotations now correctly processes snapshots
+ * and forces card updates in real-time
  */
 
 const COLLECTIONS = {
@@ -25,10 +26,10 @@ const COLLECTIONS = {
     PIZZAS: "pizzas",
     RECIPES_V2: "recipes_v2",
     RECIPES_V3: "recipes_v3",
-    KANBAN: "kanban"
+    KANBAN: "kanban",
+    QUOTATIONS: "quotations"
 };
 
-// Helper to remove undefined values (Firestore rejects them)
 const cleanPayload = (data) => {
     return JSON.parse(JSON.stringify(data));
 };
@@ -93,7 +94,6 @@ export const FirebaseService = {
             const docSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "inventory_v2"));
             if (docSnap.exists()) return docSnap.data();
 
-            // Fallback to v1 if v2 doesn't exist
             const oldSnap = await getDoc(doc(db, COLLECTIONS.SETTINGS, "inventory"));
             if (oldSnap.exists()) return { items: oldSnap.data().items, categories: null };
 
@@ -129,7 +129,7 @@ export const FirebaseService = {
         }
     },
 
-    // --- PIZZAS (Ficha Técnica) ---
+    // --- PIZZAS ---
     async syncPizzas(pizzas) {
         try {
             await setDoc(doc(db, COLLECTIONS.SETTINGS, "ficha_tecnica"), cleanPayload({
@@ -177,7 +177,7 @@ export const FirebaseService = {
         }
     },
 
-    // --- RECIPES V2 (New Management Page) ---
+    // --- RECIPES V2 ---
     async syncRecipesV2(recipes) {
         try {
             await setDoc(doc(db, COLLECTIONS.SETTINGS, COLLECTIONS.RECIPES_V2), cleanPayload({
@@ -201,7 +201,7 @@ export const FirebaseService = {
         }
     },
 
-    // --- RECIPES V3 (Individual Storage) ---
+    // --- RECIPES V3 ---
     async syncRecipeV3(id, recipe, merge = false) {
         try {
             await setDoc(doc(db, COLLECTIONS.RECIPES_V3, String(id)), cleanPayload({
@@ -217,13 +217,11 @@ export const FirebaseService = {
 
     async getRecipesV3() {
         try {
-            // Try ordered query first
             let snapshot;
             try {
                 const q = query(collection(db, COLLECTIONS.RECIPES_V3), orderBy("updatedAt", "desc"));
                 snapshot = await getDocs(q);
             } catch (indexError) {
-                // Fallback: query without ordering if index doesn't exist
                 console.warn("Index not ready, fetching without order:", indexError.message);
                 snapshot = await getDocs(collection(db, COLLECTIONS.RECIPES_V3));
             }
@@ -235,7 +233,7 @@ export const FirebaseService = {
             return recipes;
         } catch (e) {
             console.error("Error getting recipes v3:", e);
-            return []; // Return empty array, not null
+            return [];
         }
     },
 
@@ -346,7 +344,7 @@ export const FirebaseService = {
         }
     },
 
-    // --- PRODUCT MOVEMENTS (Audit System) ---
+    // --- PRODUCT MOVEMENTS ---
     async syncProductMovements(movements) {
         try {
             await setDoc(doc(db, COLLECTIONS.SETTINGS, "product_movements"), cleanPayload({
@@ -372,7 +370,6 @@ export const FirebaseService = {
 
     async addProductMovement(movement) {
         try {
-            // Get existing movements
             const existing = await this.getProductMovements();
             const updated = [...existing, { ...movement, id: Date.now(), createdAt: new Date().toISOString() }];
             await this.syncProductMovements(updated);
@@ -485,44 +482,302 @@ export const FirebaseService = {
         }
     },
 
-    // --- QUOTATIONS (Real-time Pub/Sub Integration) ---
+    // --- QUOTATIONS - REAL-TIME LISTENER - COMPLETELY REWRITTEN ---
+    /**
+     * Helper: Convert various timestamp formats to JavaScript Date objects
+     * BUG #2 FIX: Robust timestamp conversion supporting all Firestore formats
+     */
+    convertTimestampToDate(field) {
+        if (!field) return null;
+
+        // Firestore Timestamp object (has toDate method)
+        if (field.toDate && typeof field.toDate === 'function') {
+            try {
+                return field.toDate();
+            } catch (e) {
+                console.warn('Failed to convert Firestore timestamp:', e);
+                return null;
+            }
+        }
+
+        // ISO string
+        if (typeof field === 'string') {
+            try {
+                const date = new Date(field);
+                return isNaN(date.getTime()) ? null : date;
+            } catch (e) {
+                console.warn('Failed to parse date string:', field, e);
+                return null;
+            }
+        }
+
+        // Already a Date object
+        if (field instanceof Date) {
+            return isNaN(field.getTime()) ? null : field;
+        }
+
+        // Firestore Timestamp-like object with seconds/nanoseconds
+        if (field.seconds !== undefined) {
+            try {
+                return new Date(field.seconds * 1000);
+            } catch (e) {
+                console.warn('Failed to convert timestamp object:', field, e);
+                return null;
+            }
+        }
+
+        console.warn('Unknown timestamp format:', field);
+        return null;
+    },
+
+    /**
+     * CRITICAL FIX: Real-time listener for quotation updates
+     * This function is called from AI.jsx to detect email responses
+     * BUG WAS: snapshot processing was not correctly extracting data
+     * FIX: Properly map Firestore documents and convert timestamps
+     */
     subscribeToQuotations(callback) {
-        // Real-time listener for quotation updates from Gmail Pub/Sub
-        // This eliminates the need for polling
+        try {
+            console.log('🔔 Initializing Firestore quotations listener...')
+
+            const q = query(
+                collection(db, COLLECTIONS.QUOTATIONS),
+                orderBy("updatedAt", "desc")
+            )
+
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    console.log('📬 Snapshot received:', snapshot.size, 'documents')
+
+                    const quotations = []
+                    snapshot.forEach(doc => {
+                        const data = doc.data()
+
+                        // BUG #2 FIX: Convert all timestamp fields using robust helper
+                        const quotation = {
+                            id: doc.id,
+                            ...data,
+                            // Convert all timestamp fields with validation
+                            createdAt: FirebaseService.convertTimestampToDate(data.createdAt),
+                            updatedAt: FirebaseService.convertTimestampToDate(data.updatedAt),
+                            replyReceivedAt: FirebaseService.convertTimestampToDate(data.replyReceivedAt),
+                            responseReceivedAt: FirebaseService.convertTimestampToDate(data.responseReceivedAt),
+                            quotedAt: FirebaseService.convertTimestampToDate(data.quotedAt)
+                        }
+
+                        quotations.push(quotation)
+
+                        // DEBUG: Log each quotation for verification
+                        console.log('📄 Quotation processed:', {
+                            id: quotation.id,
+                            supplierEmail: quotation.supplierEmail,
+                            status: quotation.status,
+                            hasReplyBody: !!(quotation.replyBody && quotation.replyBody.length > 0),
+                            replyReceivedAt: quotation.replyReceivedAt,
+                            createdAt: quotation.createdAt
+                        })
+                    })
+
+                    console.log('✅ Processed quotations:', quotations.length)
+
+                    // CRITICAL: Force callback execution with processed data
+                    callback(quotations)
+                },
+                (error) => {
+                    console.error('❌ Error in quotations listener:', error)
+                    // Return empty array on error to avoid breaking the UI
+                    callback([])
+                }
+            )
+
+            console.log('✅ Quotations listener attached successfully')
+            return unsubscribe
+        } catch (e) {
+            console.error('❌ Error setting up quotations listener:', e)
+            return () => { } // Return no-op function
+        }
+    },
+
+    /**
+     * Get all quotations from Firestore (one-time fetch)
+     * Used for initial data load
+     */
+    async getQuotations() {
         try {
             const q = query(
-                collection(db, "quotations"),
+                collection(db, COLLECTIONS.QUOTATIONS),
                 orderBy("updatedAt", "desc")
-            );
-
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const quotations = [];
-                snapshot.forEach(doc => {
-                    quotations.push({ id: doc.id, ...doc.data() });
-                });
-                callback(quotations);
-            }, (error) => {
-                console.error("Error in quotations listener:", error);
-                // Return empty array on error to avoid breaking the UI
-                callback([]);
-            });
-
-            return unsubscribe;
+            )
+            const snapshot = await getDocs(q)
+            const quotations = []
+            snapshot.forEach(doc => {
+                const data = doc.data()
+                quotations.push({
+                    id: doc.id,
+                    ...data,
+                    createdAt: this.convertTimestampToDate(data.createdAt),
+                    updatedAt: this.convertTimestampToDate(data.updatedAt),
+                    replyReceivedAt: this.convertTimestampToDate(data.replyReceivedAt),
+                    responseReceivedAt: this.convertTimestampToDate(data.responseReceivedAt),
+                    quotedAt: this.convertTimestampToDate(data.quotedAt)
+                })
+            })
+            console.log('📦 Loaded', quotations.length, 'quotations from Firestore')
+            return quotations
         } catch (e) {
-            console.error("Error setting up quotations listener:", e);
-            return () => { }; // Return no-op function
+            console.error("Error getting quotations:", e)
+            return []
         }
     },
 
     async syncQuotation(id, data) {
         try {
-            await setDoc(doc(db, "quotations", id), cleanPayload({
+            await setDoc(doc(db, COLLECTIONS.QUOTATIONS, id), cleanPayload({
                 ...data,
                 updatedAt: new Date().toISOString()
             }), { merge: true });
+
+            console.log('✅ Quotation synced to Firestore:', id)
             return true;
         } catch (e) {
             console.error("Error syncing quotation:", e);
+            return false;
+        }
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // ORDERS - Phase 2: Email → Orders Automation
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Create or update an order from a quoted email
+     * This moves the quotation to the "Orders" category with full history
+     */
+    async syncOrder(orderId, orderData) {
+        try {
+            await setDoc(doc(db, "orders", orderId), cleanPayload({
+                ...orderData,
+                updatedAt: new Date().toISOString()
+            }), { merge: true });
+
+            console.log('✅ Order synced to Firestore:', orderId);
+            return true;
+        } catch (e) {
+            console.error("Error syncing order:", e);
+            return false;
+        }
+    },
+
+    /**
+     * Get all orders
+     */
+    async getOrders() {
+        try {
+            const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+            const snapshot = await getDocs(q);
+            const orders = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                orders.push({
+                    id: doc.id,
+                    ...data,
+                    createdAt: this.convertTimestampToDate(data.createdAt),
+                    updatedAt: this.convertTimestampToDate(data.updatedAt),
+                    confirmedAt: this.convertTimestampToDate(data.confirmedAt),
+                    deliveredAt: this.convertTimestampToDate(data.deliveredAt)
+                });
+            });
+            return orders;
+        } catch (e) {
+            console.error("Error getting orders:", e);
+            return [];
+        }
+    },
+
+    /**
+     * Subscribe to orders with real-time updates
+     */
+    subscribeToOrders(callback) {
+        try {
+            console.log('🔔 Initializing Firestore orders listener...');
+
+            const q = query(
+                collection(db, "orders"),
+                orderBy("createdAt", "desc")
+            );
+
+            const unsubscribe = onSnapshot(
+                q,
+                (snapshot) => {
+                    console.log('📦 Orders snapshot received:', snapshot.size, 'documents');
+
+                    const orders = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        orders.push({
+                            id: doc.id,
+                            ...data,
+                            createdAt: FirebaseService.convertTimestampToDate(data.createdAt),
+                            updatedAt: FirebaseService.convertTimestampToDate(data.updatedAt),
+                            confirmedAt: FirebaseService.convertTimestampToDate(data.confirmedAt),
+                            deliveredAt: FirebaseService.convertTimestampToDate(data.deliveredAt)
+                        });
+                    });
+
+                    console.log('✅ Processed orders:', orders.length);
+                    callback(orders);
+                },
+                (error) => {
+                    console.error('❌ Error in orders listener:', error);
+                    callback([]);
+                }
+            );
+
+            console.log('✅ Orders listener attached successfully');
+            return unsubscribe;
+        } catch (e) {
+            console.error('❌ Error setting up orders listener:', e);
+            return () => { };
+        }
+    },
+
+    /**
+     * Update order status with history tracking
+     */
+    async updateOrderStatus(orderId, newStatus, metadata = {}) {
+        try {
+            const docRef = doc(db, "orders", orderId);
+            const docSnap = await getDoc(docRef);
+
+            if (!docSnap.exists()) {
+                console.error('Order not found:', orderId);
+                return false;
+            }
+
+            const currentData = docSnap.data();
+            const history = currentData.history || [];
+
+            // Add status change to history
+            history.push({
+                status: newStatus,
+                previousStatus: currentData.status,
+                timestamp: new Date().toISOString(),
+                ...metadata
+            });
+
+            await setDoc(docRef, cleanPayload({
+                ...currentData,
+                status: newStatus,
+                history,
+                updatedAt: new Date().toISOString(),
+                ...metadata
+            }), { merge: true });
+
+            console.log(`✅ Order ${orderId} status updated: ${currentData.status} → ${newStatus}`);
+            return true;
+        } catch (e) {
+            console.error("Error updating order status:", e);
             return false;
         }
     }

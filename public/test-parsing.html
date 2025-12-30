@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>TESTE EMAIL PARSING - DIAGNÓSTICO REAL</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #005a9e;
+        }
+
+        .output {
+            background: #252526;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: #4ec9b0;
+        }
+
+        .error {
+            color: #f48771;
+        }
+
+        .warning {
+            color: #dcdcaa;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 14px;
+            width: 400px;
+            margin: 10px 0;
+        }
+
+        h1 {
+            color: #4ec9b0;
+        }
+
+        h2 {
+            color: #dcdcaa;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 TESTE DIRETO DE PARSING DE E-MAILS</h1>
+
+    <h2>Step 1: Verificar Conexão Gmail</h2>
+    <button onclick="testGmailConnection()">Testar Conexão Gmail</button>
+    <div id="connection-output" class="output"></div>
+
+    <h2>Step 2: Buscar E-mails de Fornecedor</h2>
+    <input type="email" id="supplier-email" placeholder="Digite email do fornecedor" value="">
+    <button onclick="searchEmails()">Buscar E-mails</button>
+    <div id="search-output" class="output"></div>
+
+    <h2>Step 3: Testar Parsing de E-mail Específico</h2>
+    <input type="text" id="message-id" placeholder="Message ID (será preenchido automaticamente)">
+    <button onclick="testEmailParsing()">Testar Parsing</button>
+    <div id="parsing-output" class="output"></div>
+
+    <script>
+        let accessToken = null;
+
+        function log(elementId, message, type = 'info') {
+            const el = document.getElementById(elementId);
+            const color = type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : '';
+            const timestamp = new Date().toLocaleTimeString();
+            el.innerHTML += `<div class="${color}">[${timestamp}] ${message}</div>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function clear(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        async function testGmailConnection() {
+            clear('connection-output');
+            log('connection-output', '🔍 Verificando conexão Gmail...', 'info');
+
+            accessToken = localStorage.getItem('gmail_access_token');
+            const tokenExpiry = localStorage.getItem('gmail_token_expiry');
+            const userEmail = localStorage.getItem('gmail_user_email');
+
+            if (!accessToken) {
+                log('connection-output', '❌ ERRO: Token não encontrado no localStorage', 'error');
+                log('connection-output', '💡 Solução: Conecte Gmail no app principal primeiro', 'warning');
+                return;
+            }
+
+            log('connection-output', `✅ Token encontrado`, 'success');
+            log('connection-output', `📧 Conta: ${userEmail || 'padocainc@gmail.com'}`, 'info');
+            log('connection-output', `⏰ Expira em: ${new Date(parseInt(tokenExpiry)).toLocaleString()}`, 'info');
+
+            // Test token validity
+            try {
+                const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log('connection-output', `✅ Token VÁLIDO - Email: ${data.emailAddress}`, 'success');
+                    log('connection-output', `📊 Total mensagens: ${data.messagesTotal}`, 'info');
+                } else {
+                    log('connection-output', `❌ Token INVÁLIDO - Status: ${response.status}`, 'error');
+                    log('connection-output', '💡 Reconecte Gmail no app principal', 'warning');
+                    accessToken = null;
+                }
+            } catch (e) {
+                log('connection-output', `❌ Erro ao validar token: ${e.message}`, 'error');
+                accessToken = null;
+            }
+        }
+
+        async function searchEmails() {
+            clear('search-output');
+
+            if (!accessToken) {
+                log('search-output', '❌ Execute Step 1 primeiro para conectar Gmail', 'error');
+                return;
+            }
+
+            const supplierEmail = document.getElementById('supplier-email').value;
+            if (!supplierEmail) {
+                log('search-output', '❌ Digite o email do fornecedor', 'error');
+                return;
+            }
+
+            log('search-output', `🔍 Buscando e-mails de: ${supplierEmail}`, 'info');
+
+            // Search last 7 days
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const dateStr = sevenDaysAgo.toISOString().split('T')[0].replace(/-/g, '/');
+
+            const searchQuery = `from:${supplierEmail} after:${dateStr}`;
+            log('search-output', `📝 Query: ${searchQuery}`, 'info');
+
+            try {
+                const response = await fetch(
+                    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=20`,
+                    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+                );
+
+                if (!response.ok) {
+                    log('search-output', `❌ Erro na busca: ${response.status}`, 'error');
+                    return;
+                }
+
+                const data = await response.json();
+                const count = data.messages?.length || 0;
+
+                log('search-output', `📬 Encontrados: ${count} e-mails`, count > 0 ? 'success' : 'warning');
+
+                if (count === 0) {
+                    log('search-output', '💡 Nenhum e-mail encontrado nos últimos 7 dias', 'warning');
+                    log('search-output', '💡 Verifique se o email do fornecedor está correto', 'warning');
+                    return;
+                }
+
+                // Display first 5 messages
+                for (let i = 0; i < Math.min(5, data.messages.length); i++) {
+                    const msg = data.messages[i];
+                    log('search-output', `\n📧 Mensagem #${i + 1}`, 'info');
+                    log('search-output', `   ID: ${msg.id}`, 'info');
+
+                    // Auto-fill first message ID
+                    if (i === 0) {
+                        document.getElementById('message-id').value = msg.id;
+                        log('search-output', `   ✅ ID copiado para Step 3`, 'success');
+                    }
+                }
+
+                log('search-output', `\n✅ PRONTO! Agora execute Step 3 para testar o parsing`, 'success');
+
+            } catch (e) {
+                log('search-output', `❌ Erro: ${e.message}`, 'error');
+            }
+        }
+
+        function decodeBase64Body(encodedData) {
+            if (!encodedData) return '';
+            try {
+                const normalized = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+                return atob(normalized);
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function extractEmailText(payload, depth = 0) {
+            const indent = '  '.repeat(depth);
+
+            if (!payload) {
+                console.warn(`${indent}⚠️ Payload is null/undefined`);
+                return '';
+            }
+
+            // Method 1: Direct body data
+            if (payload.body?.data) {
+                const text = decodeBase64Body(payload.body.data);
+                if (text && text.length > 10) {
+                    console.log(`${indent}✅ Extracted ${text.length} chars from direct body`);
+                    return text;
+                }
+            }
+
+            // Method 2: Multipart - text/plain
+            if (payload.parts && Array.isArray(payload.parts)) {
+                for (const part of payload.parts) {
+                    if (part.mimeType === 'text/plain' && part.body?.data) {
+                        const text = decodeBase64Body(part.body.data);
+                        if (text && text.length > 10) {
+                            console.log(`${indent}✅ Found text/plain: ${text.length} chars`);
+                            return text;
+                        }
+                    }
+                }
+
+                // Method 3: Multipart - text/html
+                for (const part of payload.parts) {
+                    if (part.mimeType === 'text/html' && part.body?.data) {
+                        let html = decodeBase64Body(part.body.data);
+                        html = html.replace(/<script[^>]*>.*?<\/script>/gi, '');
+                        html = html.replace(/<style[^>]*>.*?<\/style>/gi, '');
+                        let text = html.replace(/<[^>]*>/g, ' ');
+                        text = text.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&');
+                        text = text.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+                        text = text.replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
+                        text = text.replace(/\s+/g, ' ').trim();
+                        if (text && text.length > 10) {
+                            console.log(`${indent}✅ Found text/html: ${text.length} chars`);
+                            return text;
+                        }
+                    }
+                }
+
+                // Method 4: Nested multipart
+                if (depth < 5) {
+                    for (const part of payload.parts) {
+                        if (part.mimeType?.startsWith('multipart/') && part.parts) {
+                            for (const nestedPart of part.parts) {
+                                const nestedText = extractEmailText(nestedPart, depth + 1);
+                                if (nestedText && nestedText.length > 10) {
+                                    console.log(`${indent}✅ Found in nested part: ${nestedText.length} chars`);
+                                    return nestedText;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return '';
+        }
+
+        async function testEmailParsing() {
+            clear('parsing-output');
+
+            if (!accessToken) {
+                log('parsing-output', '❌ Execute Step 1 primeiro', 'error');
+                return;
+            }
+
+            const messageId = document.getElementById('message-id').value;
+            if (!messageId) {
+                log('parsing-output', '❌ Execute Step 2 para obter um Message ID', 'error');
+                return;
+            }
+
+            log('parsing-output', `🔍 Buscando mensagem: ${messageId}`, 'info');
+
+            try {
+                const response = await fetch(
+                    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`,
+                    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+                );
+
+                if (!response.ok) {
+                    log('parsing-output', `❌ Erro: ${response.status}`, 'error');
+                    return;
+                }
+
+                const msgData = await response.json();
+
+                // Extract headers
+                const headers = msgData.payload?.headers || [];
+                const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
+                const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+                const date = headers.find(h => h.name.toLowerCase() === 'date')?.value || '';
+
+                log('parsing-output', `\n📧 HEADERS:`, 'info');
+                log('parsing-output', `   From: ${from}`, 'info');
+                log('parsing-output', `   Subject: ${subject}`, 'info');
+                log('parsing-output', `   Date: ${date}`, 'info');
+
+                // Test parsing
+                log('parsing-output', `\n🧪 TESTANDO PARSING...`, 'info');
+                const body = extractEmailText(msgData.payload);
+
+                if (!body || body.length < 10) {
+                    log('parsing-output', `\n❌ PARSING FALHOU!`, 'error');
+                    log('parsing-output', `   Body length: ${body.length} chars`, 'error');
+                    log('parsing-output', `   Snippet fallback: ${msgData.snippet}`, 'warning');
+                    log('parsing-output', `\n📋 ESTRUTURA DO PAYLOAD:`, 'info');
+                    log('parsing-output', JSON.stringify(msgData.payload, null, 2), 'info');
+                } else {
+                    log('parsing-output', `\n✅ PARSING OK!`, 'success');
+                    log('parsing-output', `   Body length: ${body.length} chars`, 'success');
+                    log('parsing-output', `\n📄 CONTEÚDO EXTRAÍDO (primeiros 500 chars):`, 'info');
+                    log('parsing-output', body.substring(0, 500), 'info');
+                    log('parsing-output', `\n✅ EMAIL PODE SER PROCESSADO PELA IA`, 'success');
+                }
+
+            } catch (e) {
+                log('parsing-output', `❌ Erro: ${e.message}`, 'error');
+            }
+        }
+
+        // Auto-run step 1 on load
+        window.addEventListener('load', () => {
+            setTimeout(testGmailConnection, 500);
+        });
+    </script>
+</body>
+
+</html>

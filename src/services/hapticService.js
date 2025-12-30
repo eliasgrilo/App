@@ -32,7 +32,32 @@ const HAPTIC_PATTERNS = {
     approval: [10, 50, 20, 50, 10],
 
     // Notification - attention grab
-    notification: [15, 100, 15, 100, 30]
+    notification: [15, 100, 15, 100, 30],
+
+    // ═══════════════════════════════════════════════════════════════
+    // Invoice Scanning Haptics - Apple-quality tactile orchestration
+    // ═══════════════════════════════════════════════════════════════
+
+    // Invoice capture - camera shutter feel
+    invoiceCapture: [15, 30, 15],
+
+    // Item recognized - triple confirm as items appear
+    itemRecognized: [5, 20, 5, 20, 5],
+
+    // Batch commit - satisfying DB commit success
+    batchCommit: [10, 50, 20, 100, 30],
+
+    // Validation error - warning shake
+    validationError: [50, 100, 50],
+
+    // Price spike detected - attention alert
+    priceSpike: [30, 50, 30, 50, 30],
+
+    // Semantic match found - subtle confirmation
+    semanticMatch: [8, 25, 8],
+
+    // Review required - needs attention
+    reviewRequired: [20, 80, 20]
 }
 
 // Check if haptics are supported

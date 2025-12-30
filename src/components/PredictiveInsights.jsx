@@ -9,9 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { HapticService } from '../services/hapticService'
 
 // Format currency
+// Currency formatting - CAD (Canadian Dollar)
 const formatCurrency = (val) => {
     const n = Number(val) || 0
-    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    return n.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' })
 }
 
 // Urgency levels
@@ -136,8 +137,8 @@ function PredictionCard({ prediction, onRestock, onDismiss }) {
                                 <div
                                     key={i}
                                     className={`flex-1 rounded-t transition-all ${i === prediction.trendData.length - 1
-                                            ? `bg-${urgency.color}-500`
-                                            : 'bg-zinc-200 dark:bg-zinc-700'
+                                        ? `bg-${urgency.color}-500`
+                                        : 'bg-zinc-200 dark:bg-zinc-700'
                                         }`}
                                     style={{ height: `${Math.max(4, height)}%` }}
                                 />
@@ -342,8 +343,8 @@ export default function PredictiveInsights({ products = [], movements = [], onCr
                             setFilter(tab.id)
                         }}
                         className={`flex-shrink-0 px-5 py-3 min-h-[48px] rounded-full text-sm font-bold tracking-wide transition-all flex items-center gap-2 ${filter === tab.id
-                                ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-lg'
-                                : 'bg-white/80 dark:bg-zinc-800/50 backdrop-blur-xl text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-white/5'
+                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-lg'
+                            : 'bg-white/80 dark:bg-zinc-800/50 backdrop-blur-xl text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-white/5'
                             }`}
                     >
                         {tab.label}

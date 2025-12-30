@@ -7,46 +7,17 @@
 import React, { useMemo, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HapticService } from '../services/hapticService'
+import { StockService } from '../services/stockService'
 
 // Format currency
+// Currency formatting - CAD (Canadian Dollar)
 const formatCurrency = (val) => {
     const n = Number(val) || 0
-    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    return n.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' })
 }
 
-// Calculate restock needs based on predictions
-function calculateRestockNeeds(products, movements, daysBuffer = 14) {
-    const cutoff = Date.now() - (30 * 24 * 60 * 60 * 1000)
-
-    return products.map(product => {
-        // Calculate daily consumption
-        const productMovements = movements.filter(m =>
-            m.productId === product.id &&
-            m.type === 'exit' &&
-            new Date(m.date || m.createdAt).getTime() >= cutoff
-        )
-        const totalExits = productMovements.reduce((sum, m) => sum + (Number(m.quantity) || 0), 0)
-        const dailyRate = totalExits / 30
-
-        // Calculate how much to order
-        const targetStock = Math.ceil(dailyRate * daysBuffer) + (product.minStock || 0)
-        const currentStock = product.currentStock || 0
-        const neededQuantity = Math.max(0, targetStock - currentStock)
-
-        // Calculate urgency
-        const daysUntilStockout = dailyRate > 0 ? Math.floor(currentStock / dailyRate) : Infinity
-
-        return {
-            ...product,
-            dailyRate,
-            targetStock,
-            neededQuantity,
-            daysUntilStockout,
-            estimatedCost: neededQuantity * (product.currentPrice || 0),
-            urgency: daysUntilStockout <= 3 ? 'critical' : daysUntilStockout <= 7 ? 'warning' : 'normal'
-        }
-    }).filter(p => p.neededQuantity > 0)
-}
+// Use centralized StockService for restock calculations
+// This ensures Single Source of Truth across the entire app
 
 // Group products by supplier
 function groupBySupplier(products) {
@@ -87,8 +58,8 @@ function SupplierOrderCard({ supplier, isSelected, onSelect, onQuantityChange })
         <motion.div
             layout
             className={`bg-white/80 dark:bg-zinc-900/60 backdrop-blur-3xl rounded-[1.5rem] border transition-all ${isSelected
-                    ? 'border-violet-500/50 shadow-lg shadow-violet-500/10'
-                    : 'border-zinc-200/50 dark:border-white/5'
+                ? 'border-violet-500/50 shadow-lg shadow-violet-500/10'
+                : 'border-zinc-200/50 dark:border-white/5'
                 }`}
         >
             {/* Header */}
@@ -109,8 +80,8 @@ function SupplierOrderCard({ supplier, isSelected, onSelect, onQuantityChange })
                                 onSelect(!isSelected)
                             }}
                             className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected
-                                    ? 'bg-violet-500 border-violet-500 text-white'
-                                    : 'border-zinc-300 dark:border-zinc-600'
+                                ? 'bg-violet-500 border-violet-500 text-white'
+                                : 'border-zinc-300 dark:border-zinc-600'
                                 }`}
                         >
                             {isSelected && '✓'}
@@ -167,8 +138,8 @@ function SupplierOrderCard({ supplier, isSelected, onSelect, onQuantityChange })
                                     className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl"
                                 >
                                     <div className={`w-2 h-2 rounded-full ${product.urgency === 'critical' ? 'bg-rose-500' :
-                                            product.urgency === 'warning' ? 'bg-amber-500' :
-                                                'bg-emerald-500'
+                                        product.urgency === 'warning' ? 'bg-amber-500' :
+                                            'bg-emerald-500'
                                         }`} />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-zinc-800 dark:text-white truncate">
@@ -283,9 +254,9 @@ export default function SmartSourcing({ products = [], movements = [], onCreateO
     const [quantityOverrides, setQuantityOverrides] = useState({})
     const [daysBuffer, setDaysBuffer] = useState(14)
 
-    // Calculate restock needs
+    // Calculate restock needs using centralized StockService
     const restockNeeds = useMemo(() => {
-        return calculateRestockNeeds(products, movements, daysBuffer)
+        return StockService.calculateRestockNeeds(products, movements, daysBuffer)
     }, [products, movements, daysBuffer])
 
     // Apply quantity overrides
@@ -378,8 +349,8 @@ export default function SmartSourcing({ products = [], movements = [], onCreateO
                                     setDaysBuffer(days)
                                 }}
                                 className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${daysBuffer === days
-                                        ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                                        : 'text-zinc-500'
+                                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                    : 'text-zinc-500'
                                     }`}
                             >
                                 {days}d

@@ -10,6 +10,8 @@ import Kanban from './Kanban.jsx'
 import Suppliers from './Suppliers.jsx'
 import Products from './Products.jsx'
 import AI from './AI.jsx'
+import SettingsPanel, { SettingsButton } from './components/SettingsPanel'
+import { initAutoQuotation } from './services/autoQuotationService'
 
 /**
  * App - Premium Navigation Shell
@@ -125,10 +127,12 @@ export default function App() {
   })
   const [isLoaded, setIsLoaded] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // Smooth initial load
+  // Smooth initial load + Initialize auto-quotation service
   useEffect(() => {
     setIsLoaded(true)
+    initAutoQuotation()
   }, [])
 
   const handleViewChange = (newView) => {
@@ -208,12 +212,12 @@ export default function App() {
                 </div>
               </button>
 
-              {/* Unit Toggle - Desktop */}
+              {/* Unit Toggle + Settings - Desktop */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2, ...spring }}
-                className="hidden md:flex items-center gap-3"
+                className="hidden md:flex items-center gap-2"
               >
                 <AnimatePresence mode="wait">
                   {view === 'calculator' && (
@@ -227,6 +231,7 @@ export default function App() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                <SettingsButton onClick={() => setSettingsOpen(true)} />
               </motion.div>
             </div>
 
@@ -237,16 +242,34 @@ export default function App() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="fixed inset-0 z-[9999] bg-white dark:bg-black md:hidden overflow-hidden"
-                  style={{ top: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="fixed inset-0 z-[9999] md:hidden overflow-hidden"
+                  style={{
+                    top: 0,
+                    paddingTop: 'env(safe-area-inset-top)',
+                    paddingBottom: 'env(safe-area-inset-bottom)',
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)'
+                  }}
                 >
+                  {/* Blurred Glass Background */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-white/80 dark:bg-black/80"
+                    style={{
+                      backdropFilter: 'blur(40px) saturate(1.8)',
+                      WebkitBackdropFilter: 'blur(40px) saturate(1.8)'
+                    }}
+                  />
+
                   {/* Close Button */}
-                  <div className="absolute top-4 right-4 z-10">
+                  <div className="absolute top-4 right-4 z-10" style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <motion.button
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.1 }}
+                      transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 25 }}
                       onClick={() => setMobileMenuOpen(false)}
                       className="w-10 h-10 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800"
                       aria-label="Close"
@@ -258,10 +281,11 @@ export default function App() {
                   </div>
 
                   {/* Menu Items */}
-                  <div className="flex flex-col justify-center h-full px-6 pb-20 overflow-y-auto scrollbar-hide">
+                  <div className="relative flex flex-col justify-center h-full px-6 pb-20 overflow-y-auto scrollbar-hide">
                     <motion.p
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6"
                     >
                       Navegação
@@ -413,6 +437,9 @@ export default function App() {
           </motion.main>
         </AnimatePresence>
       </div >
+
+      {/* Settings Panel */}
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div >
   )
 }

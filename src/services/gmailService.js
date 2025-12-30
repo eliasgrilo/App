@@ -3,95 +3,58 @@
  * Added comprehensive logging and error handling at every step
  */
 
-const GOOGLE_CLIENT_ID = '689278956648-ti708lsamubui9d33hcohhr6es3tag34.apps.googleusercontent.com'
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const GMAIL_SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/gmail.send',
     'https://www.googleapis.com/auth/gmail.compose'
 ].join(' ')
 
-const EMAILJS_SERVICE_ID = 'service_g2io60e'
-const EMAILJS_TEMPLATE_ID = 'template_at3fl3s'
-const EMAILJS_PUBLIC_KEY = '0CObV7BKHDHwHMDxs'
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
 
 const SENDER_EMAIL = 'padocainc@gmail.com'
 const SENDER_NAME = 'Padoca Pizza'
 
 // ============================================================
-// HELPER FUNCTIONS - WITH EXTENSIVE DEBUGGING
+// HELPER FUNCTIONS
 // ============================================================
 
 function decodeBase64Body(encodedData) {
-    if (!encodedData) {
-        console.warn('⚠️ decodeBase64Body: encodedData is empty')
-        return ''
-    }
+    if (!encodedData) return ''
 
     try {
-        console.log(`🔍 Decoding base64, length: ${encodedData.length}`)
         const normalized = encodedData.replace(/-/g, '+').replace(/_/g, '/')
-        const decoded = atob(normalized)
-        console.log(`✅ Decoded successfully, result length: ${decoded.length}`)
-        return decoded
+        return atob(normalized)
     } catch (e) {
-        console.error('❌ Base64 decode error:', e, 'Data length:', encodedData?.length)
+        console.error('Base64 decode error:', e.message)
         return ''
     }
 }
 
 function extractEmailText(payload, depth = 0) {
-    const indent = '  '.repeat(depth)
-    console.log(`${indent}📧 extractEmailText called, depth: ${depth}`)
-
-    if (!payload) {
-        console.warn(`${indent}⚠️ Payload is null/undefined`)
-        return ''
-    }
-
-    console.log(`${indent}🔍 Payload structure:`, {
-        hasBody: !!payload.body,
-        hasBodyData: !!payload.body?.data,
-        bodyDataLength: payload.body?.data?.length || 0,
-        hasParts: !!payload.parts,
-        partsLength: payload.parts?.length || 0,
-        mimeType: payload.mimeType
-    })
+    if (!payload) return ''
 
     // Method 1: Direct body data
     if (payload.body?.data) {
-        console.log(`${indent}✅ Method 1: Direct body.data found`)
         const text = decodeBase64Body(payload.body.data)
-        if (text && text.length > 10) {
-            console.log(`${indent}✅ Extracted ${text.length} chars from direct body`)
-            return text
-        }
-        console.log(`${indent}⚠️ Direct body too short: ${text.length} chars`)
+        if (text && text.length > 10) return text
     }
 
     // Method 2: Multipart message
     if (payload.parts && Array.isArray(payload.parts)) {
-        console.log(`${indent}🔍 Method 2: Checking ${payload.parts.length} parts`)
-
         // Try text/plain first
-        for (let i = 0; i < payload.parts.length; i++) {
-            const part = payload.parts[i]
-            console.log(`${indent}  Part ${i}: mimeType=${part.mimeType}, hasBodyData=${!!part.body?.data}`)
-
+        for (const part of payload.parts) {
             if (part.mimeType === 'text/plain' && part.body?.data) {
-                console.log(`${indent}✅ Found text/plain part`)
                 const text = decodeBase64Body(part.body.data)
-                if (text && text.length > 10) {
-                    console.log(`${indent}✅ Extracted ${text.length} chars from text/plain`)
-                    return text
-                }
+                if (text && text.length > 10) return text
             }
         }
 
         // Try text/html as fallback
-        for (let i = 0; i < payload.parts.length; i++) {
-            const part = payload.parts[i]
+        for (const part of payload.parts) {
             if (part.mimeType === 'text/html' && part.body?.data) {
-                console.log(`${indent}✅ Found text/html part, stripping tags`)
                 let html = decodeBase64Body(part.body.data)
                 // Remove scripts and styles first
                 html = html.replace(/<script[^>]*>.*?<\/script>/gi, '')
@@ -109,37 +72,23 @@ function extractEmailText(payload, depth = 0) {
                 text = text.replace(/&lsquo;/gi, "'")
                 // Normalize whitespace
                 text = text.replace(/\s+/g, ' ').trim()
-                if (text && text.length > 10) {
-                    console.log(`${indent}✅ Extracted ${text.length} chars from text/html`)
-                    return text
-                }
+                if (text && text.length > 10) return text
             }
         }
 
         // Try nested multipart (with depth limit to prevent infinite recursion)
         if (depth < 5) {
-            console.log(`${indent}🔍 Checking for nested multipart structures`)
-            for (let i = 0; i < payload.parts.length; i++) {
-                const part = payload.parts[i]
-                // CRITICAL FIX: Check if part has nested parts, regardless of mimeType
+            for (const part of payload.parts) {
                 if (part.parts && Array.isArray(part.parts) && part.parts.length > 0) {
-                    console.log(`${indent}  🔄 Recursing into nested multipart at part ${i}, mimeType=${part.mimeType}, depth ${depth + 1}`)
-                    // Recurse directly into the nested parts array
                     for (const nestedPart of part.parts) {
                         const nestedText = extractEmailText(nestedPart, depth + 1)
-                        if (nestedText && nestedText.length > 10) {
-                            console.log(`${indent}✅ Extracted ${nestedText.length} chars from nested multipart`)
-                            return nestedText
-                        }
+                        if (nestedText && nestedText.length > 10) return nestedText
                     }
                 }
             }
-        } else {
-            console.warn(`${indent}⚠️ Max recursion depth reached (${depth}), skipping nested parts`)
         }
     }
 
-    console.warn(`${indent}⚠️ No valid text found in payload`)
     return ''
 }
 

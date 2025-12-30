@@ -4,6 +4,7 @@ import { useScrollLock } from './hooks/useScrollLock'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInventoryItems } from './Inventory.jsx'
 import { FirebaseService } from './services/firebaseService'
+import { StockService } from './services/stockService'
 
 /**
  * FichaTecnica - Premium multi-pizza recipe management
@@ -843,7 +844,7 @@ export default function FichaTecnica() {
                                                         <div>
                                                             <span className="font-semibold text-zinc-900 dark:text-white">{item.name}</span>
                                                             <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-2">
-                                                                {item.packageQuantity * item.packageCount} {item.unit}
+                                                                {StockService.getTotalQuantity(item)} {item.unit}
                                                             </span>
                                                         </div>
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -868,7 +869,7 @@ export default function FichaTecnica() {
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 truncate">{matchedInventoryItem.name}</p>
                                                 <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                                                    Estoque: {matchedInventoryItem.packageQuantity * matchedInventoryItem.packageCount} {matchedInventoryItem.unit} • {formatCurrency(matchedInventoryItem.packageCount * matchedInventoryItem.pricePerUnit)}
+                                                    Estoque: {StockService.getTotalQuantity(matchedInventoryItem)} {matchedInventoryItem.unit} • {formatCurrency(matchedInventoryItem.packageCount * matchedInventoryItem.pricePerUnit)}
                                                 </p>
                                             </div>
                                         </div>

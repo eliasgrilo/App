@@ -1209,3 +1209,670 @@ body {
 .range-slider::-moz-range-thumb:active {
   transform: scale(1.2);
 }
+
+/* ============================================
+   PERFORMANCE OPTIMIZATIONS - 60/120fps Mobile
+   ============================================ */
+
+/* GPU Acceleration for animated elements */
+.will-animate,
+[class*="motion-"],
+[class*="animate-"],
+.card,
+.button,
+.modal,
+.dialog {
+  will-change: transform, opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+}
+
+/* Optimize heavy animations */
+.card-interactive,
+.button,
+[role="button"],
+a {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+}
+
+/* Touch optimization - eliminate 300ms delay */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+/* Prevent double-tap zoom on interactive elements */
+button,
+a,
+select,
+input,
+textarea,
+[role="button"],
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Optimize scroll performance */
+.scroll-container,
+[class*="overflow-auto"],
+[class*="overflow-y-auto"],
+[class*="overflow-x-auto"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Prevent layout thrashing during animations */
+.animating {
+  contain: layout style paint;
+}
+
+/* High-performance backdrop blur (use sparingly) */
+.backdrop-blur-optimized {
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Mobile viewport fixes */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Fix iOS input zoom */
+@media screen and (max-width: 768px) {
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Optimize image rendering */
+img,
+video {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Faster focus transitions */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  transition: outline-offset 0.1s ease;
+}
+
+/* Layer promotion for modals */
+.modal-layer,
+[class*="z-[9999]"],
+[class*="z-[10000]"],
+[class*="z-[20000]"] {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+
+/* Prevent content jump on scrollbar appearance */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
+/* Force GPU compositing for fixed elements */
+.fixed,
+[class*="fixed "] {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* ============================================
+   APPLE PRODUCTS REDESIGN - IMMERSIVE CARDS
+   ============================================ */
+
+/* Immersive Card - Apple 2025 Style */
+.card-immersive {
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.02),
+    0 4px 16px rgba(0, 0, 0, 0.04),
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    0 16px 64px rgba(0, 0, 0, 0.08);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.dark .card-immersive {
+  background: rgba(24, 24, 27, 0.85);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 16px 64px rgba(0, 0, 0, 0.25);
+}
+
+.card-immersive:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.03),
+    0 8px 24px rgba(0, 0, 0, 0.06),
+    0 16px 48px rgba(0, 0, 0, 0.09),
+    0 24px 80px rgba(0, 0, 0, 0.12);
+}
+
+.dark .card-immersive:hover {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 8px 24px rgba(0, 0, 0, 0.2),
+    0 16px 48px rgba(0, 0, 0, 0.3),
+    0 24px 80px rgba(0, 0, 0, 0.4);
+}
+
+/* Apple Typography Hierarchy */
+.text-apple-title {
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.text-apple-price {
+  font-family: 'SF Pro Rounded', 'SF Pro Display', -apple-system, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-feature-settings: 'tnum' 1;
+}
+
+.text-apple-body {
+  font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+/* ============================================
+   PARALLAX SCROLL EFFECT
+   ============================================ */
+
+.parallax-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.parallax-image {
+  transform: translateZ(0);
+  will-change: transform;
+  transition: transform 0.1s linear;
+}
+
+/* ============================================
+   PROMINENT CTA BUTTON - APPLE STYLE
+   ============================================ */
+
+.button-prominent {
+  @apply inline-flex items-center justify-center gap-2;
+  @apply px-8 py-4 rounded-2xl;
+  @apply text-[11px] font-bold uppercase tracking-widest;
+  @apply bg-gradient-to-r from-violet-500 to-indigo-600 text-white;
+  box-shadow:
+    0 4px 14px rgba(99, 102, 241, 0.4),
+    0 8px 28px rgba(99, 102, 241, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: scale(1);
+}
+
+.button-prominent:hover {
+  transform: scale(1.02) translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(99, 102, 241, 0.5),
+    0 12px 40px rgba(99, 102, 241, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.button-prominent:active {
+  transform: scale(1.05);
+  transition: transform 0.1s ease-out;
+}
+
+/* ============================================
+   TOAST NOTIFICATION SYSTEM
+   ============================================ */
+
+@keyframes toast-slide-in {
+  0% {
+    transform: translateY(-100%) translateX(-50%);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0) translateX(-50%);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  0% {
+    transform: translateY(0) translateX(-50%);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-100%) translateX(-50%);
+    opacity: 0;
+  }
+}
+
+.toast {
+  position: fixed;
+  top: max(20px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100000;
+  min-width: 200px;
+  max-width: calc(100vw - 40px);
+  padding: 14px 24px;
+  border-radius: 16px;
+  background: rgba(24, 24, 27, 0.95);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 16px 64px rgba(0, 0, 0, 0.15);
+  animation: toast-slide-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.toast.exiting {
+  animation: toast-slide-out 0.3s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+}
+
+.dark .toast {
+  background: rgba(250, 250, 250, 0.95);
+  border-color: rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 16px 64px rgba(0, 0, 0, 0.2);
+}
+
+.toast-success {
+  @apply flex items-center gap-3;
+}
+
+.toast-success .toast-icon {
+  @apply w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+}
+
+.toast-success .toast-text {
+  @apply text-sm font-semibold text-white;
+}
+
+.dark .toast-success .toast-text {
+  @apply text-zinc-900;
+}
+
+/* ============================================
+   SAFE AREA UTILITIES - ENHANCED
+   ============================================ */
+
+.safe-top {
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
+}
+
+.safe-bottom {
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+}
+
+.safe-x {
+  padding-left: max(16px, env(safe-area-inset-left, 16px));
+  padding-right: max(16px, env(safe-area-inset-right, 16px));
+}
+
+/* Ensure minimum touch target of 44pt (Apple HIG) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* ============================================
+   CONFIRMATION ANIMATION FOR ADD TO CART
+   ============================================ */
+
+@keyframes confirm-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes checkmark-draw {
+  0% {
+    stroke-dashoffset: 24;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.button-confirmed {
+  animation: confirm-pulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.button-confirmed .checkmark {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: checkmark-draw 0.4s ease-out 0.1s forwards;
+}
+
+/* ============================================
+   SECONDARY BACKGROUND FOR PRODUCTS
+   ============================================ */
+
+.bg-secondary-system {
+  @apply bg-zinc-100/80 dark:bg-zinc-900/80;
+}
+
+/* ============================================
+   PROJETO PHOENIX - NEXT-GEN EFFECTS
+   Apple-quality 3D interactions & animations
+   ============================================ */
+
+/* 3D Card Tilt Effect */
+.card-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  transition: transform 0.3s var(--ease-spring);
+}
+
+.card-3d:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(-2deg) translateY(-4px);
+}
+
+.card-3d::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.card-3d:hover::before {
+  opacity: 1;
+}
+
+/* Scroll Progress Custom Property (for JS) */
+:root {
+  --scroll-progress: 0;
+}
+
+/* Staggered Reveal Animation */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.reveal-stagger>* {
+  animation: reveal-up 0.5s var(--ease-spring) both;
+}
+
+.reveal-stagger>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.reveal-stagger>*:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.reveal-stagger>*:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.reveal-stagger>*:nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.reveal-stagger>*:nth-child(5) {
+  animation-delay: 200ms;
+}
+
+.reveal-stagger>*:nth-child(6) {
+  animation-delay: 250ms;
+}
+
+.reveal-stagger>*:nth-child(7) {
+  animation-delay: 300ms;
+}
+
+.reveal-stagger>*:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+.reveal-stagger>*:nth-child(9) {
+  animation-delay: 400ms;
+}
+
+.reveal-stagger>*:nth-child(10) {
+  animation-delay: 450ms;
+}
+
+/* Liquid Pull-to-Refresh Animation */
+@keyframes liquid-wave {
+  0% {
+    transform: translateY(-100%) scaleY(0);
+    border-radius: 0 0 50% 50%;
+  }
+
+  50% {
+    transform: translateY(0) scaleY(1.2);
+    border-radius: 0 0 40% 40%;
+  }
+
+  100% {
+    transform: translateY(0) scaleY(1);
+    border-radius: 0;
+  }
+}
+
+.liquid-refresh {
+  animation: liquid-wave 0.6s var(--ease-spring) forwards;
+}
+
+/* Glassmorphism Pro - Enhanced blur */
+.glass-ultra {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(40px) saturate(2);
+  -webkit-backdrop-filter: blur(40px) saturate(2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-ultra {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Morphing Navigation Indicator */
+.nav-indicator {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, width;
+}
+
+/* Hero Typography Breathing */
+.hero-typography {
+  will-change: transform, opacity;
+  transform-origin: center center;
+}
+
+/* Scroll-Linked Parallax Layers */
+.parallax-slow {
+  will-change: transform;
+  transform: translateY(calc(var(--scroll-progress) * 50px));
+}
+
+.parallax-fast {
+  will-change: transform;
+  transform: translateY(calc(var(--scroll-progress) * 100px));
+}
+
+/* Animated Gradient Mesh */
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-mesh {
+  background: linear-gradient(-45deg,
+      rgba(139, 92, 246, 0.1),
+      rgba(99, 102, 241, 0.1),
+      rgba(139, 92, 246, 0.05),
+      rgba(99, 102, 241, 0.15));
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+/* Smooth Scroll Container (for Lenis) */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+html.lenis {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+/* Touch Ripple Effect */
+@keyframes ripple-expand {
+  0% {
+    transform: scale(0);
+    opacity: 0.4;
+  }
+
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.3;
+  pointer-events: none;
+  animation: ripple-expand 0.6s ease-out forwards;
+}
+
+/* Numero Counter Animation */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.counter-animate {
+  animation: count-up 0.5s var(--ease-spring) forwards;
+}
+
+/* Premium Focus Ring */
+.focus-ring:focus-visible {
+  outline: 2px solid rgba(139, 92, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Scroll Indicator Bounce */
+@keyframes scroll-bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+.scroll-indicator {
+  animation: scroll-bounce 1.5s ease-in-out infinite;
+}

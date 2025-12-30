@@ -14,3 +14,6 @@ export { default as NotesSection, NoteCard, CategorySelector, AddNoteForm, NOTE_
 // Reports & Forecasting
 export { default as ReportExport, PresetButton, DateInput, ExportOption } from './ReportExport'
 export { default as ForecastCard, TrendBadge, ConfidenceBadge, UrgencyIndicator, ProjectionChart } from './ForecastCard'
+
+// AI & Scanning
+export { default as InvoiceScanner, SCANNER_STATES } from './InvoiceScanner'

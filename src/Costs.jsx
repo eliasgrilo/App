@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { useScrollLock } from './hooks/useScrollLock'
 import { FirebaseService } from './services/firebaseService'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTaxConfig, TaxConfigService } from './services/taxConfigService'
+import { formatCurrency } from './services/formatService'
 
 export default function Costs() {
     const [costs, setCosts] = useState([])
@@ -18,7 +20,11 @@ export default function Costs() {
     const [dashboardTitle, setDashboardTitle] = useState('Global Investment Matrix')
     const [isEditingTitle, setIsEditingTitle] = useState(false)
 
-    const [taxRate, setTaxRate] = useState(0.13)
+    // Dynamic Province-based Tax (from TaxConfigService)
+    const taxConfig = useTaxConfig()
+    const taxRate = taxConfig.totalRate
+    const taxDisplay = taxConfig.displayRate
+    const provinceName = taxConfig.name
     const [isEditingTax, setIsEditingTax] = useState(false)
 
     // Premium Toast System
@@ -84,10 +90,10 @@ export default function Costs() {
                     if (data.categories) setCategories(data.categories)
                 }
 
+                // Load province from cloud settings
                 const settings = await FirebaseService.getGlobalSettings()
-                if (settings && settings.taxRate !== undefined) {
-                    setTaxRate(settings.taxRate)
-                    localStorage.setItem('padoca_global_tax', settings.taxRate.toString())
+                if (settings && settings.province) {
+                    TaxConfigService.setProvince(settings.province)
                 }
             } catch (err) {
                 console.warn("Costs cloud load failed")
@@ -115,21 +121,8 @@ export default function Costs() {
         localStorage.setItem('padoca_costs_title', dashboardTitle)
     }, [dashboardTitle])
 
-    useEffect(() => {
-        localStorage.setItem('padoca_global_tax', taxRate.toString())
-        if (isCloudSynced) {
-            FirebaseService.syncGlobalSettings({ taxRate })
-        }
-        // Dispatch event for other tabs
-        window.dispatchEvent(new CustomEvent('global-settings-updated', { detail: { taxRate } }))
-    }, [taxRate, isCloudSynced])
-
-    // Helpers
-    const formatCurrency = (val) => {
-        const n = Number(val) || 0
-        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            .replace(/^/, '$ ')
-    }
+    // Tax is now managed by TaxConfigService - no local sync needed
+    // Currency formatting via FormatService (global, dynamic)
 
     const totals = useMemo(() => {
         const subtotal = costs.reduce((acc, curr) => {

@@ -2,7 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useScrollLock } from './hooks/useScrollLock'
 import { FirebaseService } from './services/firebaseService'
+import { StockService, checkAndEmitReorderEvent } from './services/stockService'
+import { useTaxConfig, TaxConfigService } from './services/taxConfigService'
+import { formatCurrency } from './services/formatService'
+import { HapticService } from './services/hapticService'
+import { PriceHistoryService } from './services/priceHistoryService'
 import { motion, AnimatePresence } from 'framer-motion'
+import InvoiceScanner from './components/InvoiceScanner'
 
 /**
  * Inventory - Premium inventory management with dual quantity tracking
@@ -62,9 +68,10 @@ export default function Inventory() {
                     if (Array.isArray(data.categories)) setCategories(data.categories)
                 }
 
+                // Load province from cloud settings
                 const settings = await FirebaseService.getGlobalSettings()
-                if (settings && settings.taxRate !== undefined) {
-                    setTaxRate(settings.taxRate)
+                if (settings && settings.province) {
+                    TaxConfigService.setProvince(settings.province)
                 }
             } catch (err) {
                 console.warn("Inventory cloud load failed", err)
@@ -75,20 +82,11 @@ export default function Inventory() {
         loadCloud()
     }, [])
 
-    const [taxRate, setTaxRate] = useState(() => {
-        const saved = localStorage.getItem('padoca_global_tax')
-        return saved ? Number(saved) : 0.13
-    })
-
-    useEffect(() => {
-        const handleSettingsUpdate = (e) => {
-            if (e.detail && e.detail.taxRate !== undefined) {
-                setTaxRate(e.detail.taxRate)
-            }
-        }
-        window.addEventListener('global-settings-updated', handleSettingsUpdate)
-        return () => window.removeEventListener('global-settings-updated', handleSettingsUpdate)
-    }, [])
+    // Dynamic Province-based Tax (from TaxConfigService)
+    const taxConfig = useTaxConfig()
+    const taxRate = taxConfig.totalRate
+    const taxDisplay = taxConfig.displayRate
+    const provinceName = taxConfig.name
     const [isAddingItem, setIsAddingItem] = useState(false)
     const [editingId, setEditingId] = useState(null)
     const [searchQuery, setSearchQuery] = useState('')
@@ -124,6 +122,16 @@ export default function Inventory() {
     const [stockSearchQuery, setStockSearchQuery] = useState('')
     const [configuringItem, setConfiguringItem] = useState(null)
 
+    // Invoice Scanner state
+    const [showInvoiceScanner, setShowInvoiceScanner] = useState(false)
+    const [geminiApiKey, setGeminiApiKey] = useState(() => {
+        try {
+            return localStorage.getItem('padoca_gemini_api_key') || ''
+        } catch {
+            return ''
+        }
+    })
+
     // Auto-switch filter if no alerts
     useEffect(() => {
         const alertCount = items.filter(item => ['low', 'warning', 'high'].includes(getStockStatus(item))).length
@@ -131,6 +139,52 @@ export default function Inventory() {
             setStockFilter('ok')
         }
     }, [items])
+
+    // ═══════════════════════════════════════════════════════════════
+    // AUTO-QUOTATION MONITORING - Stable signature-based approach
+    // Prevents infinite loops by only triggering when low-stock signature changes
+    // ═══════════════════════════════════════════════════════════════
+    const lowStockSignatureRef = useRef('')
+
+    useEffect(() => {
+        // Only run after initial cloud sync to avoid duplicate events
+        if (!isCloudSynced) return
+
+        // Check each item for low stock - trigger if has supplier
+        // Exception handling: Items without minStock defined (minStock <= 0) are skipped
+        const lowStockItems = items.filter(item => {
+            const currentStock = StockService.getCurrentStock(item)
+            const minStock = item.minStock || 0
+            // Guard: Skip items without minStock defined to prevent loop issues with zero-stock items
+            if (minStock <= 0) return false
+            // Trigger when Estoque_Atual <= Estoque_Minimo
+            return currentStock <= minStock && item.supplierId
+        })
+
+        // Create a stable signature: sorted IDs + their current stock levels
+        const newSignature = lowStockItems
+            .map(item => `${item.id}:${StockService.getCurrentStock(item)}`)
+            .sort()
+            .join('|')
+
+        // Only trigger events if the signature actually changed
+        if (newSignature === lowStockSignatureRef.current) {
+            return // No change, skip event emission
+        }
+
+        // Update signature reference
+        lowStockSignatureRef.current = newSignature
+
+        if (lowStockItems.length > 0) {
+            console.log(`🔔 Auto-Quotation: Found ${lowStockItems.length} item(s) below minimum stock:`,
+                lowStockItems.map(i => i.name).join(', '))
+        }
+
+        // Trigger reorder event for items with supplier configured
+        lowStockItems.forEach(item => {
+            checkAndEmitReorderEvent(item)
+        })
+    }, [items, isCloudSynced])
 
     // Suppliers state
     const [suppliers, setSuppliers] = useState([])
@@ -186,7 +240,8 @@ export default function Inventory() {
         supplierId: null,
         supplierName: '',
         minStock: '',
-        maxStock: ''
+        maxStock: '',
+        enableAutoQuotation: false
     })
 
     // Track if initial load is complete
@@ -230,34 +285,21 @@ export default function Inventory() {
     }, [items, categories, subcategories, isCloudSynced])
 
     // Calculate total quantity for an item (total weight/volume)
-    const getTotalQuantity = (item) => {
-        return (Number(item.packageQuantity) || 0) * (Number(item.packageCount) || 1)
-    }
+    // Use centralized StockService for consistency
+    const getTotalQuantity = (item) => StockService.getTotalQuantity(item)
 
     // Stock status indicator - Apple-quality 5-tier system
+    // Use centralized StockService for consistency across the app
     const getStockStatus = (item) => {
-        const total = getTotalQuantity(item)
-        const min = Number(item.minStock) || 0
-        const max = Number(item.maxStock) || 0
-
-        // No limits set
-        if (min === 0 && max === 0) return 'noLimit'
-
-        // Critical: Below minimum
-        if (min > 0 && total < min) return 'low'
-
-        // Warning: Near minimum (≤120% of min)
-        if (min > 0 && total <= min * 1.2) return 'warning'
-
-        // High: Above maximum
-        if (max > 0 && total > max) return 'high'
-
-        // Adequate: Good level (between 120% min and 80% max, or just above warning if no max)
-        if (max > 0 && total >= max * 0.6 && total <= max) return 'adequate'
-        if (min > 0 && max === 0 && total > min * 1.2) return 'adequate'
-
-        // OK: Within safe range but could be better
-        return 'ok'
+        const status = StockService.getStockStatus(item)
+        // Map to Inventory's existing status names for UI compatibility
+        switch (status) {
+            case 'critical': return 'low'
+            case 'warning': return 'warning'
+            case 'excess': return 'high'
+            case 'ok': return 'ok'
+            default: return 'noLimit'
+        }
     }
 
     // Calculate total value for an item
@@ -288,13 +330,6 @@ export default function Inventory() {
         }
     }, [items, taxRate])
 
-    // Format currency (Canadian Dollars)
-    const formatCurrency = (val) => {
-        const n = Number(val) || 0
-        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            .replace(/^/, '$ ')
-    }
-
     // Add new item
     const handleAddItem = () => {
         if (!newItem.name.trim()) return
@@ -313,6 +348,7 @@ export default function Inventory() {
             supplierName: newItem.supplierName,
             minStock: Number(newItem.minStock) || 0,
             maxStock: Number(newItem.maxStock) || 0,
+            enableAutoQuotation: newItem.enableAutoQuotation || false,
             createdAt: new Date().toISOString()
         }
 
@@ -329,7 +365,8 @@ export default function Inventory() {
             supplierId: null,
             supplierName: '',
             minStock: '',
-            maxStock: ''
+            maxStock: '',
+            enableAutoQuotation: false
         })
         setSupplierSearchQuery('')
         setIsAddingItem(false)
@@ -402,7 +439,7 @@ export default function Inventory() {
         try {
             const header = ['ID', 'Item', 'Categoria', 'Qtd Pacote', 'Unidade', 'Nº Pacotes', 'Total Qtd', 'Preço/Pacote', 'Valor Total']
             const rows = items.map(item => {
-                const totalQty = (Number(item.packageQuantity) || 0) * (Number(item.packageCount) || 1)
+                const totalQty = StockService.getTotalQuantity(item)
                 const totalVal = (Number(item.packageCount) || 1) * (Number(item.pricePerUnit) || 0)
                 return [
                     item.id,
@@ -482,6 +519,78 @@ export default function Inventory() {
         })
     }
 
+    // Handle scanned invoice items
+    const handleInvoiceScanned = useCallback(async (scannedItems, metadata) => {
+        HapticService.trigger('batchCommit')
+
+        const newItems = scannedItems.map((item, idx) => {
+            // Check if this item matches an existing product
+            const existingProduct = item.matchedProductId
+                ? items.find(i => i.id === item.matchedProductId)
+                : null
+
+            if (existingProduct) {
+                // Update existing product's price and add to stock
+                const updatedPriceHistory = PriceHistoryService.addEntry(existingProduct, {
+                    price: item.pricePerUnit,
+                    source: 'invoice',
+                    supplierId: metadata?.supplierId,
+                    supplierName: metadata?.vendor
+                })
+
+                return {
+                    ...existingProduct,
+                    packageCount: (existingProduct.packageCount || 0) + (item.packageCount || 1),
+                    pricePerUnit: item.pricePerUnit || existingProduct.pricePerUnit,
+                    priceHistory: JSON.stringify(updatedPriceHistory),
+                    confidenceScore: item.confidenceScore,
+                    aiMetadata: item.aiMetadata,
+                    updatedAt: new Date().toISOString()
+                }
+            } else {
+                // Create new item
+                return {
+                    id: Date.now() + idx,
+                    name: item.name,
+                    packageQuantity: item.packageQuantity || 1,
+                    packageCount: item.packageCount || 1,
+                    unit: item.unit || 'un',
+                    pricePerUnit: item.pricePerUnit || 0,
+                    category: item.category || 'Ingredientes',
+                    subcategory: item.subcategory || 'Outros Ingredientes',
+                    purchaseDate: new Date().toISOString().split('T')[0],
+                    supplierId: metadata?.supplierId || null,
+                    supplierName: metadata?.vendor || '',
+                    minStock: 0,
+                    maxStock: 0,
+                    confidenceScore: item.confidenceScore || 0,
+                    semanticMapping: item.semanticMapping,
+                    aiMetadata: item.aiMetadata,
+                    priceHistory: JSON.stringify([{
+                        date: new Date().toISOString(),
+                        price: item.pricePerUnit || 0,
+                        source: 'invoice',
+                        supplierName: metadata?.vendor
+                    }]),
+                    createdAt: new Date().toISOString()
+                }
+            }
+        })
+
+        // Merge new items with existing (update matched, add new)
+        const updatedItems = items.map(existingItem => {
+            const matchedNew = newItems.find(ni => ni.id === existingItem.id)
+            return matchedNew || existingItem
+        })
+
+        // Add truly new items (not matched to existing)
+        const trulyNewItems = newItems.filter(ni => !items.some(ei => ei.id === ni.id))
+
+        setItems([...updatedItems, ...trulyNewItems])
+        setShowInvoiceScanner(false)
+        showToast(`${scannedItems.length} itens adicionados ao estoque via IA!`, 'success')
+    }, [items, showToast])
+
     return (
         <div className="space-y-6 md:space-y-8 animate-fade-in pb-16 relative font-sans selection:bg-indigo-500/20">
             {/* Ultra-Subtle Background */}
@@ -512,13 +621,27 @@ export default function Inventory() {
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">Gestão inteligente de insumos e provisões</p>
                 </div>
 
-                <button
-                    onClick={() => setIsAddingItem(true)}
-                    className="w-full md:w-auto px-8 py-4 md:py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs md:text-sm font-bold uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-                    Adicionar Insumo
-                </button>
+                <div className="flex items-center gap-3">
+                    {/* Invoice Scanner Button */}
+                    <button
+                        onClick={() => setShowInvoiceScanner(true)}
+                        className="hidden md:flex w-auto px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all items-center justify-center gap-2 group"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Scan Nota
+                    </button>
+
+                    <button
+                        onClick={() => setIsAddingItem(true)}
+                        className="w-full md:w-auto px-8 py-4 md:py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs md:text-sm font-bold uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+                        Adicionar Insumo
+                    </button>
+                </div>
             </div>
 
             {/* Dashboard: Precise & Light */}
@@ -868,6 +991,29 @@ export default function Inventory() {
                                         </div>
                                     </div>
                                     <p className="text-[10px] text-amber-600/60 mt-2 text-center">Deixe em 0 para desativar alertas</p>
+
+                                    {/* Auto-Quotation Toggle */}
+                                    {newItem.supplierId && newItem.minStock > 0 && (
+                                        <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-500/10">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h5 className="text-xs font-bold text-amber-700 dark:text-amber-300">Cotação Automática</h5>
+                                                    <p className="text-[10px] text-amber-600/60 mt-0.5">Solicitar cotação ao atingir estoque mínimo</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setNewItem(prev => ({ ...prev, enableAutoQuotation: !prev.enableAutoQuotation }))}
+                                                    className={`relative w-12 h-7 rounded-full transition-colors duration-300 ${newItem.enableAutoQuotation
+                                                        ? 'bg-emerald-500'
+                                                        : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                                                >
+                                                    <span
+                                                        className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${newItem.enableAutoQuotation ? 'translate-x-5' : ''}`}
+                                                    />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Summary Preview */}
@@ -1886,6 +2032,18 @@ export default function Inventory() {
                         <span className="text-sm font-semibold tracking-tight">{toastMessage.message}</span>
                     </motion.div>,
                     document.body
+                )}
+            </AnimatePresence>
+
+            {/* Invoice Scanner Modal */}
+            <AnimatePresence>
+                {showInvoiceScanner && (
+                    <InvoiceScanner
+                        existingProducts={items}
+                        onComplete={handleInvoiceScanned}
+                        onClose={() => setShowInvoiceScanner(false)}
+                        apiKey={geminiApiKey}
+                    />
                 )}
             </AnimatePresence>
         </div>

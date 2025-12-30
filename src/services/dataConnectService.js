@@ -325,6 +325,7 @@ export async function deleteKanbanTask(id) {
 
 import { StorageService } from './storageService'
 import { createAuditEntry } from './auditService'
+import { StockService } from './stockService'
 
 /**
  * Upload file with Atomic Commit pattern
@@ -548,7 +549,7 @@ export async function getStockValueByCategory() {
     const categoryValues = {}
     result.data.products.forEach(p => {
         const cat = p.category || 'Outros'
-        const value = (p.pricePerUnit || 0) * (p.packageQuantity || 0) * (p.packageCount || 1)
+        const value = (p.pricePerUnit || 0) * StockService.getTotalQuantity(p)
         categoryValues[cat] = (categoryValues[cat] || 0) + value
     })
 
@@ -579,7 +580,7 @@ export async function getLowStockProducts() {
     const result = await executeQuery(queryRef(dc, 'GetLowStockProducts'))
 
     return result.data.products.filter(p => {
-        const currentStock = (p.packageQuantity || 0) * (p.packageCount || 1)
+        const currentStock = StockService.getTotalQuantity(p)
         return p.minStock > 0 && currentStock < p.minStock
     })
 }
@@ -590,7 +591,7 @@ export async function getSupplierSummary() {
 
     return result.data.suppliers.map(s => {
         const totalValue = s.products_on_supplier.reduce((sum, p) => {
-            return sum + (p.pricePerUnit || 0) * (p.packageQuantity || 0) * (p.packageCount || 1)
+            return sum + (p.pricePerUnit || 0) * StockService.getTotalQuantity(p)
         }, 0)
 
         const recentMovements = s.products_on_supplier.reduce((sum, p) => {

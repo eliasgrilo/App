@@ -6,7 +6,8 @@ import { motion } from 'framer-motion'
  * Features: Stockout prediction, restock suggestions, trend analysis
  */
 
-const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0)
+// Currency formatting - CAD (Canadian Dollar)
+const formatCurrency = (val) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val || 0)
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }) : '-'
 
 // Trend Badge
@@ -20,8 +21,8 @@ function TrendBadge({ trend }) {
 
     return (
         <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${config.color === 'rose' ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-600' :
-                config.color === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600' :
-                    'bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
+            config.color === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600' :
+                'bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
             }`}>
             <span>{config.icon}</span>
             {config.label}
@@ -60,15 +61,15 @@ function UrgencyIndicator({ daysUntilStockout }) {
 
     return (
         <div className={`text-center py-4 px-5 rounded-2xl ${isUrgent ? 'bg-rose-50 dark:bg-rose-500/10' :
-                isCritical ? 'bg-amber-50 dark:bg-amber-500/10' :
-                    'bg-zinc-50 dark:bg-zinc-800/50'
+            isCritical ? 'bg-amber-50 dark:bg-amber-500/10' :
+                'bg-zinc-50 dark:bg-zinc-800/50'
             }`}>
             <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
                 Estoque acaba em
             </p>
             <p className={`text-4xl font-bold tabular-nums ${isUrgent ? 'text-rose-600' :
-                    isCritical ? 'text-amber-600' :
-                        'text-zinc-900 dark:text-white'
+                isCritical ? 'text-amber-600' :
+                    'text-zinc-900 dark:text-white'
                 }`}>
                 {daysUntilStockout}
                 <span className="text-lg font-medium text-zinc-400 ml-1">dias</span>

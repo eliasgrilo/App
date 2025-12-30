@@ -494,8 +494,11 @@ export const notificationService = {
     // === Inventory Notifications ===
 
     notifyLowStock(product) {
+        // Use actual minStock value without arbitrary fallback
+        const currentStock = product.currentStock ?? product.stock ?? 0
+        const minStock = product.minStock ?? 0
         this.notify('LOW_STOCK', {
-            body: `${product.name}: ${product.currentStock || product.stock}/${product.minStock || 5} ${product.unit || 'un'}`,
+            body: `${product.name}: ${currentStock}/${minStock} ${product.unit || 'un'}`,
             productId: product.id,
             data: { productId: product.id }
         })

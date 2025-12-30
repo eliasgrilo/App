@@ -6,8 +6,9 @@ import { motion } from 'framer-motion'
  * Features: Spending, frequency, reliability score, last delivery
  */
 
+// Currency formatting - CAD (Canadian Dollar)
 const formatCurrency = (val) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0)
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val || 0)
 }
 
 const timeAgo = (dateStr) => {
@@ -41,6 +42,92 @@ function ReliabilityBadge({ score }) {
         <div className={`px-2.5 py-1 rounded-lg ${getColor()}`}>
             <span className="text-[10px] font-bold uppercase tracking-wide">{getLabel()}</span>
         </div>
+    )
+}
+
+// Sparkline - Apple-Quality Mini Chart
+function Sparkline({ data = [], color = 'violet', height = 24, width = 80 }) {
+    if (!data || data.length < 2) return null
+
+    const values = data.map(d => typeof d === 'number' ? d : d.value || 0)
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+    const range = max - min || 1
+
+    // Generate SVG path points
+    const points = values.map((val, i) => {
+        const x = (i / (values.length - 1)) * width
+        const y = height - ((val - min) / range) * (height - 4) - 2
+        return `${x},${y}`
+    }).join(' ')
+
+    // Determine trend
+    const trend = values[values.length - 1] > values[0] ? 'up' :
+        values[values.length - 1] < values[0] ? 'down' : 'stable'
+
+    const colorMap = {
+        violet: { stroke: '#8B5CF6', fill: 'rgba(139, 92, 246, 0.1)' },
+        emerald: { stroke: '#10B981', fill: 'rgba(16, 185, 129, 0.1)' },
+        amber: { stroke: '#F59E0B', fill: 'rgba(245, 158, 11, 0.1)' },
+        rose: { stroke: '#F43F5E', fill: 'rgba(244, 63, 94, 0.1)' }
+    }
+
+    const colors = colorMap[color] || colorMap.violet
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="relative"
+        >
+            <svg width={width} height={height} className="overflow-visible">
+                {/* Fill area */}
+                <motion.path
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    d={`M0,${height} L${points} L${width},${height} Z`}
+                    fill={colors.fill}
+                />
+                {/* Line */}
+                <motion.polyline
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    points={points}
+                    fill="none"
+                    stroke={colors.stroke}
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+                {/* End dot */}
+                <motion.circle
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.6, type: 'spring' }}
+                    cx={width}
+                    cy={height - ((values[values.length - 1] - min) / range) * (height - 4) - 2}
+                    r="2.5"
+                    fill={colors.stroke}
+                />
+            </svg>
+            {/* Trend indicator */}
+            <span className="absolute -right-3 top-1/2 -translate-y-1/2 text-[8px]">
+                {trend === 'up' ? '↗' : trend === 'down' ? '↘' : '→'}
+            </span>
+        </motion.div>
+    )
+}
+
+// Loading Skeleton - Apple-Quality Loading State
+function LoadingSkeleton({ className = '' }) {
+    return (
+        <motion.div
+            animate={{ opacity: [0.4, 0.7, 0.4] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className={`bg-zinc-200 dark:bg-zinc-700 rounded ${className}`}
+        />
     )
 }
 
@@ -140,6 +227,18 @@ function SupplierCard({ supplier, rank, maxValue }) {
                 />
             </div>
 
+            {/* Sparkline Trend - Weekly value history */}
+            {supplier.weeklyTrend && supplier.weeklyTrend.length >= 2 && (
+                <div className="flex items-center gap-3 mb-4 p-3 bg-white/50 dark:bg-zinc-900/50 rounded-xl">
+                    <div className="flex-1">
+                        <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
+                            Tendência 30 Dias
+                        </p>
+                        <Sparkline data={supplier.weeklyTrend} color="violet" width={100} height={24} />
+                    </div>
+                </div>
+            )}
+
             {/* Progress Bar */}
             <ProgressBar value={supplier.totalValue} max={maxValue} color="violet" />
             <p className="text-[10px] text-zinc-400 mt-2 text-right">{pct}% do total</p>
@@ -202,7 +301,18 @@ export default function SupplierAnalytics({ products = [], movements = [] }) {
                     (s.recentMovements / maxMovements) * 50 + // Frequency contribution
                     (s.movementCount > 10 ? 30 : s.movementCount * 3) + // History contribution
                     (s.lastDelivery && Date.now() - new Date(s.lastDelivery).getTime() < 7 * 24 * 60 * 60 * 1000 ? 20 : 0) // Recency bonus
-                ))
+                )),
+                // Generate weekly trend from recent order values (last 4 weeks)
+                weeklyTrend: s.orderValues.length >= 2
+                    ? s.orderValues.slice(-8).reduce((acc, val, i, arr) => {
+                        // Group into 4 periods
+                        const periodSize = Math.ceil(arr.length / 4)
+                        const periodIdx = Math.floor(i / periodSize)
+                        if (!acc[periodIdx]) acc[periodIdx] = 0
+                        acc[periodIdx] += val
+                        return acc
+                    }, []).filter(v => v > 0)
+                    : []
             }))
             .filter(s => s.movementCount > 0)
             .sort((a, b) => b.totalValue - a.totalValue)
@@ -258,4 +368,4 @@ export default function SupplierAnalytics({ products = [], movements = [] }) {
     )
 }
 
-export { SupplierCard, MetricCard, ReliabilityBadge }
+export { SupplierCard, MetricCard, ReliabilityBadge, Sparkline, LoadingSkeleton }

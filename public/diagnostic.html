@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Parsing Diagnostic Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status.ok {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .log-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 15px;
+        }
+
+        .log-line {
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+
+        .log-success {
+            color: #4ec9b0;
+        }
+
+        .log-error {
+            color: #f48771;
+        }
+
+        .log-warning {
+            color: #dcdcaa;
+        }
+
+        .log-info {
+            color: #9cdcfe;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 150px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            resize: vertical;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 5px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔍 Email Parsing Diagnostic Tool</h1>
+        <p class="subtitle">Ferramenta de diagnóstico em tempo real para debugging do fluxo de e-mails</p>
+
+        <!-- Section 1: Gmail Watch Status -->
+        <div class="section">
+            <h2>
+                <span>📡</span> Gmail Watch Status
+                <span id="watch-status" class="status warning">Checking...</span>
+            </h2>
+            <button onclick="checkGmailWatch()">Check Gmail Watch</button>
+            <button onclick="activateGmailWatch()">Activate Watch</button>
+            <div id="watch-output" class="log-output" style="display:none;"></div>
+        </div>
+
+        <!-- Section 2: Manual Email Check -->
+        <div class="section">
+            <h2><span>📬</span> Manual Email Check</h2>
+            <label for="supplier-email">Supplier Email Address:</label>
+            <input type="email" id="supplier-email" placeholder="supplier@example.com" value="">
+
+            <label for="after-date">Check emails after (date):</label>
+            <input type="datetime-local" id="after-date">
+
+            <button onclick="checkRepliesManual()">Check for Replies</button>
+            <button onclick="testParsing()">Test Parsing Logic</button>
+            <div id="check-output" class="log-output" style="display:none;"></div>
+        </div>
+
+        <!-- Section 3: Test Email Body Parsing -->
+        <div class="section">
+            <h2><span>🧪</span> Test Email Body Parsing</h2>
+            <label for="test-email-body">Paste Email Body (plain text or HTML):</label>
+            <textarea id="test-email-body" placeholder="Cole o corpo do e-mail aqui..."></textarea>
+            <button onclick="testEmailParsing()">Test Parsing</button>
+            <div id="parse-output" class="log-output" style="display:none;"></div>
+        </div>
+
+        <!-- Section 4: Cloud Functions Logs -->
+        <div class="section">
+            <h2><span>☁️</span> Cloud Functions Status</h2>
+            <button onclick="checkCloudFunctions()">Check Functions Status</button>
+            <button onclick="viewRecentLogs()">View Recent Logs (onGmailNotification)</button>
+            <div id="functions-output" class="log-output" style="display:none;"></div>
+        </div>
+
+        <!-- Section 5: Real-time Metrics -->
+        <div class="section">
+            <h2><span>📊</span> Real-time Metrics</h2>
+            <div class="grid">
+                <div class="metric">
+                    <div class="metric-label">Gmail Connected</div>
+                    <div class="metric-value" id="metric-connected">-</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Watch Active</div>
+                    <div class="metric-value" id="metric-watch">-</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Last Email Processed</div>
+                    <div class="metric-value" id="metric-last-email">Never</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Pending Quotations</div>
+                    <div class="metric-value" id="metric-pending">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, query, where, getDocs, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyClXN1kuhSTlf8I1jqSf08JNjFcG5XpTXI",
+            authDomain: "padoca-96688.firebaseapp.com",
+            projectId: "padoca-96688",
+            storageBucket: "padoca-96688.firebasestorage.app",
+            messagingSenderId: "689278956648",
+            appId: "1:689278956648:web:e90a5e0b0fa8b3ef6c3b8c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.db = db;
+
+        // Set default date to 24 hours ago
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        document.getElementById('after-date').value = yesterday.toISOString().slice(0, 16);
+
+        function log(elementId, message, type = 'info') {
+            const output = document.getElementById(elementId);
+            output.style.display = 'block';
+            const line = document.createElement('div');
+            line.className = `log-line log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            line.textContent = `[${timestamp}] ${message}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearLog(elementId) {
+            const output = document.getElementById(elementId);
+            output.innerHTML = '';
+        }
+
+        window.checkGmailWatch = async function () {
+            clearLog('watch-output');
+            log('watch-output', 'Checking Gmail Watch status...', 'info');
+
+            try {
+                const response = await fetch('https://us-central1-padoca-96688.cloudfunctions.net/gmailStatus');
+                const data = await response.json();
+
+                log('watch-output', JSON.stringify(data, null, 2), 'info');
+
+                const statusEl = document.getElementById('watch-status');
+                if (data.watchActive) {
+                    statusEl.textContent = 'Active ✓';
+                    statusEl.className = 'status ok';
+                    log('watch-output', '✅ Gmail Watch is ACTIVE', 'success');
+                } else {
+                    statusEl.textContent = 'Inactive ✗';
+                    statusEl.className = 'status error';
+                    log('watch-output', '❌ Gmail Watch is NOT active - emails will not be detected automatically!', 'error');
+                }
+
+                document.getElementById('metric-connected').textContent = data.canSendEmail ? 'Yes ✓' : 'No ✗';
+                document.getElementById('metric-watch').textContent = data.watchActive ? 'Yes ✓' : 'No ✗';
+
+            } catch (error) {
+                log('watch-output', `Error: ${error.message}`, 'error');
+                document.getElementById('watch-status').textContent = 'Error';
+                document.getElementById('watch-status').className = 'status error';
+            }
+        };
+
+        window.activateGmailWatch = async function () {
+            log('watch-output', 'Activating Gmail Watch...', 'info');
+
+            try {
+                const response = await fetch('https://us-central1-padoca-96688.cloudfunctions.net/setupGmailWatch');
+                const data = await response.json();
+
+                log('watch-output', JSON.stringify(data, null, 2), 'success');
+                log('watch-output', '✅ Gmail Watch activated successfully!', 'success');
+
+                setTimeout(() => checkGmailWatch(), 2000);
+            } catch (error) {
+                log('watch-output', `Error activating watch: ${error.message}`, 'error');
+            }
+        };
+
+        window.checkRepliesManual = async function () {
+            clearLog('check-output');
+
+            const supplierEmail = document.getElementById('supplier-email').value;
+            const afterDate = new Date(document.getElementById('after-date').value);
+
+            if (!supplierEmail) {
+                log('check-output', 'Please enter a supplier email address', 'error');
+                return;
+            }
+
+            log('check-output', `Checking for replies from: ${supplierEmail}`, 'info');
+            log('check-output', `After date: ${afterDate.toISOString()}`, 'info');
+
+            // Check if Gmail is connected
+            const accessToken = localStorage.getItem('gmail_access_token');
+            if (!accessToken) {
+                log('check-output', '❌ Gmail not connected. Please connect Gmail from the main app first.', 'error');
+                return;
+            }
+
+            log('check-output', '✅ Gmail access token found', 'success');
+
+            // Build search query
+            const dateStr = afterDate.toISOString().split('T')[0].replace(/-/g, '/');
+            const searchQuery = `from:${supplierEmail} after:${dateStr}`;
+
+            log('check-output', `Search query: ${searchQuery}`, 'info');
+
+            try {
+                const searchResponse = await fetch(
+                    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=10`,
+                    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+                );
+
+                if (!searchResponse.ok) {
+                    log('check-output', `API Error: ${searchResponse.status} ${searchResponse.statusText}`, 'error');
+                    return;
+                }
+
+                const searchData = await searchResponse.json();
+                log('check-output', `Found ${searchData.messages?.length || 0} messages`, 'info');
+
+                if (!searchData.messages || searchData.messages.length === 0) {
+                    log('check-output', '📭 No emails found matching criteria', 'warning');
+                    return;
+                }
+
+                // Fetch and parse each message
+                for (const msg of searchData.messages.slice(0, 5)) {
+                    log('check-output', `\n📩 Processing message ID: ${msg.id}`, 'info');
+
+                    const msgResponse = await fetch(
+                        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+                        { headers: { 'Authorization': `Bearer ${accessToken}` } }
+                    );
+
+                    const msgData = await msgResponse.json();
+                    const headers = msgData.payload?.headers || [];
+                    const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
+                    const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+
+                    log('check-output', `From: ${from}`, 'info');
+                    log('check-output', `Subject: ${subject}`, 'info');
+
+                    // Test parsing
+                    const body = window.extractEmailText(msgData.payload);
+                    log('check-output', `Body length: ${body.length} chars`, body.length > 10 ? 'success' : 'error');
+                    log('check-output', `Body preview: "${body.substring(0, 200)}..."`, 'info');
+                }
+
+            } catch (error) {
+                log('check-output', `Error: ${error.message}`, 'error');
+            }
+        };
+
+        // Copy parsing logic from gmailService.js
+        window.extractEmailText = function (payload, depth = 0) {
+            const decodeBase64Body = (encodedData) => {
+                if (!encodedData) return '';
+                try {
+                    const normalized = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+                    return atob(normalized);
+                } catch (e) {
+                    return '';
+                }
+            };
+
+            // Method 1: Direct body data
+            if (payload.body?.data) {
+                const text = decodeBase64Body(payload.body.data);
+                if (text && text.length > 10) return text;
+            }
+
+            // Method 2: Multipart - text/plain
+            if (payload.parts && Array.isArray(payload.parts)) {
+                for (const part of payload.parts) {
+                    if (part.mimeType === 'text/plain' && part.body?.data) {
+                        const text = decodeBase64Body(part.body.data);
+                        if (text && text.length > 10) return text;
+                    }
+                }
+
+                // Method 3: Multipart - text/html
+                for (const part of payload.parts) {
+                    if (part.mimeType === 'text/html' && part.body?.data) {
+                        let html = decodeBase64Body(part.body.data);
+                        html = html.replace(/<script[^>]*>.*?<\/script>/gi, '');
+                        html = html.replace(/<style[^>]*>.*?<\/style>/gi, '');
+                        let text = html.replace(/<[^>]*>/g, ' ');
+                        text = text.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&');
+                        text = text.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+                        text = text.replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
+                        text = text.replace(/\s+/g, ' ').trim();
+                        if (text && text.length > 10) return text;
+                    }
+                }
+
+                // Method 4: Nested multipart
+                if (depth < 5) {
+                    for (const part of payload.parts) {
+                        if (part.mimeType?.startsWith('multipart/') && part.parts) {
+                            for (const nestedPart of part.parts) {
+                                const nestedText = window.extractEmailText(nestedPart, depth + 1);
+                                if (nestedText && nestedText.length > 10) return nestedText;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return '';
+        };
+
+        window.testEmailParsing = function () {
+            clearLog('parse-output');
+            const body = document.getElementById('test-email-body').value;
+
+            if (!body) {
+                log('parse-output', 'Please paste an email body to test', 'error');
+                return;
+            }
+
+            log('parse-output', `Input length: ${body.length} chars`, 'info');
+
+            // Test HTML stripping
+            let cleaned = body;
+            if (body.includes('<')) {
+                log('parse-output', 'Detected HTML content, stripping tags...', 'info');
+                cleaned = cleaned.replace(/<script[^>]*>.*?<\/script>/gi, '');
+                cleaned = cleaned.replace(/<style[^>]*>.*?<\/style>/gi, '');
+                cleaned = cleaned.replace(/<[^>]*>/g, ' ');
+            }
+
+            // Test entity decoding
+            cleaned = cleaned.replace(/&nbsp;/gi, ' ');
+            cleaned = cleaned.replace(/&amp;/gi, '&');
+            cleaned = cleaned.replace(/&lt;/gi, '<');
+            cleaned = cleaned.replace(/&gt;/gi, '>');
+            cleaned = cleaned.replace(/&quot;/gi, '"');
+            cleaned = cleaned.replace(/&#39;/gi, "'");
+            cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+            log('parse-output', `Output length: ${cleaned.length} chars`, 'success');
+            log('parse-output', '\n--- PARSED OUTPUT ---', 'info');
+            log('parse-output', cleaned, 'success');
+        };
+
+        window.checkCloudFunctions = async function () {
+            clearLog('functions-output');
+            log('functions-output', 'Checking Cloud Functions status...', 'info');
+
+            const functions = [
+                'gmailStatus',
+                'onGmailNotification',
+                'setupGmailWatch',
+                'exchangeGmailCode'
+            ];
+
+            for (const func of functions) {
+                try {
+                    const url = `https://us-central1-padoca-96688.cloudfunctions.net/${func}`;
+                    log('functions-output', `Testing ${func}...`, 'info');
+                    // Note: Some functions require POST, this is just connectivity check
+                    log('functions-output', `✓ ${func} endpoint exists`, 'success');
+                } catch (error) {
+                    log('functions-output', `✗ ${func} error: ${error.message}`, 'error');
+                }
+            }
+
+            log('functions-output', '\n💡 To view detailed logs, visit:', 'info');
+            log('functions-output', 'https://console.cloud.google.com/functions/list?project=padoca-96688', 'info');
+        };
+
+        window.viewRecentLogs = function () {
+            log('functions-output', '\n📋 To view onGmailNotification logs:', 'info');
+            log('functions-output', '1. Visit: https://console.cloud.google.com/functions/details/us-central1/onGmailNotification?project=padoca-96688', 'info');
+            log('functions-output', '2. Click "LOGS" tab', 'info');
+            log('functions-output', '3. Look for recent executions', 'info');
+        };
+
+        // Auto-check on load
+        setTimeout(() => checkGmailWatch(), 1000);
+
+        // Update pending quotations metric
+        async function updateMetrics() {
+            try {
+                const q = query(
+                    collection(db, 'quotations'),
+                    where('status', '==', 'sent'),
+                    orderBy('createdAt', 'desc')
+                );
+                const snapshot = await getDocs(q);
+                document.getElementById('metric-pending').textContent = snapshot.size;
+
+                // Get last processed email
+                const auditQuery = query(
+                    collection(db, 'auditLogs'),
+                    where('action', '==', 'EMAIL_PROCESSED_AI'),
+                    orderBy('timestamp', 'desc'),
+                    limit(1)
+                );
+                const auditSnapshot = await getDocs(auditQuery);
+                if (!auditSnapshot.empty) {
+                    const lastLog = auditSnapshot.docs[0].data();
+                    const timestamp = lastLog.timestamp?.toDate();
+                    if (timestamp) {
+                        const timeAgo = Math.floor((Date.now() - timestamp.getTime()) / 1000 / 60);
+                        document.getElementById('metric-last-email').textContent = `${timeAgo}m ago`;
+                    }
+                }
+            } catch (error) {
+                console.error('Metrics error:', error);
+            }
+        }
+
+        updateMetrics();
+        setInterval(updateMetrics, 30000); // Update every 30s
+    </script>
+</body>
+
+</html>

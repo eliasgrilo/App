@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
+import { StockService } from '../services/stockService'
 
 /**
  * useForecasting - Apple-Quality Time Series Forecasting Hook
  * Predicts future stock levels and suggests restock timing
+ * Uses centralized StockService for consistent stock calculations
  */
 
 /**
@@ -92,8 +94,9 @@ export const useForecasting = (product, options = {}) => {
         if (!product) return null
 
         const movements = product.movements || []
-        const currentStock = product.currentStock || 0
-        const minStock = product.minStock || 0
+        // Use centralized StockService for consistent values
+        const currentStock = StockService.getCurrentStock(product)
+        const minStock = StockService.getMinStock(product)
         const unit = product.unit || 'un'
 
         // Calculate consumption metrics
@@ -159,8 +162,9 @@ export const useBatchForecasting = (products, options = {}) => {
             product,
             forecast: (() => {
                 const movements = product.movements || []
-                const currentStock = product.currentStock || 0
-                const minStock = product.minStock || 0
+                // Use centralized StockService for consistent values
+                const currentStock = StockService.getCurrentStock(product)
+                const minStock = StockService.getMinStock(product)
                 const dailyRate = calculateConsumptionRate(movements, 30)
                 const daysUntilStockout = predictStockout(currentStock, dailyRate)
                 const restock = suggestRestockDate(currentStock, dailyRate, minStock, options.leadTimeDays || 3)

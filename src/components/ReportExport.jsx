@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
  * Features: CSV export, date filtering, quick presets
  */
 
-const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0)
+// Currency formatting - CAD (Canadian Dollar)
+const formatCurrency = (val) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val || 0)
 const formatDateISO = (d) => d ? new Date(d).toISOString().split('T')[0] : ''
 
 // Preset Button
@@ -17,8 +18,8 @@ function PresetButton({ label, active, onClick }) {
             whileTap={{ scale: 0.98 }}
             onClick={onClick}
             className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${active
-                    ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20'
-                    : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-violet-100 hover:text-violet-600 dark:hover:bg-violet-500/20'
+                ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20'
+                : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-violet-100 hover:text-violet-600 dark:hover:bg-violet-500/20'
                 }`}
         >
             {label}
