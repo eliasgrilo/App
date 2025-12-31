@@ -20,6 +20,66 @@ import { PriceHistoryService } from '../services/priceHistoryService'
 import { formatCurrency } from '../services/formatService'
 
 // ═══════════════════════════════════════════════════════════════
+// SEMANTIC ALIGNMENT BANNER - Interactive Name Confirmation
+// ═══════════════════════════════════════════════════════════════
+
+function SemanticAlignmentBanner({ suggestion, onAction }) {
+    if (!suggestion) return null
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: -10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -10, height: 0 }}
+            className="overflow-hidden"
+        >
+            <div
+                className="mx-4 mb-3 p-4 rounded-2xl border border-indigo-500/30"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1))',
+                    backdropFilter: 'blur(10px)'
+                }}
+            >
+                {/* Header */}
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Mapeamento Semântico</span>
+                        <p className="text-white/80 text-sm">{suggestion.messageShort}</p>
+                    </div>
+                    <span className="ml-auto text-xs text-indigo-400/70 font-medium">
+                        {suggestion.data.confidencePercent}% match
+                    </span>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                    {suggestion.options.map((option) => (
+                        <motion.button
+                            key={option.id}
+                            onClick={() => onAction(option.action)}
+                            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5
+                                ${option.action === 'UPDATE_NAME'
+                                    ? 'bg-indigo-500 text-white hover:bg-indigo-400'
+                                    : 'bg-white/10 text-white/80 hover:bg-white/15'
+                                }`}
+                            whileTap={{ scale: 0.97 }}
+                        >
+                            <span>{option.icon}</span>
+                            <span>{option.label}</span>
+                        </motion.button>
+                    ))}
+                </div>
+            </div>
+        </motion.div>
+    )
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SCANNER STATES
 // ═══════════════════════════════════════════════════════════════
 
@@ -316,6 +376,53 @@ function ItemReviewList({
     onCancel,
     isCommitting
 }) {
+    // Track which items have pending semantic alignment decisions
+    const [pendingSuggestions, setPendingSuggestions] = useState({})
+
+    // Generate suggestions for items with matches that need review
+    useEffect(() => {
+        const suggestions = {}
+        items.forEach((item, index) => {
+            // Skip if already has alignment decision or if already matched with high confidence
+            if (item.semanticAlignment || item.status === 'matched') return
+
+            // Check if this item has a match that needs confirmation
+            if (item.matchResult?.matchFound && item.matchResult?.confidence >= 0.7) {
+                const suggestion = InvoiceScannerService.generateSuggestion(
+                    item.rawName,
+                    item.matchResult.matchedProduct,
+                    item.matchResult.confidence
+                )
+                if (suggestion) {
+                    suggestions[index] = suggestion
+                }
+            }
+        })
+        setPendingSuggestions(suggestions)
+    }, [items])
+
+    // Handle alignment action for an item
+    const handleAlignmentAction = useCallback((itemIndex, action) => {
+        const suggestion = pendingSuggestions[itemIndex]
+        if (!suggestion) return
+
+        const item = items[itemIndex]
+        const alignedItem = InvoiceScannerService.applyAlignment(item, action, suggestion)
+
+        // Update the item via parent callback
+        onItemUpdate(itemIndex, alignedItem)
+
+        // Remove from pending
+        setPendingSuggestions(prev => {
+            const next = { ...prev }
+            delete next[itemIndex]
+            return next
+        })
+    }, [items, pendingSuggestions, onItemUpdate])
+
+    // Find the first item index with a pending suggestion
+    const firstPendingSuggestionIndex = Object.keys(pendingSuggestions).map(Number)[0] ?? null
+
     const getStatusColor = (status) => {
         switch (status) {
             case 'matched': return 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
@@ -370,6 +477,16 @@ function ItemReviewList({
                     </div>
                 </div>
             </div>
+
+            {/* Semantic Alignment Banner - Shows when AI finds matches needing confirmation */}
+            <AnimatePresence>
+                {firstPendingSuggestionIndex !== null && (
+                    <SemanticAlignmentBanner
+                        suggestion={pendingSuggestions[firstPendingSuggestionIndex]}
+                        onAction={(action) => handleAlignmentAction(firstPendingSuggestionIndex, action)}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Scrollable Items */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">

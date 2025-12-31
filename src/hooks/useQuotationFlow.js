@@ -141,7 +141,16 @@ export const useQuotationFlow = (options = {}) => {
                     try {
                         await FirebaseService.updateQuotation?.(quotationId, updatedQuotation)
                     } catch (e) {
-                        console.warn('Firestore sync failed:', e)
+                        console.error('❌ Firestore sync failed:', e)
+                        // Emit event for monitoring/retry - allows external error tracking
+                        window.dispatchEvent(new CustomEvent('firestore-sync-error', {
+                            detail: {
+                                quotationId,
+                                error: e.message || 'Unknown error',
+                                timestamp: Date.now(),
+                                operation: 'update'
+                            }
+                        }))
                     }
                 }
 

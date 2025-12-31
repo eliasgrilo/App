@@ -1135,7 +1135,12 @@ exports.onGmailNotification = functions.pubsub
                             };
                         });
 
-                        // Update quotation with AI-extracted data
+                        // ═══════════════════════════════════════════════════
+                        // ATOMIC BATCH WRITE - All or nothing
+                        // ═══════════════════════════════════════════════════
+                        const batch = admin.firestore().batch();
+
+                        // 1. Update quotation with AI-extracted data
                         const updateData = {
                             status: newStatus,
                             replyFrom: from,
@@ -1144,12 +1149,12 @@ exports.onGmailNotification = functions.pubsub
                             replyDate: date,
                             replyMessageId: messageId,
                             replyReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
-                            responseReceivedAt: admin.firestore.FieldValue.serverTimestamp(), // BUG FIX: Add field expected by frontend
+                            responseReceivedAt: admin.firestore.FieldValue.serverTimestamp(),
                             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
 
                             // AI-extracted fields
                             aiProcessed: true,
-                            needsManualReview: needsManualReview, // FIX: Flag for frontend to show review UI
+                            needsManualReview: needsManualReview,
                             aiSuccess: aiResult.success,
                             quotedTotal: quotedTotal,
                             deliveryDate: aiData.deliveryDate || null,
@@ -1165,19 +1170,33 @@ exports.onGmailNotification = functions.pubsub
                             // Store AI analysis for reference
                             aiAnalysis: aiData,
 
-                            // BUG FIX: Update items with quoted prices (main fix)
+                            // Update items with quoted prices
                             items: updatedItems,
-                            // Also keep quotedItems for backwards compatibility
                             quotedItems: aiData.items || []
                         };
 
-                        await admin.firestore()
+                        const quotationRef = admin.firestore()
                             .collection('quotations')
-                            .doc(quotationId)
-                            .update(updateData);
+                            .doc(quotationId);
+                        batch.update(quotationRef, updateData);
 
-                        // Create detailed audit log
-                        await admin.firestore().collection('auditLogs').add({
+                        // 2. Create idempotency record (prevents reprocessing)
+                        const idempotencyRef = admin.firestore()
+                            .collection('emailIdempotency')
+                            .doc(messageId);
+                        batch.set(idempotencyRef, {
+                            messageId,
+                            quotationId,
+                            processedAt: admin.firestore.FieldValue.serverTimestamp(),
+                            senderEmail,
+                            subject
+                        });
+
+                        // 3. Create audit log
+                        const auditRef = admin.firestore()
+                            .collection('auditLogs')
+                            .doc();
+                        batch.set(auditRef, {
                             entityType: 'quotation',
                             entityId: quotationId,
                             action: 'EMAIL_PROCESSED_AI',
@@ -1196,6 +1215,9 @@ exports.onGmailNotification = functions.pubsub
                             timestamp: admin.firestore.FieldValue.serverTimestamp()
                         });
 
+                        // ATOMIC COMMIT - All writes succeed or all fail
+                        await batch.commit();
+
                         console.log(`✅ Quotation ${quotationId} auto-processed: ${newStatus}`);
                         console.log(`   💰 Total: ${quotedTotal}, 📅 Delivery: ${aiData.deliveryDate || 'N/A'}`);
                     } else {
@@ -1203,6 +1225,7 @@ exports.onGmailNotification = functions.pubsub
                     }
                 }
             }
+
 
             // Update last history ID
             await admin.firestore()

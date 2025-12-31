@@ -611,49 +611,49 @@ export default function Costs() {
                 </div>
             </section>
 
-            {/* Modal: Ultra-Compact Apple Pro Interface */}
+            {/* Modal: Apple Compact Pill */}
             <AnimatePresence>
                 {isModalOpen && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4"
+                        className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
                     >
-                        {/* Minimal Backdrop */}
+                        {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/20 dark:bg-black/60 backdrop-blur-sm"
                             onClick={closeModal}
                         />
 
-                        {/* Compact Modal Content - List Based */}
+                        {/* Apple Compact Pill */}
                         <motion.div
-                            initial={{ y: 50, opacity: 0 }}
+                            initial={{ y: '100%', opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: 50, opacity: 0 }}
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="relative bg-zinc-100 dark:bg-zinc-900 w-full max-w-sm rounded-2xl md:rounded-[2rem] shadow-2xl border border-zinc-200/50 dark:border-white/5 flex flex-col overflow-hidden max-h-[80vh]"
+                            exit={{ y: '100%', opacity: 0 }}
+                            transition={{ type: "spring", damping: 32, stiffness: 380 }}
+                            className="relative bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-3xl w-full max-w-[360px] rounded-t-[28px] md:rounded-[28px] shadow-[0_20px_60px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5)] border border-white/20 dark:border-white/10 flex flex-col overflow-hidden max-h-[85vh] md:max-h-[80vh]"
                         >
 
-                            {/* Minimal Drag Handle */}
+                            {/* Drag Handle - Apple delicate pill */}
                             <ModalScrollLock />
-                            <div className="md:hidden w-full flex justify-center pt-4 pb-1 shrink-0">
-                                <div className="w-8 h-1 rounded-full bg-zinc-300 dark:bg-zinc-800"></div>
+                            <div className="md:hidden w-full flex justify-center pt-2 pb-1 shrink-0">
+                                <div className="w-8 h-1 rounded-full bg-zinc-300/60 dark:bg-zinc-600/60"></div>
                             </div>
 
-                            {/* Compact Header */}
-                            <div className="px-6 py-4 flex justify-between items-center shrink-0">
-                                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                            {/* Header */}
+                            <div className="px-5 py-3 flex justify-between items-center shrink-0 border-b border-zinc-100/80 dark:border-white/5">
+                                <h3 className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
                                     {editingId ? 'Editar Despesa' : 'Nova Despesa'}
                                 </h3>
                                 <button
                                     onClick={closeModal}
-                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 touch-manipulation"
+                                    className="w-7 h-7 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-white transition-all active:scale-90"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
 

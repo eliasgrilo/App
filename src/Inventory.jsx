@@ -729,133 +729,72 @@ export default function Inventory() {
                 </div>
             </section>
 
-            {/* Add Item Modal - iOS Settings Style */}
+            {/* Add Item Modal - Apple Compact Pill */}
             <AnimatePresence>
                 {isAddingItem && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[99999] flex items-end md:items-start justify-center p-0 md:p-4 md:pt-40"
+                        className="fixed inset-0 z-[99999] flex items-end md:items-center justify-center p-0 md:p-4"
                     >
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm"
+                            className="absolute inset-0 bg-black/20 dark:bg-black/60 backdrop-blur-sm"
                             onClick={() => setIsAddingItem(false)}
                         />
                         <motion.div
                             initial={{ y: '100%', opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             exit={{ y: '100%', opacity: 0 }}
-                            transition={{ type: "spring", damping: 30, stiffness: 350 }}
-                            className="relative bg-zinc-100 dark:bg-zinc-900 w-full max-w-md rounded-t-[2rem] md:rounded-[2rem] shadow-2xl border border-zinc-200/50 dark:border-white/5 flex flex-col overflow-hidden max-h-[90vh] md:max-h-[80vh]"
+                            transition={{ type: "spring", damping: 32, stiffness: 380 }}
+                            className="relative bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-3xl w-full max-w-[380px] rounded-t-[28px] md:rounded-[28px] shadow-[0_20px_60px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5)] border border-white/20 dark:border-white/10 flex flex-col overflow-hidden max-h-[85vh] md:max-h-[80vh]"
                             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                         >
                             <ModalScrollLock />
 
-                            {/* Drag Handle - Mobile */}
-                            <div className="md:hidden flex justify-center pt-3 pb-1">
-                                <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+                            {/* Drag Handle - Apple delicate pill */}
+                            <div className="md:hidden flex justify-center pt-2 pb-1">
+                                <div className="w-8 h-1 rounded-full bg-zinc-300/60 dark:bg-zinc-600/60" />
                             </div>
 
                             {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+                            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100/80 dark:border-white/5">
                                 <div>
-                                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Novo Item</h2>
-                                    <p className="text-xs text-zinc-500 mt-0.5">Adicionar ao estoque</p>
+                                    <h2 className="text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">Novo Item</h2>
+                                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Adicionar ao estoque</p>
                                 </div>
                                 <button
                                     onClick={() => setIsAddingItem(false)}
-                                    className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
+                                    className="w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-all active:scale-90"
                                 >
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
 
-                            {/* Scrollable Content */}
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            {/* Scrollable Content - Apple Inset Grouped */}
+                            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
 
-                                {/* Item Name */}
-                                <div>
-                                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Nome do Item</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/50 transition-all placeholder:text-zinc-400"
-                                        placeholder="Ex: Farinha de Trigo"
-                                        value={newItem.name}
-                                        onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
-                                    />
-                                </div>
-
-                                {/* Package Info Grid */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Qtd/Pacote</label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                inputMode="decimal"
-                                                className="flex-1 px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
-                                                placeholder="25"
-                                                value={newItem.packageQuantity}
-                                                onChange={(e) => setNewItem(prev => ({ ...prev, packageQuantity: e.target.value }))}
-                                            />
-                                            <select
-                                                className="w-20 px-2 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
-                                                value={newItem.unit}
-                                                onChange={(e) => setNewItem(prev => ({ ...prev, unit: e.target.value }))}
-                                            >
-                                                <option value="kg">kg</option>
-                                                <option value="g">g</option>
-                                                <option value="L">L</option>
-                                                <option value="ml">ml</option>
-                                                <option value="un">un</option>
-                                                <option value="cx">cx</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Nº Pacotes</label>
+                                {/* Basic Info Group */}
+                                <div className="bg-[#F2F2F7]/50 dark:bg-[#2C2C2E]/50 rounded-[14px] overflow-hidden border border-black/5 dark:border-white/5 divide-y divide-zinc-200/50 dark:divide-zinc-700/50">
+                                    <div className="flex items-center px-4 py-2.5">
+                                        <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0">Nome</label>
                                         <input
-                                            type="number"
-                                            min="1"
-                                            inputMode="numeric"
-                                            className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
-                                            placeholder="1"
-                                            value={newItem.packageCount}
-                                            onChange={(e) => setNewItem(prev => ({ ...prev, packageCount: e.target.value }))}
+                                            type="text"
+                                            className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-300 text-right"
+                                            placeholder="Obrigatório"
+                                            value={newItem.name}
+                                            onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
                                         />
                                     </div>
-                                </div>
-
-                                {/* Price */}
-                                <div>
-                                    <label className="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2">Preço por Pacote</label>
-                                    <div className="relative">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-lg">$</span>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            inputMode="decimal"
-                                            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-zinc-900 dark:text-white text-xl font-bold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all"
-                                            placeholder="0,00"
-                                            value={newItem.pricePerUnit}
-                                            onChange={(e) => setNewItem(prev => ({ ...prev, pricePerUnit: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Category & Subcategory */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className={newItem.category !== 'Ingredientes' ? 'col-span-2' : ''}>
-                                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Categoria</label>
+                                    <div className="flex items-center px-4 py-2.5">
+                                        <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0">Categoria</label>
                                         <select
-                                            className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                                            className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none text-right appearance-none cursor-pointer"
                                             value={newItem.category}
                                             onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value, subcategory: e.target.value === 'Ingredientes' ? 'Outros Ingredientes' : null }))}
                                         >
@@ -865,10 +804,10 @@ export default function Inventory() {
                                         </select>
                                     </div>
                                     {newItem.category === 'Ingredientes' && (
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Subcategoria</label>
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0">Subcategoria</label>
                                             <select
-                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none text-right appearance-none cursor-pointer"
                                                 value={newItem.subcategory}
                                                 onChange={(e) => setNewItem(prev => ({ ...prev, subcategory: e.target.value }))}
                                             >
@@ -880,58 +819,115 @@ export default function Inventory() {
                                     )}
                                 </div>
 
-                                {/* Supplier */}
+                                {/* Package Info Group */}
                                 <div>
-                                    <label className="block text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-2">Fornecedor</label>
-                                    <div className="relative">
+                                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 px-2 mb-1.5">Embalagem</p>
+                                    <div className="bg-[#F2F2F7]/50 dark:bg-[#2C2C2E]/50 rounded-[14px] overflow-hidden border border-black/5 dark:border-white/5 divide-y divide-zinc-200/50 dark:divide-zinc-700/50">
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0">Qtd</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                inputMode="decimal"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none text-right placeholder:text-zinc-300"
+                                                placeholder="25"
+                                                value={newItem.packageQuantity}
+                                                onChange={(e) => setNewItem(prev => ({ ...prev, packageQuantity: e.target.value }))}
+                                            />
+                                            <select
+                                                className="ml-2 bg-transparent text-[15px] font-medium text-zinc-500 outline-none appearance-none cursor-pointer"
+                                                value={newItem.unit}
+                                                onChange={(e) => setNewItem(prev => ({ ...prev, unit: e.target.value }))}
+                                            >
+                                                <option value="kg">kg</option>
+                                                <option value="g">g</option>
+                                                <option value="L">L</option>
+                                                <option value="ml">ml</option>
+                                                <option value="un">un</option>
+                                                <option value="cx">cx</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0">Nº Pacotes</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                inputMode="numeric"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none text-right placeholder:text-zinc-300"
+                                                placeholder="1"
+                                                value={newItem.packageCount}
+                                                onChange={(e) => setNewItem(prev => ({ ...prev, packageCount: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-emerald-500 shrink-0">Preço</label>
+                                            <span className="text-emerald-500 text-[15px] font-medium">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                inputMode="decimal"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none text-right placeholder:text-zinc-300"
+                                                placeholder="0.00"
+                                                value={newItem.pricePerUnit}
+                                                onChange={(e) => setNewItem(prev => ({ ...prev, pricePerUnit: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Supplier Group */}
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 px-2 mb-1.5">Fornecedor</p>
+                                    <div className="bg-[#F2F2F7]/50 dark:bg-[#2C2C2E]/50 rounded-[14px] overflow-hidden border border-black/5 dark:border-white/5 relative">
                                         {newItem.supplierId ? (
-                                            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20">
-                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg">
+                                            <div className="flex items-center px-4 py-2.5">
+                                                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold mr-3">
                                                     {newItem.supplierName?.charAt(0)?.toUpperCase()}
                                                 </div>
-                                                <span className="flex-1 font-bold text-violet-700 dark:text-violet-300">{newItem.supplierName}</span>
+                                                <span className="flex-1 text-[15px] font-medium text-zinc-900 dark:text-white">{newItem.supplierName}</span>
                                                 <button
                                                     onClick={() => { setNewItem(prev => ({ ...prev, supplierId: null, supplierName: '' })); setSupplierSearchQuery('') }}
-                                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-violet-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
+                                                    className="w-6 h-6 rounded-md flex items-center justify-center text-zinc-400 hover:text-rose-500 transition-colors"
                                                 >
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                                     </svg>
                                                 </button>
                                             </div>
                                         ) : (
                                             <>
-                                                <input
-                                                    type="text"
-                                                    className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/30 transition-all placeholder:text-zinc-400"
-                                                    placeholder="Buscar fornecedor..."
-                                                    value={supplierSearchQuery}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value
-                                                        setSupplierSearchQuery(value)
-                                                        setShowSupplierDropdown(true)
-                                                        // Auto-select only if exact match (same name AND same word count)
-                                                        const exactMatch = suppliers.find(s => isExactSupplierMatch(value, s.name))
-                                                        if (exactMatch) {
-                                                            setNewItem(prev => ({ ...prev, supplierId: exactMatch.id, supplierName: exactMatch.name }))
-                                                            setSupplierSearchQuery('')
-                                                            setShowSupplierDropdown(false)
-                                                        }
-                                                    }}
-                                                    onFocus={() => setShowSupplierDropdown(true)}
-                                                />
+                                                <div className="flex items-center px-4 py-2.5">
+                                                    <input
+                                                        type="text"
+                                                        className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-400"
+                                                        placeholder="Buscar fornecedor..."
+                                                        value={supplierSearchQuery}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value
+                                                            setSupplierSearchQuery(value)
+                                                            setShowSupplierDropdown(true)
+                                                            const exactMatch = suppliers.find(s => isExactSupplierMatch(value, s.name))
+                                                            if (exactMatch) {
+                                                                setNewItem(prev => ({ ...prev, supplierId: exactMatch.id, supplierName: exactMatch.name }))
+                                                                setSupplierSearchQuery('')
+                                                                setShowSupplierDropdown(false)
+                                                            }
+                                                        }}
+                                                        onFocus={() => setShowSupplierDropdown(true)}
+                                                    />
+                                                </div>
                                                 {showSupplierDropdown && filteredSuppliers.length > 0 && (
-                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl max-h-40 overflow-y-auto z-50">
+                                                    <div className="border-t border-zinc-200/50 dark:border-zinc-700/50 max-h-32 overflow-y-auto">
                                                         {filteredSuppliers.map(supplier => (
                                                             <button
                                                                 key={supplier.id}
                                                                 onClick={() => { setNewItem(prev => ({ ...prev, supplierId: supplier.id, supplierName: supplier.name })); setSupplierSearchQuery(''); setShowSupplierDropdown(false) }}
-                                                                className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                                                                className="w-full px-4 py-2.5 text-left flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                                                             >
-                                                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                                                                <div className="w-5 h-5 rounded bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
                                                                     {supplier.name?.charAt(0)?.toUpperCase()}
                                                                 </div>
-                                                                <span className="font-bold text-zinc-900 dark:text-white">{supplier.name}</span>
+                                                                <span className="text-[14px] text-zinc-900 dark:text-white">{supplier.name}</span>
                                                             </button>
                                                         ))}
                                                     </div>
@@ -941,113 +937,82 @@ export default function Inventory() {
                                     </div>
                                 </div>
 
-                                {/* Stock Limits */}
-                                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Limites de Estoque</h4>
-                                        <select
-                                            className="px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold uppercase tracking-wider border-none focus:outline-none focus:ring-2 focus:ring-amber-500/30 cursor-pointer appearance-none pr-6 bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20viewBox%3d%220%200%2020%2020%22%20fill%3d%22%23d97706%22%3e%3cpath%20fill-rule%3d%22evenodd%22%20d%3d%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%20clip-rule%3d%22evenodd%22%2f%3e%3c%2fsvg%3e')] bg-no-repeat bg-[right_0.3rem_center] bg-[length:1rem]"
-                                            value={newItem.unit}
-                                            onChange={(e) => setNewItem(prev => ({ ...prev, unit: e.target.value }))}
-                                        >
-                                            <option value="kg">kg</option>
-                                            <option value="g">g</option>
-                                            <option value="L">L</option>
-                                            <option value="ml">ml</option>
-                                            <option value="un">un</option>
-                                            <option value="cx">cx</option>
-                                        </select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Mínimo</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    inputMode="decimal"
-                                                    className="w-full px-3 py-3 pr-12 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
-                                                    placeholder="0"
-                                                    value={newItem.minStock}
-                                                    onChange={(e) => setNewItem(prev => ({ ...prev, minStock: e.target.value }))}
-                                                />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500/60 text-sm font-bold">{newItem.unit}</span>
-                                            </div>
+                                {/* Stock Limits Group */}
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wider font-semibold text-amber-500 px-2 mb-1.5">Alertas de Estoque</p>
+                                    <div className="bg-[#F2F2F7]/50 dark:bg-[#2C2C2E]/50 rounded-[14px] overflow-hidden border border-black/5 dark:border-white/5 divide-y divide-zinc-200/50 dark:divide-zinc-700/50">
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0">Mínimo</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                inputMode="decimal"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none text-right placeholder:text-zinc-300"
+                                                placeholder="0"
+                                                value={newItem.minStock}
+                                                onChange={(e) => setNewItem(prev => ({ ...prev, minStock: e.target.value }))}
+                                            />
+                                            <span className="ml-2 text-[13px] text-zinc-400">{newItem.unit}</span>
                                         </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Máximo</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    inputMode="decimal"
-                                                    className="w-full px-3 py-3 pr-12 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-500/20 text-zinc-900 dark:text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30 transition-all"
-                                                    placeholder="0"
-                                                    value={newItem.maxStock}
-                                                    onChange={(e) => setNewItem(prev => ({ ...prev, maxStock: e.target.value }))}
-                                                />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500/60 text-sm font-bold">{newItem.unit}</span>
-                                            </div>
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0">Máximo</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                inputMode="decimal"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none text-right placeholder:text-zinc-300"
+                                                placeholder="0"
+                                                value={newItem.maxStock}
+                                                onChange={(e) => setNewItem(prev => ({ ...prev, maxStock: e.target.value }))}
+                                            />
+                                            <span className="ml-2 text-[13px] text-zinc-400">{newItem.unit}</span>
                                         </div>
-                                    </div>
-                                    <p className="text-[10px] text-amber-600/60 mt-2 text-center">Deixe em 0 para desativar alertas</p>
-
-                                    {/* Auto-Quotation Toggle */}
-                                    {newItem.supplierId && newItem.minStock > 0 && (
-                                        <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-500/10">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h5 className="text-xs font-bold text-amber-700 dark:text-amber-300">Cotação Automática</h5>
-                                                    <p className="text-[10px] text-amber-600/60 mt-0.5">Solicitar cotação ao atingir estoque mínimo</p>
-                                                </div>
+                                        {newItem.supplierId && newItem.minStock > 0 && (
+                                            <div className="flex items-center justify-between px-4 py-2.5">
+                                                <span className="text-[13px] text-zinc-500 dark:text-zinc-400">Cotação Auto</span>
                                                 <button
                                                     type="button"
                                                     onClick={() => setNewItem(prev => ({ ...prev, enableAutoQuotation: !prev.enableAutoQuotation }))}
-                                                    className={`relative w-12 h-7 rounded-full transition-colors duration-300 ${newItem.enableAutoQuotation
-                                                        ? 'bg-emerald-500'
-                                                        : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                                                    className={`relative w-11 h-[26px] rounded-full transition-colors ${newItem.enableAutoQuotation ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
                                                 >
-                                                    <span
-                                                        className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${newItem.enableAutoQuotation ? 'translate-x-5' : ''}`}
-                                                    />
+                                                    <span className={`absolute top-[3px] left-[3px] w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${newItem.enableAutoQuotation ? 'translate-x-[18px]' : ''}`} />
                                                 </button>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-zinc-400 mt-1 px-2">Deixe em 0 para desativar alertas</p>
                                 </div>
 
-                                {/* Summary Preview */}
+                                {/* Summary - Minimal */}
                                 {newItem.packageQuantity && newItem.packageCount && (
-                                    <div className="p-4 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 border border-zinc-200 dark:border-zinc-700">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total</span>
-                                            <div className="text-right">
-                                                <div className="text-lg font-bold text-zinc-900 dark:text-white">
-                                                    {Number(newItem.packageQuantity) * Number(newItem.packageCount)} {newItem.unit}
-                                                </div>
-                                                {newItem.pricePerUnit && (
-                                                    <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                                                        {formatCurrency(Number(newItem.packageCount) * Number(newItem.pricePerUnit))}
-                                                    </div>
-                                                )}
-                                            </div>
+                                    <div className="flex items-center justify-between px-2 py-2">
+                                        <span className="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">Total</span>
+                                        <div className="text-right">
+                                            <span className="text-[17px] font-semibold text-zinc-900 dark:text-white">
+                                                {Number(newItem.packageQuantity) * Number(newItem.packageCount)} {newItem.unit}
+                                            </span>
+                                            {newItem.pricePerUnit && (
+                                                <span className="ml-2 text-[17px] font-semibold text-emerald-500">
+                                                    {formatCurrency(Number(newItem.packageCount) * Number(newItem.pricePerUnit))}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 )}
                             </div>
 
                             {/* Footer Actions */}
-                            <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex gap-3">
+                            <div className="px-4 py-3 border-t border-zinc-100/80 dark:border-white/5 flex gap-2">
                                 <button
                                     onClick={() => setIsAddingItem(false)}
-                                    className="flex-1 py-4 rounded-2xl font-bold text-sm text-zinc-600 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all active:scale-[0.98]"
+                                    className="flex-1 py-2.5 rounded-xl font-semibold text-[15px] text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 active:scale-[0.98] transition-transform"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={handleAddItem}
                                     disabled={!newItem.name.trim()}
-                                    className="flex-[2] py-4 rounded-2xl font-bold text-sm text-white bg-zinc-900 dark:bg-white dark:text-zinc-900 shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                                    className="flex-[2] py-2.5 rounded-xl font-semibold text-[15px] text-white bg-zinc-900 dark:bg-white dark:text-zinc-900 active:scale-[0.98] transition-transform disabled:opacity-40"
                                 >
                                     Adicionar
                                 </button>
@@ -1509,19 +1474,19 @@ export default function Inventory() {
                     </div>
                 </div>
             )}
-            {/* Stock Management - Genuine Apple Design */}
-            <section className="relative z-10 mt-8 mb-8">
+            {/* Stock Management - Refined Apple Design */}
+            <section className="relative z-10 mt-6 mb-6">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-                    className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-zinc-200/60 dark:border-white/10 shadow-2xl shadow-zinc-900/5 dark:shadow-black/20"
+                    transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl rounded-2xl p-5 md:p-6 border border-zinc-200/50 dark:border-white/5 shadow-xl shadow-zinc-900/[0.04] dark:shadow-black/20"
                 >
                     {/* Header - Clean Apple Typography */}
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center justify-between mb-5">
                         <div>
-                            <h2 className="text-2xl md:text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight">Níveis</h2>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Monitoramento de estoque</p>
+                            <h2 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight">Níveis</h2>
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 font-medium">Monitoramento de estoque</p>
                         </div>
                     </div>
 
@@ -1620,11 +1585,11 @@ export default function Inventory() {
                                     <div
                                         key={item.id}
                                         onClick={() => setConfiguringItem(item)}
-                                        className={`group p-4 rounded-2xl ${style.bg} cursor-pointer transition-all duration-200 hover:shadow-lg active:scale-[0.98]`}
+                                        className={`group p-3.5 rounded-xl ${style.bg} cursor-pointer transition-all duration-200 hover:shadow-md active:scale-[0.98]`}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${style.accent} flex items-center justify-center shadow-lg`}>
-                                                <span className="text-white text-sm font-bold tabular-nums">{total}</span>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${style.accent} flex items-center justify-center shadow-sm`}>
+                                                <span className="text-white text-sm font-semibold tabular-nums">{total}</span>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-semibold text-zinc-900 dark:text-white truncate">{item.name}</h4>

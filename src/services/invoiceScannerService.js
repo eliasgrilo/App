@@ -460,6 +460,131 @@ export function validateExtraction(invoiceData) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SEMANTIC ALIGNMENT - Interactive Name Update Suggestions
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Generate user-facing suggestion for name update when semantic match is found
+ * Apple-Google Symbiosis: AI suggests, user confirms, database learns
+ * 
+ * @param {string} rawName - Original name from invoice
+ * @param {Object} matchedProduct - Matched product from inventory
+ * @param {number} confidence - Match confidence (0-1)
+ * @returns {Object|null} Suggestion object or null if no suggestion needed
+ */
+export function generateNameUpdateSuggestion(rawName, matchedProduct, confidence) {
+    // Only suggest for medium-high confidence matches
+    if (confidence < 0.7 || !matchedProduct) return null
+
+    // Don't suggest if names are already identical
+    const normalizedRaw = rawName.trim().toLowerCase()
+    const normalizedMatched = matchedProduct.name.trim().toLowerCase()
+    if (normalizedRaw === normalizedMatched) return null
+
+    // Trigger haptic for semantic match
+    HapticService.trigger('semanticMatch')
+
+    return {
+        type: 'SEMANTIC_ALIGNMENT',
+        message: `Identifiquei que "${rawName}" corresponde a "${matchedProduct.name}". Deseja atualizar o nome para o padrão oficial?`,
+        messageShort: `"${rawName}" → "${matchedProduct.name}"?`,
+        options: [
+            {
+                id: 'UPDATE_NAME',
+                label: 'Sim, atualizar',
+                icon: '✓',
+                action: 'UPDATE_NAME',
+                haptic: 'approval'
+            },
+            {
+                id: 'KEEP_ORIGINAL',
+                label: 'Manter original',
+                icon: '○',
+                action: 'KEEP_ORIGINAL',
+                haptic: 'selection'
+            },
+            {
+                id: 'CREATE_NEW',
+                label: 'Criar como novo',
+                icon: '+',
+                action: 'CREATE_NEW',
+                haptic: 'selection'
+            }
+        ],
+        data: {
+            rawName,
+            canonicalName: matchedProduct.name,
+            matchedProductId: matchedProduct.id,
+            confidence,
+            confidencePercent: Math.round(confidence * 100)
+        }
+    }
+}
+
+/**
+ * Apply the semantic alignment decision to an item
+ * @param {Object} item - Scanned item
+ * @param {string} action - User's decision: UPDATE_NAME, KEEP_ORIGINAL, CREATE_NEW
+ * @param {Object} suggestion - Original suggestion object
+ * @returns {Object} Updated item
+ */
+export function applySemanticAlignment(item, action, suggestion) {
+    switch (action) {
+        case 'UPDATE_NAME':
+            // Update to canonical name and link to existing product
+            HapticService.trigger('approval')
+            return {
+                ...item,
+                canonicalName: suggestion.data.canonicalName,
+                rawName: item.rawName,
+                matchedProductId: suggestion.data.matchedProductId,
+                status: 'matched',
+                semanticAlignment: {
+                    action: 'UPDATE_NAME',
+                    originalName: item.rawName,
+                    updatedName: suggestion.data.canonicalName,
+                    appliedAt: new Date().toISOString()
+                }
+            }
+
+        case 'KEEP_ORIGINAL':
+            // Keep original but still link to matched product
+            HapticService.trigger('selection')
+            return {
+                ...item,
+                canonicalName: item.rawName,
+                matchedProductId: suggestion.data.matchedProductId,
+                status: 'matched',
+                semanticAlignment: {
+                    action: 'KEEP_ORIGINAL',
+                    originalName: item.rawName,
+                    suggestedName: suggestion.data.canonicalName,
+                    appliedAt: new Date().toISOString()
+                }
+            }
+
+        case 'CREATE_NEW':
+            // Create as new product, don't link
+            HapticService.trigger('selection')
+            return {
+                ...item,
+                canonicalName: normalizeProductName(item.rawName),
+                matchedProductId: null,
+                status: 'new',
+                semanticAlignment: {
+                    action: 'CREATE_NEW',
+                    originalName: item.rawName,
+                    rejectedMatch: suggestion.data.canonicalName,
+                    appliedAt: new Date().toISOString()
+                }
+            }
+
+        default:
+            return item
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SERVICE EXPORT
 // ═══════════════════════════════════════════════════════════════
 
@@ -475,6 +600,10 @@ export const InvoiceScannerService = {
     // Semantic matching
     matchProduct: matchProductSemantically,
     normalizeName: normalizeProductName,
+
+    // Semantic alignment (interactive)
+    generateSuggestion: generateNameUpdateSuggestion,
+    applyAlignment: applySemanticAlignment,
 
     // Validation
     validate: validateExtraction

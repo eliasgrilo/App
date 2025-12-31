@@ -885,7 +885,7 @@ export default function Suppliers() {
                 )
             })()}
 
-            {/* Add/Edit Modal */}
+            {/* Add/Edit Modal - Apple Compact Pill */}
             {createPortal(
                 <AnimatePresence>
                     {isModalOpen && (
@@ -893,106 +893,103 @@ export default function Suppliers() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[10000] flex items-start justify-center overflow-y-auto p-4"
-                            style={{ paddingTop: '80px', paddingBottom: '40px' }}
+                            className="fixed inset-0 z-[10000] flex items-end md:items-center justify-center p-0 md:p-4"
                         >
                             <ModalScrollLock />
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+                                className="absolute inset-0 bg-black/20 dark:bg-black/60 backdrop-blur-sm"
                                 onClick={() => setIsModalOpen(false)}
                             />
 
                             <motion.div
-                                initial={{ opacity: 0, y: 30, scale: 0.98 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 30, scale: 0.98 }}
-                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                className="relative w-full max-w-lg mx-4 my-6 bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl flex flex-col"
-                                style={{ maxHeight: 'calc(100vh - 100px)' }}
+                                initial={{ y: '100%', opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: '100%', opacity: 0 }}
+                                transition={{ type: "spring", damping: 32, stiffness: 380 }}
+                                className="relative w-full max-w-[360px] bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-3xl rounded-t-[28px] md:rounded-[28px] shadow-[0_20px_60px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5)] border border-white/20 dark:border-white/10 flex flex-col overflow-hidden max-h-[85vh] md:max-h-[80vh]"
                             >
+                                {/* Drag Handle - Apple delicate pill */}
+                                <div className="md:hidden flex justify-center pt-2 pb-1">
+                                    <div className="w-8 h-1 rounded-full bg-zinc-300/60 dark:bg-zinc-600/60" />
+                                </div>
+
                                 {/* Header */}
-                                <div className="sticky top-0 bg-white dark:bg-zinc-900 px-6 py-5 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between z-10 shrink-0">
-                                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
-                                        {editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+                                <div className="px-5 py-3 border-b border-zinc-100/80 dark:border-white/5 flex items-center justify-between shrink-0">
+                                    <h3 className="text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+                                        {editingSupplier ? 'Editar' : 'Novo Fornecedor'}
                                     </h3>
                                     <button
                                         onClick={() => setIsModalOpen(false)}
-                                        className="w-11 h-11 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 touch-manipulation"
+                                        className="w-7 h-7 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-white transition-all active:scale-90"
                                     >
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                     </button>
                                 </div>
 
-                                {/* Form */}
-                                <div className="p-6 space-y-5 overflow-y-auto flex-1">
-                                    {/* Contact Section */}
-                                    <div className="space-y-4">
-                                        <h4 className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Informações</h4>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Nome *</label>
+                                {/* Form - Compact */}
+                                <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                                    {/* Apple-style grouped list */}
+                                    <div className="bg-[#F2F2F7]/50 dark:bg-[#2C2C2E]/50 rounded-[14px] overflow-hidden border border-black/5 dark:border-white/5 divide-y divide-zinc-200/50 dark:divide-zinc-700/50">
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400">Nome</label>
                                             <input
                                                 type="text"
-                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                                                placeholder="Nome do fornecedor"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-300"
+                                                placeholder="Obrigatório"
                                                 value={formData.name}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                             />
                                         </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Empresa</label>
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400">Empresa</label>
                                             <input
                                                 type="text"
-                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                                                placeholder="Nome da empresa"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-300"
+                                                placeholder="Opcional"
                                                 value={formData.company}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
                                             />
                                         </div>
                                     </div>
 
-                                    {/* Communication Section */}
-                                    <div className="space-y-4 pt-4 border-t border-zinc-100 dark:border-white/5">
-                                        <h4 className="text-[10px] font-bold text-violet-500 uppercase tracking-widest">Contato</h4>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Telefone</label>
+                                    {/* Contact - Apple grouped list */}
+                                    <div className="bg-[#F2F2F7]/50 dark:bg-[#2C2C2E]/50 rounded-[14px] overflow-hidden border border-black/5 dark:border-white/5 divide-y divide-zinc-200/50 dark:divide-zinc-700/50">
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400">Telefone</label>
                                             <input
                                                 type="tel"
                                                 inputMode="tel"
-                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-300"
                                                 placeholder="(00) 00000-0000"
                                                 value={formData.phone}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                                             />
                                         </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Email</label>
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400">Email</label>
                                             <input
                                                 type="email"
                                                 inputMode="email"
-                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-300"
                                                 placeholder="email@exemplo.com"
                                                 value={formData.email}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                                             />
                                         </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Endereço</label>
+                                        <div className="flex items-center px-4 py-2.5">
+                                            <label className="w-20 text-[13px] text-zinc-500 dark:text-zinc-400">WhatsApp</label>
                                             <input
-                                                type="text"
-                                                className="w-full px-4 py-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                                                placeholder="Endereço completo"
-                                                value={formData.address}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                                                type="tel"
+                                                inputMode="tel"
+                                                className="flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-300"
+                                                placeholder="(00) 00000-0000"
+                                                value={formData.whatsapp}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))}
                                             />
                                         </div>
                                     </div>

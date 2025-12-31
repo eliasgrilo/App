@@ -8,13 +8,16 @@
  * - Debounced event handling (groups multiple products)
  * - Supplier grouping (one quotation per supplier)
  * - Haptic feedback for user awareness
+ * - Firestore-based distributed locks (prevents race conditions)
+ * 
+ * REFACTORED: Replaced in-memory Set with Firestore locks for reliability
  */
 
 import { onStockEvent } from './stockService'
 import { createQuotation, getQuotations, QUOTATION_STATUS } from './smartSourcingService'
 import { HapticService } from './hapticService'
 import { db } from '../firebase'
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore'
 
 // ═══════════════════════════════════════════════════════════════
 // FIRESTORE REAL-TIME DUPLICATE CHECK
@@ -53,7 +56,12 @@ const CONFIG = {
     MAX_ITEMS_PER_QUOTATION: 20,
     // System user for audit trail
     SYSTEM_USER_ID: 'system_auto_quotation',
-    SYSTEM_USER_NAME: 'Automação de Estoque'
+    SYSTEM_USER_NAME: 'Automação de Estoque',
+    // Lock TTL for processing (prevents stale locks)
+    // INCREASED: 3 minutes to handle slow network/Firestore operations
+    LOCK_TTL_MS: 180000, // 3 minutes (was 1 minute)
+    // Heartbeat interval for long operations
+    LOCK_HEARTBEAT_MS: 30000 // 30 seconds
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -66,12 +74,93 @@ const pendingBySupplier = new Map()
 // Debounce timer
 let debounceTimer = null
 
-// Track processed products to avoid duplicates
-const recentlyProcessed = new Set()
-const DUPLICATE_WINDOW_MS = 60000 // 1 minute
-
 // Initialization flag
 let isInitialized = false
+
+// ═══════════════════════════════════════════════════════════════
+// DISTRIBUTED LOCK - Firestore-based (survives page refresh)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Try to acquire a distributed lock for processing a product
+ * Prevents race conditions across page refreshes and concurrent requests
+ * 
+ * @param {string} productId - Product ID to lock
+ * @returns {Promise<boolean>} true if lock acquired, false if already locked
+ */
+async function acquireProcessingLock(productId) {
+    const lockRef = doc(db, 'quotationProcessingLocks', productId)
+    const now = Date.now()
+
+    try {
+        const lockDoc = await getDoc(lockRef)
+
+        if (lockDoc.exists()) {
+            const lockData = lockDoc.data()
+            // Check if lock is still valid (not expired)
+            if (lockData.expiresAt > now) {
+                console.log(`🔒 Lock exists for product ${productId}, expires in ${Math.round((lockData.expiresAt - now) / 1000)}s`)
+                return false
+            }
+            // Lock expired, we can take it
+            console.log(`🔓 Expired lock found for ${productId}, taking over`)
+        }
+
+        // Acquire or refresh lock
+        await setDoc(lockRef, {
+            productId,
+            acquiredAt: now,
+            expiresAt: now + CONFIG.LOCK_TTL_MS,
+            acquiredBy: 'autoQuotationService'
+        })
+
+        console.log(`🔐 Lock acquired for product ${productId}`)
+        return true
+
+    } catch (error) {
+        console.warn(`⚠️ Lock acquisition failed for ${productId}:`, error.message)
+        // On error, fail open - allow processing (better than stuck)
+        return true
+    }
+}
+
+/**
+ * Release a processing lock (cleanup after processing)
+ * @param {string} productId - Product ID to unlock
+ */
+async function releaseProcessingLock(productId) {
+    try {
+        const lockRef = doc(db, 'quotationProcessingLocks', productId)
+        await deleteDoc(lockRef)
+        console.log(`🔓 Lock released for product ${productId}`)
+    } catch (error) {
+        // Non-critical, lock will expire anyway
+        console.warn(`⚠️ Lock release failed for ${productId}:`, error.message)
+    }
+}
+
+/**
+ * Extend lock TTL for long-running operations (heartbeat)
+ * Call periodically during lengthy processing to prevent lock expiry
+ * @param {string} productId - Product ID to extend lock for
+ */
+async function extendLock(productId) {
+    const lockRef = doc(db, 'quotationProcessingLocks', productId)
+    const now = Date.now()
+
+    try {
+        await setDoc(lockRef, {
+            expiresAt: now + CONFIG.LOCK_TTL_MS,
+            lastHeartbeat: now,
+            acquiredBy: 'autoQuotationService'
+        }, { merge: true })
+        console.log(`💓 Lock heartbeat for product ${productId}`)
+    } catch (error) {
+        console.warn(`⚠️ Lock heartbeat failed for ${productId}:`, error.message)
+    }
+}
+
+
 
 // ═══════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -108,26 +197,18 @@ async function getSupplierDetails(supplierId) {
     }
 }
 
-/**
- * Clear duplicate tracking after window expires
- */
-function clearDuplicateTracking(productId) {
-    setTimeout(() => {
-        recentlyProcessed.delete(productId)
-    }, DUPLICATE_WINDOW_MS)
-}
-
 // ═══════════════════════════════════════════════════════════════
 // EVENT HANDLERS
 // ═══════════════════════════════════════════════════════════════
 
 /**
  * Handle incoming stock reorder event
+ * Uses Firestore-based distributed locks for duplicate prevention
  */
-function handleReorderEvent(eventType, data) {
+async function handleReorderEvent(eventType, data) {
     if (eventType !== 'NEEDS_REORDER') return
 
-    // BUG FIX #1: Check AI mode setting - skip if manual mode
+    // GUARD 1: Check AI mode setting - skip if manual mode
     try {
         const settings = JSON.parse(localStorage.getItem('padoca_settings_extra') || '{}')
         if (settings.aiMode === 'manual') {
@@ -136,7 +217,7 @@ function handleReorderEvent(eventType, data) {
         }
     } catch (e) { /* ignore parse errors */ }
 
-    // BUG FIX #2: Check enableAutoQuotation flag on item
+    // GUARD 2: Check enableAutoQuotation flag on item
     if (data.enableAutoQuotation === false) {
         console.log(`⏸️ Auto-quotation disabled for ${data.productName}`)
         return
@@ -144,19 +225,20 @@ function handleReorderEvent(eventType, data) {
 
     const { productId, supplierId } = data
 
-    // Avoid duplicate processing
-    if (recentlyProcessed.has(productId)) {
-        console.log(`⏭️ Skipping duplicate event for ${data.productName}`)
+    // GUARD 3: Validate required fields
+    if (!productId) {
+        console.warn(`⚠️ Product event has no product ID`)
+        return
+    }
+    if (!supplierId) {
+        console.warn(`⚠️ Product ${data.productName} has no supplier configured`)
         return
     }
 
-    // Mark as processing
-    recentlyProcessed.add(productId)
-    clearDuplicateTracking(productId)
-
-    // Validate required fields
-    if (!supplierId) {
-        console.warn(`⚠️ Product ${data.productName} has no supplier configured`)
+    // GUARD 4: Acquire distributed lock (prevents race conditions)
+    const hasLock = await acquireProcessingLock(productId)
+    if (!hasLock) {
+        console.log(`⏭️ Skipping duplicate event for ${data.productName} (locked)`)
         return
     }
 
@@ -167,6 +249,7 @@ function handleReorderEvent(eventType, data) {
 
     pendingBySupplier.get(supplierId).push(data)
     console.log(`📥 Queued ${data.productName} for supplier ${data.supplierName || supplierId}`)
+
 
     // Reset debounce timer
     clearTimeout(debounceTimer)
