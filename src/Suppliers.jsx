@@ -454,40 +454,77 @@ export default function Suppliers() {
 
     // Download document with binary integrity (Raw Blob)
     const downloadDocument = (doc) => {
-        // Convert base64 dataUrl to Blob for proper binary handling
-        const fetchAndDownload = async () => {
-            try {
-                const response = await fetch(doc.dataUrl)
-                const blob = await response.blob()
-
-                // Create blob URL with proper MIME type
-                const blobUrl = URL.createObjectURL(
-                    new Blob([blob], { type: doc.type || 'application/octet-stream' })
-                )
-
-                const link = document.createElement('a')
-                link.href = blobUrl
-                link.download = doc.name
-                // Set content type header attribute
-                link.setAttribute('type', 'application/octet-stream')
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
-
-                // Cleanup blob URL
-                URL.revokeObjectURL(blobUrl)
-            } catch (error) {
-                console.error('Download error:', error)
-                // Fallback to direct dataUrl download
-                const link = document.createElement('a')
-                link.href = doc.dataUrl
-                link.download = doc.name
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
+        try {
+            // Parse base64 data URL
+            const dataUrl = doc.dataUrl
+            if (!dataUrl) {
+                showToast('Arquivo não disponível', 'error')
+                return
             }
+
+            // Extract base64 data and MIME type from data URL
+            const matches = dataUrl.match(/^data:(.+?);base64,(.*)$/)
+            if (!matches) {
+                // If not a data URL, try direct download
+                const link = document.createElement('a')
+                link.href = dataUrl
+                link.download = doc.name
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                return
+            }
+
+            const mimeType = matches[1] || doc.type || 'application/octet-stream'
+            const base64Data = matches[2]
+
+            // Convert base64 to binary
+            const binaryString = atob(base64Data)
+            const bytes = new Uint8Array(binaryString.length)
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i)
+            }
+
+            // Create blob with correct MIME type
+            const blob = new Blob([bytes], { type: mimeType })
+            const blobUrl = URL.createObjectURL(blob)
+
+            // Ensure filename has correct extension
+            let fileName = doc.name
+            const mimeToExt = {
+                'application/pdf': '.pdf',
+                'image/jpeg': '.jpg',
+                'image/png': '.png',
+                'image/webp': '.webp',
+                'application/vnd.ms-excel': '.xls',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+                'application/msword': '.doc',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx'
+            }
+
+            const expectedExt = mimeToExt[mimeType]
+            if (expectedExt && !fileName.toLowerCase().endsWith(expectedExt)) {
+                // Add extension if missing
+                const hasAnyExt = /\.[a-zA-Z0-9]+$/.test(fileName)
+                if (!hasAnyExt) {
+                    fileName += expectedExt
+                }
+            }
+
+            const link = document.createElement('a')
+            link.href = blobUrl
+            link.download = fileName
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+
+            // Cleanup blob URL
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100)
+            showToast('Arquivo baixado!')
+        } catch (error) {
+            console.error('Download error:', error)
+            showToast('Erro ao baixar arquivo', 'error')
         }
-        fetchAndDownload()
     }
 
     // Contact actions
