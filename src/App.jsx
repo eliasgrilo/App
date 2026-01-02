@@ -11,7 +11,9 @@ import Suppliers from './Suppliers.jsx'
 import Products from './Products.jsx'
 import AI from './AI.jsx'
 import SettingsPanel, { SettingsButton } from './components/SettingsPanel'
-import { initAutoQuotation } from './services/autoQuotationService'
+import MonitoringDashboard from './components/MonitoringDashboard'
+
+import { DataHygieneClient } from './services/DataHygieneClient'
 
 /**
  * App - Premium Navigation Shell
@@ -112,11 +114,19 @@ const spring = {
   mass: 0.8
 }
 
-// Page transition variants
+// Page transition variants - Hardware accelerated for 60fps
 const pageVariants = {
-  initial: { opacity: 0, y: 8, scale: 0.99 },
-  enter: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -4, scale: 0.99 }
+  initial: { opacity: 0, x: 20 },
+  enter: {
+    opacity: 1,
+    x: 0,
+    transition: { type: 'spring', stiffness: 300, damping: 30 }
+  },
+  exit: {
+    opacity: 0,
+    x: -20,
+    transition: { duration: 0.15 }
+  }
 }
 
 export default function App() {
@@ -129,10 +139,14 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // Smooth initial load + Initialize auto-quotation service
+  // Smooth initial load + Initialize services
   useEffect(() => {
     setIsLoaded(true)
-    initAutoQuotation()
+
+    // Run data hygiene sweep first (clear zombie data)
+    DataHygieneClient.runHygieneSweep().then(results => {
+      console.log('🧹 Startup hygiene complete:', results)
+    })
   }, [])
 
   const handleViewChange = (newView) => {
@@ -252,16 +266,12 @@ export default function App() {
                     paddingRight: 'env(safe-area-inset-right)'
                   }}
                 >
-                  {/* Blurred Glass Background */}
+                  {/* Blurred Glass Background - Apple iOS Style */}
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-white/80 dark:bg-black/80"
-                    style={{
-                      backdropFilter: 'blur(40px) saturate(1.8)',
-                      WebkitBackdropFilter: 'blur(40px) saturate(1.8)'
-                    }}
+                    className="absolute inset-0 mobile-menu-overlay"
                   />
 
                   {/* Close Button */}
@@ -302,8 +312,10 @@ export default function App() {
                             exit={{ opacity: 0, x: 20 }}
                             transition={{
                               delay: index * 0.04,
-                              duration: 0.25,
-                              ease: [0.25, 0.46, 0.45, 0.94]
+                              type: 'spring',
+                              stiffness: 400,
+                              damping: 28,
+                              mass: 0.8
                             }}
                             onClick={() => handleViewChange(key)}
                             className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all ${isActive
@@ -344,7 +356,7 @@ export default function App() {
                     className="absolute bottom-6 left-0 right-0 text-center"
                   >
                     <p className="text-[10px] text-zinc-300 dark:text-zinc-700 uppercase tracking-widest font-medium">
-                      Padoca Pizza • 2024
+                      Padoca Pizza • {new Date().getFullYear()}
                     </p>
                   </motion.div>
                 </motion.div>
@@ -404,10 +416,11 @@ export default function App() {
           </div>
         </header>
 
-        {/* Content Area with Page Transitions */}
-        <AnimatePresence mode="wait">
+        {/* Content Area with Page Transitions - PopLayout for cross-fade */}
+        <AnimatePresence mode="popLayout" initial={false}>
           <motion.main
             key={view}
+            layout
             initial="initial"
             animate="enter"
             exit="exit"
@@ -440,6 +453,9 @@ export default function App() {
 
       {/* Settings Panel */}
       <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Monitoring Dashboard (dev-mode only) */}
+      <MonitoringDashboard />
     </div >
   )
 }

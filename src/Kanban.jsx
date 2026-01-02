@@ -3,6 +3,7 @@ import { useScrollLock } from './hooks/useScrollLock'
 import { createPortal } from 'react-dom'
 import { FirebaseService } from './services/firebaseService'
 import { motion, AnimatePresence, Reorder, useMotionValue } from 'framer-motion'
+import { List } from 'react-window'
 
 /**
  * Kanban Pro Max - Apple Quality Edition
@@ -651,43 +652,136 @@ const KanbanColumn = React.memo(({
                 </div>
             </div>
 
-            {/* Cards */}
-            <div data-cards-container className="flex-1 overflow-y-auto px-3 md:px-4 py-3 space-y-3 custom-scrollbar">
+            {/* Cards - Virtualized for Performance */}
+            <VirtualizedCardList
+                cards={col.cards}
+                colId={col.id}
+                dragState={dragState}
+                spring={spring}
+                zoomLevel={zoomLevel}
+                handleCardPointerDown={handleCardPointerDown}
+                isTargetCol={isTargetCol}
+                setAddingCardToCol={setAddingCardToCol}
+                setNewCardTitle={setNewCardTitle}
+            />
+        </motion.div>
+    )
+})
+
+// ═══════════════════════════════════════════════════════════════
+// VIRTUALIZED CARD LIST - 60fps PERFORMANCE OPTIMIZATION
+// ═══════════════════════════════════════════════════════════════
+
+const VIRTUALIZATION_THRESHOLD = 15 // Use windowing when cards exceed this count
+const CARD_HEIGHT = 100 // Approximate card height for virtualization
+
+const VirtualizedCardList = React.memo(({
+    cards, colId, dragState, spring, zoomLevel,
+    handleCardPointerDown, isTargetCol, setAddingCardToCol, setNewCardTitle
+}) => {
+    const containerRef = useRef(null)
+    const [containerHeight, setContainerHeight] = useState(400)
+
+    // Measure container height for virtualization
+    useEffect(() => {
+        if (containerRef.current) {
+            const resizeObserver = new ResizeObserver(entries => {
+                const height = entries[0]?.contentRect?.height
+                if (height) setContainerHeight(height - 60) // Reserve space for add button
+            })
+            resizeObserver.observe(containerRef.current)
+            return () => resizeObserver.disconnect()
+        }
+    }, [])
+
+    // Virtualized row renderer - recycles DOM elements
+    const VirtualizedRow = useCallback(({ index, style }) => {
+        const card = cards[index]
+        if (!card) return null
+
+        return (
+            <div style={{ ...style, paddingBottom: 12 }}>
+                <KanbanCard
+                    card={card}
+                    colId={colId}
+                    dragState={dragState}
+                    spring={spring}
+                    zoomLevel={zoomLevel}
+                    handleCardPointerDown={handleCardPointerDown}
+                    isVirtualized={true}
+                />
+            </div>
+        )
+    }, [cards, colId, dragState, spring, zoomLevel, handleCardPointerDown])
+
+    const useVirtualization = cards.length > VIRTUALIZATION_THRESHOLD
+
+    return (
+        <div
+            ref={containerRef}
+            data-cards-container
+            className="flex-1 overflow-y-auto px-3 md:px-4 py-3 space-y-3 custom-scrollbar"
+            style={{ willChange: 'scroll-position' }}
+        >
+            {useVirtualization ? (
+                // VIRTUALIZED MODE: Recycle DOM elements for 60fps
+                <List
+                    height={containerHeight}
+                    itemCount={cards.length}
+                    itemSize={CARD_HEIGHT}
+                    width="100%"
+                    overscanCount={3}
+                    style={{ overflow: 'visible' }}
+                >
+                    {VirtualizedRow}
+                </List>
+            ) : (
+                // STANDARD MODE: Use AnimatePresence for smooth animations
                 <AnimatePresence mode="popLayout">
-                    {col.cards.map((card, cardIndex) => (
+                    {cards.map((card) => (
                         <KanbanCard
                             key={card.id}
                             card={card}
-                            colId={col.id}
+                            colId={colId}
                             dragState={dragState}
                             spring={spring}
                             zoomLevel={zoomLevel}
                             handleCardPointerDown={handleCardPointerDown}
+                            isVirtualized={false}
                         />
                     ))}
                 </AnimatePresence>
+            )}
 
-                {/* End Gap */}
-                <AnimatePresence mode="sync">
-                    {dragState.isDragging && isTargetCol && dragState.active && (() => {
-                        const filteredCards = col.cards.filter(c => c.id !== dragState.active.id)
-                        return dragState.target.index >= filteredCards.length
-                    })() && (
-                            <motion.div key="kanban-gap" layoutId="kanban-gap" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: dragState.active.rect?.height || 80 }} exit={{ opacity: 0, height: 0 }} transition={spring.placeholder} className="pointer-events-none" />
-                        )}
-                </AnimatePresence>
+            {/* End Gap for Drag Target */}
+            <AnimatePresence mode="sync">
+                {dragState.isDragging && isTargetCol && dragState.active && (() => {
+                    const filteredCards = cards.filter(c => c.id !== dragState.active.id)
+                    return dragState.target.index >= filteredCards.length
+                })() && (
+                        <motion.div
+                            key="kanban-gap"
+                            layoutId="kanban-gap"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: dragState.active.rect?.height || 80 }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={spring.placeholder}
+                            className="pointer-events-none"
+                        />
+                    )}
+            </AnimatePresence>
 
-                {/* Add Card Button - Opens Modal */}
-                <button
-                    onClick={() => { setAddingCardToCol(col.id); setNewCardTitle('') }}
-                    className="w-full min-h-[48px] py-4 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.98] touch-manipulation"
-                >
-                    + Cartão
-                </button>
-            </div>
-        </motion.div>
+            {/* Add Card Button */}
+            <button
+                onClick={() => { setAddingCardToCol(colId); setNewCardTitle('') }}
+                className="w-full min-h-[48px] py-4 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-[0.98] touch-manipulation"
+            >
+                + Cartão
+            </button>
+        </div>
     )
 })
+
 
 const KanbanCard = React.memo(({ card, colId, dragState, spring, zoomLevel, handleCardPointerDown }) => {
     // Derived state for fluidity

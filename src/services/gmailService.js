@@ -14,7 +14,8 @@ const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID
 const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID
 const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
 
-const SENDER_EMAIL = 'padocainc@gmail.com'
+// BUG #9 FIX: Usar variável de ambiente para email (com fallback)
+const SENDER_EMAIL = import.meta.env.VITE_SENDER_EMAIL || 'padocainc@gmail.com'
 const SENDER_NAME = 'Padoca Pizza'
 
 // ============================================================
@@ -105,6 +106,8 @@ class GmailApiService {
         this.gsiLoaded = false
         this.gapiLoaded = false
         this.lastError = null
+        // BUG #2 FIX: Promise para evitar race condition em múltiplas chamadas init()
+        this._initPromise = null
 
         console.log('🔧 GmailApiService constructor called')
     }
@@ -193,8 +196,16 @@ class GmailApiService {
     }
 
     async init() {
+        // BUG #2 FIX: Retornar promise existente se já há uma inicialização em andamento
+        if (this._initPromise) return this._initPromise
         if (this.isInitialized && this.accessToken) return true
 
+        // Criar e armazenar a promise de inicialização
+        this._initPromise = this._doInit()
+        return this._initPromise
+    }
+
+    async _doInit() {
         try {
             await Promise.all([this.loadGSI(), this.loadGAPI()])
 
@@ -223,6 +234,7 @@ class GmailApiService {
 
         } catch (e) {
             this.lastError = e.message
+            this._initPromise = null // Reset para permitir retry
             console.error('❌ Gmail init erro:', e)
             return false
         }
@@ -425,20 +437,26 @@ class GmailApiService {
         }
     }
 
-    async sendEmailViaGmail({ to, subject, body }) {
+    async sendEmailViaGmail({ to, subject, body, requestId }) {
         if (!this.accessToken) {
             throw new Error('Gmail não conectado')
         }
 
+        // Embed Request-ID in subject for tracking (if provided)
+        const trackedSubject = requestId
+            ? `${subject} [REQ-${requestId}]`
+            : subject
+
         const email = [
             `To: ${to}`,
             `From: ${SENDER_NAME} <${this.getConnectedEmail()}>`,
-            `Subject: ${subject}`,
+            `Subject: ${trackedSubject}`,
             'MIME-Version: 1.0',
             'Content-Type: text/plain; charset=UTF-8',
+            requestId ? `X-Padoca-Request-ID: ${requestId}` : null,
             '',
             body
-        ].join('\r\n')
+        ].filter(Boolean).join('\r\n')
 
         const encodedMessage = btoa(unescape(encodeURIComponent(email)))
             .replace(/\+/g, '-')
@@ -463,8 +481,8 @@ class GmailApiService {
         }
 
         const result = await response.json()
-        console.log('✅ Email enviado via Gmail API:', result.id)
-        return { success: true, method: 'gmail', messageId: result.id }
+        console.log('✅ Email enviado via Gmail API:', result.id, requestId ? `[REQ-${requestId}]` : '')
+        return { success: true, method: 'gmail', messageId: result.id, requestId }
     }
 
     async sendEmailViaEmailJS({ to, subject, body, supplierName }) {
@@ -507,18 +525,18 @@ class GmailApiService {
         return { success: true, method: 'emailjs', status: response.status }
     }
 
-    async sendEmail({ to, subject, body, supplierName }) {
+    async sendEmail({ to, subject, body, supplierName, requestId }) {
         if (!to || !to.includes('@')) {
             throw new Error('Email do destinatário inválido')
         }
 
-        console.log('📧 Enviando email para:', to)
+        console.log('📧 Enviando email para:', to, requestId ? `[REQ-${requestId}]` : '')
 
         if (this.isConnected()) {
             const tokenValid = await this.validateToken()
             if (tokenValid) {
                 try {
-                    return await this.sendEmailViaGmail({ to, subject, body })
+                    return await this.sendEmailViaGmail({ to, subject, body, requestId })
                 } catch (e) {
                     console.warn('Gmail API falhou:', e.message)
                     this.lastError = `Gmail API: ${e.message}`

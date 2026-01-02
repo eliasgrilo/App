@@ -657,12 +657,25 @@ export default function Suppliers() {
                                     onClick={() => setSelectedSupplier(supplier)}
                                     className="bg-white dark:bg-zinc-950 rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/10 shadow-lg hover:shadow-2xl transition-all cursor-pointer group"
                                 >
-                                    {/* Avatar + Name */}
-                                    <div className="flex items-start gap-4 mb-4">
+                                    {/* Avatar + Name + Quick Edit */}
+                                    <div className="flex items-start gap-4 mb-4 relative">
+                                        {/* Quick Edit Button - Always visible for mobile accessibility */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                openEditModal(supplier)
+                                            }}
+                                            className="absolute top-0 right-0 w-10 h-10 rounded-xl bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm flex items-center justify-center text-zinc-400 hover:text-indigo-500 transition-all shadow-sm border border-zinc-200/50 dark:border-zinc-700/50 touch-manipulation z-10"
+                                            style={{ minWidth: '44px', minHeight: '44px' }}
+                                        >
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </button>
                                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-500/25">
                                             {supplier.name?.charAt(0)?.toUpperCase() || '?'}
                                         </div>
-                                        <div className="flex-1 min-w-0">
+                                        <div className="flex-1 min-w-0 pr-12">
                                             <h3 className="text-lg font-bold text-zinc-900 dark:text-white truncate">{supplier.name}</h3>
                                             {supplier.company && (
                                                 <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{supplier.company}</p>

@@ -494,15 +494,133 @@ export async function updateQuotationStatus(id, data) {
     return result.data.quotation_update
 }
 
-export async function addQuotationItem(data) {
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIQUE PROTOCOL: Smart Quotation Item Management
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Find existing quotation item by quotation + product
+ * Used for smart merge check before adding
+ * 
+ * @param {string} quotationId - Quotation UUID
+ * @param {string} productId - Product UUID
+ * @returns {Object|null} - Existing item or null
+ */
+export async function findQuotationItemByProduct(quotationId, productId) {
     const dc = getDataConnectInstance()
-    const result = await executeMutation(mutationRef(dc, 'AddQuotationItem'), data)
-    return result.data.quotationItem_insert
+    try {
+        const result = await executeQuery(
+            queryRef(dc, 'FindQuotationItemByProductId'),
+            { quotationId, productId }
+        )
+        const items = result.data?.quotationItems || []
+        return items.length > 0 ? items[0] : null
+    } catch (error) {
+        console.error('Error finding quotation item:', error)
+        return null
+    }
 }
 
+/**
+ * DELETE: Remove a quotation item
+ * 
+ * @param {string} id - QuotationItem UUID
+ */
+export async function deleteQuotationItem(id) {
+    const dc = getDataConnectInstance()
+    await executeMutation(mutationRef(dc, 'DeleteQuotationItem'), { id })
+}
+
+/**
+ * Smart Add Quotation Item - "Merge or Add" Protocol
+ * 
+ * THE UNIQUE PROTOCOL - Layer 2: Logic
+ * 
+ * If product already exists in quotation: INCREMENT quantity (Smart Merge)
+ * If product doesn't exist: CREATE new row
+ * 
+ * This prevents duplicate entries at the application layer,
+ * complementing the database UNIQUE constraint.
+ * 
+ * @param {Object} data - { quotationId, productId, requestedQuantity }
+ * @returns {Object} - { action: 'merged' | 'created', item: {...}, previousQuantity?: number }
+ */
+export async function addQuotationItemSmart(data) {
+    const dc = getDataConnectInstance()
+    const { quotationId, productId, requestedQuantity = 1 } = data
+
+    // Step 1: Check if item already exists in this quotation
+    const existingItem = await findQuotationItemByProduct(quotationId, productId)
+
+    if (existingItem) {
+        // ══════════════════════════════════════════════════════════════════
+        // SMART MERGE: Item exists - increment quantity instead of creating duplicate
+        // ══════════════════════════════════════════════════════════════════
+        const previousQuantity = existingItem.requestedQuantity || 0
+        const newQuantity = previousQuantity + requestedQuantity
+
+        await executeMutation(
+            mutationRef(dc, 'UpdateQuotationItemQuantity'),
+            {
+                id: existingItem.id,
+                requestedQuantity: newQuantity
+            }
+        )
+
+        console.log(`🔄 SMART MERGE: ${existingItem.product?.name || productId} (+${requestedQuantity} = ${newQuantity})`)
+
+        return {
+            action: 'merged',
+            item: { ...existingItem, requestedQuantity: newQuantity },
+            previousQuantity,
+            addedQuantity: requestedQuantity
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // CREATE NEW: Product doesn't exist in this quotation
+    // ══════════════════════════════════════════════════════════════════
+    const result = await executeMutation(
+        mutationRef(dc, 'AddQuotationItem'),
+        data
+    )
+
+    console.log(`✨ CREATED: New item ${productId} (qty: ${requestedQuantity})`)
+
+    return {
+        action: 'created',
+        item: result.data.quotationItem_insert
+    }
+}
+
+/**
+ * LEGACY: Add quotation item (now uses smart merge)
+ * @deprecated Use addQuotationItemSmart instead
+ */
+export async function addQuotationItem(data) {
+    // Redirect to smart version for backwards compatibility
+    const result = await addQuotationItemSmart(data)
+    return result.item
+}
+
+/**
+ * Update quotation item (price, quantity, notes)
+ */
 export async function updateQuotationItem(id, data) {
     const dc = getDataConnectInstance()
     const result = await executeMutation(mutationRef(dc, 'UpdateQuotationItem'), { id, ...data })
+    return result.data.quotationItem_update
+}
+
+/**
+ * Update only the quantity of a quotation item
+ */
+export async function updateQuotationItemQuantity(id, requestedQuantity) {
+    const dc = getDataConnectInstance()
+    const result = await executeMutation(
+        mutationRef(dc, 'UpdateQuotationItemQuantity'),
+        { id, requestedQuantity }
+    )
     return result.data.quotationItem_update
 }
 
@@ -549,7 +667,7 @@ export async function getStockValueByCategory() {
     const categoryValues = {}
     result.data.products.forEach(p => {
         const cat = p.category || 'Outros'
-        const value = (p.pricePerUnit || 0) * StockService.getTotalQuantity(p)
+        const value = (p.pricePerUnit ?? 0) * StockService.getTotalQuantity(p)
         categoryValues[cat] = (categoryValues[cat] || 0) + value
     })
 
@@ -569,8 +687,8 @@ export async function getMovementSummary(startDate, endDate) {
     return {
         totalEntries: entries.length,
         totalExits: exits.length,
-        totalEntryValue: entries.reduce((sum, m) => sum + ((m.price || 0) * (m.quantity || 0)), 0),
-        totalExitValue: exits.reduce((sum, m) => sum + ((m.price || 0) * (m.quantity || 0)), 0),
+        totalEntryValue: entries.reduce((sum, m) => sum + ((m.price ?? 0) * (m.quantity || 0)), 0),
+        totalExitValue: exits.reduce((sum, m) => sum + ((m.price ?? 0) * (m.quantity || 0)), 0),
         movements: result.data.productMovements
     }
 }
@@ -591,7 +709,7 @@ export async function getSupplierSummary() {
 
     return result.data.suppliers.map(s => {
         const totalValue = s.products_on_supplier.reduce((sum, p) => {
-            return sum + (p.pricePerUnit || 0) * StockService.getTotalQuantity(p)
+            return sum + (p.pricePerUnit ?? 0) * StockService.getTotalQuantity(p)
         }, 0)
 
         const recentMovements = s.products_on_supplier.reduce((sum, p) => {
@@ -694,8 +812,15 @@ export const DataConnectService = {
     listQuotations,
     createQuotation,
     updateQuotationStatus,
-    addQuotationItem,
+
+    // Quotation Items - UNIQUE PROTOCOL
+    addQuotationItem,           // Legacy (redirects to smart)
+    addQuotationItemSmart,      // Smart merge - use this
+    findQuotationItemByProduct,
     updateQuotationItem,
+    updateQuotationItemQuantity,
+    deleteQuotationItem,
+
 
     // Notifications
     listNotifications,

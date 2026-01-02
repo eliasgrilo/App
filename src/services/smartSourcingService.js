@@ -44,15 +44,24 @@ function generateIdempotencyKey(data) {
 // ===================================================================
 
 // Helper: Remove undefined and null fields recursively
-function cleanForFirestore(obj) {
+// BUG #4 FIX: Adicionado WeakSet para detectar referências circulares
+function cleanForFirestore(obj, seen = new WeakSet()) {
     if (obj === null || obj === undefined) return null;
     if (typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) return obj.map(cleanForFirestore).filter(item => item !== null && item !== undefined);
+
+    // Proteção contra referências circulares
+    if (seen.has(obj)) {
+        console.warn('⚠️ cleanForFirestore: Circular reference detected, skipping');
+        return null;
+    }
+    seen.add(obj);
+
+    if (Array.isArray(obj)) return obj.map(item => cleanForFirestore(item, seen)).filter(item => item !== null && item !== undefined);
 
     const cleaned = {};
     for (const [key, value] of Object.entries(obj)) {
         if (value !== undefined && value !== null) {
-            cleaned[key] = typeof value === 'object' ? cleanForFirestore(value) : value;
+            cleaned[key] = typeof value === 'object' ? cleanForFirestore(value, seen) : value;
         }
     }
     return cleaned;
@@ -78,6 +87,8 @@ async function syncToFirestore(quotation) {
 
 // ===================================================================
 // QUOTATION STATUS ENUM
+// BUG #7 FIX: Esta é a ÚNICA fonte de verdade para status de cotações.
+// Veja também: utils/quotationStatusUtils.js para mapeamentos e helpers.
 // ===================================================================
 
 export const QUOTATION_STATUS = {

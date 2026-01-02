@@ -9,7 +9,8 @@ import {
     orderBy,
     getDoc,
     onSnapshot,
-    where
+    where,
+    runTransaction  // ACID: Import for atomic operations
 } from "firebase/firestore";
 
 /**
@@ -380,6 +381,99 @@ export const FirebaseService = {
         }
     },
 
+    /**
+     * ACID-COMPLIANT: Atomic movement creation with stock update
+     * Uses Firestore transaction to ensure both operations succeed or both fail
+     * 
+     * @param {Object} movement - Movement data { productId, type, quantity, ... }
+     * @param {Object} stockUpdate - Stock update data { field, delta }
+     * @returns {Promise<{success: boolean, movementId?: string, error?: string}>}
+     */
+    async addMovementWithStockUpdate(movement, stockUpdate = null) {
+        try {
+            const movementId = Date.now().toString();
+            const movementData = {
+                ...movement,
+                id: movementId,
+                createdAt: new Date().toISOString()
+            };
+
+            // If no stock update needed, just add movement
+            if (!stockUpdate || !movement.productId) {
+                const existing = await this.getProductMovements();
+                await this.syncProductMovements([...existing, movementData]);
+                return { success: true, movementId };
+            }
+
+            // ATOMIC TRANSACTION: Movement + Stock Update
+            const inventoryRef = doc(db, COLLECTIONS.SETTINGS, "inventory_v2");
+            const movementsRef = doc(db, COLLECTIONS.SETTINGS, "product_movements");
+
+            await runTransaction(db, async (transaction) => {
+                // Read current inventory state
+                const inventoryDoc = await transaction.get(inventoryRef);
+                const movementsDoc = await transaction.get(movementsRef);
+
+                if (!inventoryDoc.exists()) {
+                    throw new Error("Inventory not found");
+                }
+
+                const inventoryData = inventoryDoc.data();
+                const items = inventoryData.items || [];
+                const movements = movementsDoc.exists() ? (movementsDoc.data().movements || []) : [];
+
+                // Find and update the product
+                const productIndex = items.findIndex(item =>
+                    item.id === movement.productId || item.id === String(movement.productId)
+                );
+
+                if (productIndex === -1) {
+                    throw new Error(`Product ${movement.productId} not found in inventory`);
+                }
+
+                // Calculate stock change based on movement type
+                const product = items[productIndex];
+                const delta = movement.type === 'ENTRY'
+                    ? movement.quantity
+                    : -movement.quantity;
+
+                // Update the stock field (packageCount or packageQuantity)
+                const fieldToUpdate = stockUpdate?.field || 'packageCount';
+                const currentValue = product[fieldToUpdate] || 0;
+                const newValue = Math.max(0, currentValue + delta);
+
+                items[productIndex] = {
+                    ...product,
+                    [fieldToUpdate]: newValue,
+                    updatedAt: new Date().toISOString()
+                };
+
+                // Write both updates atomically
+                transaction.set(inventoryRef, {
+                    items,
+                    categories: inventoryData.categories,
+                    updatedAt: new Date().toISOString()
+                });
+
+                transaction.set(movementsRef, {
+                    movements: [...movements, movementData],
+                    updatedAt: new Date().toISOString()
+                });
+
+                console.log(`🔄 ATOMIC: Movement ${movementId} + Stock update (${fieldToUpdate}: ${currentValue} → ${newValue})`);
+            });
+
+            return { success: true, movementId };
+        } catch (e) {
+            console.error("❌ ATOMIC FAILED: Movement + stock update rolled back:", e);
+            return {
+                success: false,
+                error: e.message,
+                rollback: true
+            };
+        }
+    },
+
     // --- PRODUCT AUDIT DATA ---
     async syncProductAuditData(auditData) {
         try {
@@ -535,6 +629,7 @@ export const FirebaseService = {
      * This function is called from AI.jsx to detect email responses
      * BUG WAS: snapshot processing was not correctly extracting data
      * FIX: Properly map Firestore documents and convert timestamps
+     * BUG #6 FIX: Added callback cleanup on unsubscribe
      */
     subscribeToQuotations(callback) {
         try {
@@ -545,9 +640,15 @@ export const FirebaseService = {
                 orderBy("updatedAt", "desc")
             )
 
+            // BUG #6 FIX: Store callback reference for cleanup
+            let activeCallback = callback
+
             const unsubscribe = onSnapshot(
                 q,
                 (snapshot) => {
+                    // Guard: Skip if callback was cleaned up
+                    if (!activeCallback) return
+
                     console.log('📬 Snapshot received:', snapshot.size, 'documents')
 
                     const quotations = []
@@ -582,20 +683,58 @@ export const FirebaseService = {
                     console.log('✅ Processed quotations:', quotations.length)
 
                     // CRITICAL: Force callback execution with processed data
-                    callback(quotations)
+                    activeCallback(quotations)
                 },
                 (error) => {
                     console.error('❌ Error in quotations listener:', error)
                     // Return empty array on error to avoid breaking the UI
-                    callback([])
+                    if (activeCallback) activeCallback([])
                 }
             )
 
             console.log('✅ Quotations listener attached successfully')
-            return unsubscribe
+
+            // BUG #6 FIX: Return enhanced unsubscribe that cleans up callback reference
+            return () => {
+                activeCallback = null // Clear callback reference to prevent memory leak
+                unsubscribe()
+            }
         } catch (e) {
             console.error('❌ Error setting up quotations listener:', e)
             return () => { } // Return no-op function
+        }
+    },
+
+    /**
+     * Get all auto-quote requests from Firestore
+     * Used for AutoQuoteDashboard display in Gestão de Cotações
+     */
+    async getAutoQuoteRequests() {
+        try {
+            const q = query(
+                collection(db, "autoQuoteRequests"),
+                orderBy("createdAt", "desc")
+            )
+            const snapshot = await getDocs(q)
+            const requests = []
+            snapshot.forEach(doc => {
+                const data = doc.data()
+                // Skip soft-deleted items
+                if (data.softDeleted) return
+                requests.push({
+                    id: doc.id,
+                    ...data,
+                    createdAt: this.convertTimestampToDate(data.createdAt),
+                    updatedAt: this.convertTimestampToDate(data.updatedAt),
+                    sentAt: this.convertTimestampToDate(data.sentAt),
+                    replyReceivedAt: this.convertTimestampToDate(data.replyReceivedAt)
+                })
+            })
+            console.log('📦 Loaded', requests.length, 'auto-quote requests from Firestore')
+            return requests
+        } catch (e) {
+            console.error("Error getting auto-quote requests:", e)
+            return []
         }
     },
 
@@ -633,12 +772,14 @@ export const FirebaseService = {
 
     async syncQuotation(id, data) {
         try {
+            // CRITICAL FIX 2026-01-01: Removed { merge: true } to allow full document replacement
+            // merge:true prevents arrays (like items[].quotedUnitPrice) from being updated
             await setDoc(doc(db, COLLECTIONS.QUOTATIONS, id), cleanPayload({
                 ...data,
                 updatedAt: new Date().toISOString()
-            }), { merge: true });
+            }));
 
-            console.log('✅ Quotation synced to Firestore:', id)
+            console.log('✅ Quotation synced to Firestore (full replace):', id)
             return true;
         } catch (e) {
             console.error("Error syncing quotation:", e);
@@ -653,19 +794,40 @@ export const FirebaseService = {
     /**
      * Create or update an order from a quoted email
      * This moves the quotation to the "Orders" category with full history
+     * 
+     * IDEMPOTENCY: Checks if order already exists for this quotation before creating
      */
     async syncOrder(orderId, orderData) {
         try {
+            // IDEMPOTENCY CHECK: Verify if order already exists for this quotation
+            if (orderData.quotationId) {
+                const existingQuery = query(
+                    collection(db, "orders"),
+                    where("quotationId", "==", orderData.quotationId)
+                );
+                const snapshot = await getDocs(existingQuery);
+                if (!snapshot.empty) {
+                    const existingOrder = snapshot.docs[0];
+                    console.log(`⏭️ Order already exists for quotation ${orderData.quotationId}: ${existingOrder.id}`);
+                    return {
+                        success: true,
+                        isDuplicate: true,
+                        existingId: existingOrder.id,
+                        order: { id: existingOrder.id, ...existingOrder.data() }
+                    };
+                }
+            }
+
             await setDoc(doc(db, "orders", orderId), cleanPayload({
                 ...orderData,
                 updatedAt: new Date().toISOString()
             }), { merge: true });
 
             console.log('✅ Order synced to Firestore:', orderId);
-            return true;
+            return { success: true, isDuplicate: false };
         } catch (e) {
             console.error("Error syncing order:", e);
-            return false;
+            return { success: false, error: e.message };
         }
     },
 
@@ -780,5 +942,87 @@ export const FirebaseService = {
             console.error("Error updating order status:", e);
             return false;
         }
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // CLEANUP FUNCTIONS - Clear historical data
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Delete all quotations from Firestore
+     * WARNING: Destructive operation - cannot be undone
+     */
+    async deleteAllQuotations() {
+        try {
+            console.log('🗑️ Deleting all quotations...');
+            const snapshot = await getDocs(collection(db, COLLECTIONS.QUOTATIONS));
+            let count = 0;
+
+            for (const docSnap of snapshot.docs) {
+                await deleteDoc(doc(db, COLLECTIONS.QUOTATIONS, docSnap.id));
+                count++;
+            }
+
+            console.log(`✅ Deleted ${count} quotations`);
+            return { success: true, count };
+        } catch (e) {
+            console.error("Error deleting quotations:", e);
+            return { success: false, error: e.message };
+        }
+    },
+
+    /**
+     * Delete all orders from Firestore
+     * WARNING: Destructive operation - cannot be undone
+     */
+    async deleteAllOrders() {
+        try {
+            console.log('🗑️ Deleting all orders...');
+            const snapshot = await getDocs(collection(db, "orders"));
+            let count = 0;
+
+            for (const docSnap of snapshot.docs) {
+                await deleteDoc(doc(db, "orders", docSnap.id));
+                count++;
+            }
+
+            console.log(`✅ Deleted ${count} orders`);
+            return { success: true, count };
+        } catch (e) {
+            console.error("Error deleting orders:", e);
+            return { success: false, error: e.message };
+        }
+    },
+
+    /**
+     * Clear all historical data (quotations, orders, localStorage)
+     * WARNING: Destructive operation - cannot be undone
+     */
+    async clearAllHistory() {
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('🗑️ CLEARING ALL HISTORICAL DATA');
+        console.log('═══════════════════════════════════════════════════════');
+
+        const results = {
+            quotations: await this.deleteAllQuotations(),
+            orders: await this.deleteAllOrders()
+        };
+
+        // Clear localStorage
+        try {
+            localStorage.removeItem('padoca_sent_emails');
+            localStorage.removeItem('padoca_quotations');
+            console.log('✅ Cleared localStorage');
+            results.localStorage = { success: true };
+        } catch (e) {
+            console.error('Error clearing localStorage:', e);
+            results.localStorage = { success: false, error: e.message };
+        }
+
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('✅ CLEANUP COMPLETE');
+        console.log('═══════════════════════════════════════════════════════');
+
+        return results;
     }
 };

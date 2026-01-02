@@ -7,8 +7,16 @@ import { gmailService } from './services/gmailService'
 import { GeminiService } from './services/geminiService'
 import { SupplierAnalyticsService } from './services/supplierAnalyticsService'
 import { SupplierPredictorService } from './services/supplierPredictorService'
+import { SmartSourcingService, QUOTATION_STATUS } from './services/smartSourcingService'
+import { optimisticUI, markAsPending, confirmItem } from './services/optimisticUIService'
+import { idempotencyMiddleware } from './services/idempotencyMiddleware'
+import { quotationDeduplicationService } from './services/quotationDeduplicationService'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency, formatDate, formatDateTime, formatRelativeTime, formatTime } from './utils/formatUtils'
+import { mapFirestoreToFrontend, isActiveStatus } from './utils/quotationStatusUtils'
+import AppleConfirmModal from './components/AppleConfirmModal'
+import AutoQuoteDashboard from './components/AutoQuoteDashboard'
+
 
 
 /**
@@ -40,7 +48,6 @@ function emailMatchesSupplier(replyEmail, supplierEmail) {
 
     // 1. Exact match
     if (reply === supplier) {
-        console.log(`📧 Email match (exact): ${reply}`)
         return true
     }
 
@@ -48,13 +55,11 @@ function emailMatchesSupplier(replyEmail, supplierEmail) {
     const replyDomain = reply.split('@')[1]
     const supplierDomain = supplier.split('@')[1]
     if (replyDomain && supplierDomain && replyDomain === supplierDomain) {
-        console.log(`📧 Email match (domain): ${replyDomain}`)
         return true
     }
 
     // 3. Partial match (one contains the other)
     if (reply.includes(supplier) || supplier.includes(reply)) {
-        console.log(`📧 Email match (partial): ${reply} ~ ${supplier}`)
         return true
     }
 
@@ -85,15 +90,29 @@ export default function AI() {
     const [selectedSupplier, setSelectedSupplier] = useState(null)
     const [emailDraft, setEmailDraft] = useState({ to: '', subject: '', body: '' })
     const [sentEmails, setSentEmails] = useState([])
+    const [firestoreOrders, setFirestoreOrders] = useState([]) // Orders from Firestore orders collection
+    const [autoQuoteRequests, setAutoQuoteRequests] = useState([]) // Auto-quote requests from autoQuoteRequests collection
 
     // Quote Details Modal State
     const [quoteModalOpen, setQuoteModalOpen] = useState(false)
     const [selectedEmailForQuote, setSelectedEmailForQuote] = useState(null)
     const [quoteDetails, setQuoteDetails] = useState({ quotedValue: '', expectedDelivery: '' })
 
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmLabel: 'Confirmar',
+        cancelLabel: 'Cancelar',
+        isDangerous: false
+    })
+
     // Premium Toast System
     const [toastMessage, setToastMessage] = useState(null)
     const toastTimeoutRef = useRef(null)
+    const isSendingRef = useRef(false) // DEBOUNCE: Prevents double-click race conditions
     const showToast = useCallback((message, type = 'success') => {
         if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
         setToastMessage({ message, type })
@@ -110,13 +129,18 @@ export default function AI() {
      */
     const clearAllQuotationData = useCallback(async () => {
         try {
-            localStorage.removeItem('padoca_sent_emails')
+            // Clear local state first
             setSentEmails([])
-            // Attempt to clear Firestore quotations if method exists
-            if (typeof FirebaseService.clearQuotations === 'function') {
-                await FirebaseService.clearQuotations()
-            }
-            showToast('✅ Dados de cotações limpos com sucesso', 'success')
+            setFirestoreOrders([])
+
+            // Use comprehensive clearAllHistory which clears:
+            // - All quotations from Firestore
+            // - All orders from Firestore
+            // - Local storage (padoca_sent_emails, padoca_quotations)
+            const result = await FirebaseService.clearAllHistory()
+
+            console.log('🗑️ Clear all history result:', result)
+            showToast('✅ Dados de cotações e ordens limpos com sucesso', 'success')
         } catch (e) {
             console.error('Error clearing quotation data:', e)
             showToast('Erro ao limpar dados', 'error')
@@ -144,6 +168,26 @@ export default function AI() {
     }, [showToast])
 
     /**
+     * Show confirmation modal with custom config
+     */
+    const showConfirmModal = useCallback((config) => {
+        setConfirmModal({
+            isOpen: true,
+            confirmLabel: 'Confirmar',
+            cancelLabel: 'Cancelar',
+            isDangerous: false,
+            ...config
+        })
+    }, [])
+
+    /**
+     * Close confirmation modal
+     */
+    const closeConfirmModal = useCallback(() => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+    }, [])
+
+    /**
      * Delete a quotation - Items automatically return to Pending tab
      * This is the key function for allowing users to remove unwanted quotations
      * @param {string} quotationId - ID of the quotation to delete
@@ -156,8 +200,12 @@ export default function AI() {
         }
 
         // CRITICAL FIX: Only return items to Pendente for pre-confirmation statuses
-        // After confirmation/delivery, deleting only removes from history
-        const isPreConfirmation = ['sent', 'pending', 'awaiting', 'quoted'].includes(quotation.status);
+        // STATUS FLOW:
+        // - 'sent', 'pending', 'awaiting' = NOT confirmed yet → items return to Pendente on delete
+        // - 'quoted' = Supplier responded with quote → items should NOT return (they're in negotiation)
+        // - 'confirmed', 'delivered' = Order placed → items should NOT return (already purchased)
+        // User requirement: delete should only return items to Pendente BEFORE confirmation received
+        const isPreConfirmation = ['sent', 'pending', 'awaiting'].includes(quotation.status);
 
         // Remove from state
         const updated = sentEmails.filter(e => e.id !== quotationId)
@@ -282,9 +330,33 @@ export default function AI() {
                 const firestoreQuotations = await FirebaseService.getQuotations()
 
                 // 3. Convert Firestore quotations to sentEmails format
-                // CRITICAL FIX: Add firestoreId for reliable matching in listener
+                // CRITICAL FIX: Enhanced multi-criteria deduplication to prevent duplicate cards
+                const manualEmailKeys = new Set([
+                    ...manualEmails.map(e => e.id),
+                    ...manualEmails.map(e => e.firestoreId).filter(Boolean),
+                    // Composite key: supplier + sorted item IDs
+                    ...manualEmails.map(e => {
+                        if (!e.supplierId || !e.items?.length) return null;
+                        const itemIds = e.items.map(i => i.id).filter(Boolean).sort().join(',');
+                        return itemIds ? `${e.supplierId}_${itemIds}` : null;
+                    }).filter(Boolean)
+                ]);
+
                 const convertedFirestoreQuotations = firestoreQuotations
-                    .filter(q => !manualEmails.some(e => e.id === q.id)) // Avoid duplicates
+                    .filter(q => {
+                        if (manualEmailKeys.has(q.id)) {
+                            return false;
+                        }
+
+                        // Check composite key: supplier + items
+                        const itemIds = q.items?.map(i => i.productId || i.id).filter(Boolean).sort().join(',');
+                        const compositeKey = itemIds ? `${q.supplierId}_${itemIds}` : null;
+                        if (compositeKey && manualEmailKeys.has(compositeKey)) {
+                            return false;
+                        }
+
+                        return true;
+                    })
                     .map(q => ({
                         id: q.id,
                         firestoreId: q.id, // CRITICAL: Explicit Firestore ID for listener matching
@@ -301,22 +373,14 @@ export default function AI() {
                             maxStock: i.quantityToOrder || i.neededQuantity || 0,
                             quantityToOrder: i.quantityToOrder || i.neededQuantity || 0,
                             unit: i.unit || '',
-                            quotedPrice: i.quotedUnitPrice || i.unitPrice || null,
+                            quotedPrice: i.quotedUnitPrice ?? i.unitPrice ?? null,
                             quotedAvailability: i.quotedAvailability || null
                         })) || [],
                         itemNames: q.items?.map(i => i.productName || i.name) || [],
                         totalItems: q.items?.length || 0,
                         sentAt: q.createdAt?.toISOString?.() || q.createdAt || new Date().toISOString(),
-                        // CRITICAL FIX: Preserve status from backend - map to frontend statuses
-                        // BUG FIX: Added 'confirmed' mapping - was missing causing orders to disappear after refresh
-                        status: q.status === 'quoted' ? 'quoted'
-                            : q.status === 'ordered' ? 'confirmed'
-                                : q.status === 'confirmed' ? 'confirmed'  // FIX: Handle 'confirmed' directly
-                                    : q.status === 'received' ? 'delivered'
-                                        : q.status === 'delivered' ? 'delivered'  // FIX: Handle 'delivered' directly
-                                            : q.status === 'pending' ? 'sent'
-                                                : q.status === 'awaiting' ? 'awaiting'
-                                                    : 'sent',
+                        // Status mapping via centralized utility (Golden Master refactor)
+                        status: mapFirestoreToFrontend(q.status),
                         isAutoGenerated: q.isAutoGenerated || false,
                         category: q.category,
                         quotedValue: q.quotedTotal,
@@ -332,19 +396,54 @@ export default function AI() {
                     }))
 
                 // 4. Merge: manual emails + Firestore quotations
-                const allEmails = [...manualEmails, ...convertedFirestoreQuotations]
+                // NUCLEAR FIX: Apply deduplication IMMEDIATELY at merge point
+                const allEmailsRaw = [...manualEmails, ...convertedFirestoreQuotations]
+
+                // Apply nuclear deduplication before storing
+                const allEmails = quotationDeduplicationService.deduplicate(allEmailsRaw, {
+                    prioritize: 'newest',
+                    debug: true
+                });
 
                 // Sort by date (newest first)
                 allEmails.sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
 
+                console.log(`📊 Loaded ${allEmailsRaw.length} total → ${allEmails.length} after nuclear deduplication`)
                 setSentEmails(allEmails)
-                console.log(`📧 Loaded ${manualEmails.length} manual + ${convertedFirestoreQuotations.length} Firestore quotations`)
             } catch (e) {
                 console.warn('Quotations load failed:', e)
             }
         }
 
         loadAllQuotations()
+    }, [])
+
+    // ═══════════════════════════════════════════════════════════════
+    // FIX Bug #3: Subscribe to Firestore orders collection
+    // This ensures orders persist after page refresh
+    // ═══════════════════════════════════════════════════════════════
+    useEffect(() => {
+        const unsubscribe = FirebaseService.subscribeToOrders((orders) => {
+            setFirestoreOrders(orders)
+        })
+        return () => {
+            unsubscribe()
+        }
+    }, [])
+
+    // ═══════════════════════════════════════════════════════════════
+    // Load Auto-Quote Requests for AutoQuoteDashboard
+    // ═══════════════════════════════════════════════════════════════
+    useEffect(() => {
+        const loadAutoQuoteRequests = async () => {
+            try {
+                const requests = await FirebaseService.getAutoQuoteRequests()
+                setAutoQuoteRequests(requests)
+            } catch (e) {
+                console.warn('Auto-quote requests load failed:', e)
+            }
+        }
+        loadAutoQuoteRequests()
     }, [])
 
     // ═══════════════════════════════════════════════════════════════
@@ -362,7 +461,6 @@ export default function AI() {
                 if (connected) {
                     setGmailConnected(true)
                     setGmailEmail(gmailService.getConnectedEmail() || 'padocainc@gmail.com')
-                    console.log('✅ Gmail API AUTO-CONNECTED:', gmailService.getConnectedEmail())
 
                     // CRITICAL FIX: Actually test the connection by validating the token
                     const isValid = await gmailService.validateToken()
@@ -376,7 +474,7 @@ export default function AI() {
                         // Show toast to user
                         showToast('Gmail desconectado (token expirado). Clique em "Conectar Gmail" para reautorizar.', 'error')
                     } else {
-                        console.log('✅ Gmail token validated successfully')
+                        // Token valid, no action needed
                     }
                 } else {
                     // Check if we have a stored token that just needs refreshing
@@ -384,12 +482,9 @@ export default function AI() {
                     const tokenExpiry = localStorage.getItem('gmail_token_expiry')
 
                     if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
-                        // We have a valid token in storage - initialize with it
-                        console.log('🔄 Found stored Gmail token, reconnecting...')
                         setGmailConnected(true)
                         setGmailEmail(localStorage.getItem('gmail_user_email') || 'padocainc@gmail.com')
                     } else {
-                        console.log('⚠️ Gmail API not connected - click "Conectar Gmail" to authorize')
                         setGmailConnected(false)
                         setGmailEmail('padocainc@gmail.com')
                     }
@@ -415,17 +510,61 @@ export default function AI() {
     // CRITICAL FIX: Listener must ALWAYS be active, not dependent on Gmail
     // Backend (Cloud Functions) processes emails independently of frontend state
     useEffect(() => {
-        console.log('🔔 Setting up Firestore real-time listener for quotations...')
-
         const unsubscribe = FirebaseService.subscribeToQuotations((quotations) => {
-            console.log('📬 Real-time update received:', quotations.length, 'quotations')
+            // DEBUG: Log all incoming quotations
+            console.log('📬 Firestore quotations received:', quotations.length, quotations.map(q => ({
+                id: q.id,
+                supplier: q.supplierName || q.supplierEmail,
+                status: q.status,
+                replyAt: q.replyReceivedAt,
+                orderId: q.orderId
+            })))
 
             if (quotations.length === 0) return
 
             // CRITICAL FIX: Process outside of setSentEmails to access current state correctly
             // This fixes the async bug where updates were being lost
             const currentEmails = sentEmailsForRepliesRef.current
-            if (currentEmails.length === 0) return
+
+            // RACE CONDITION FIX: If currentEmails is empty but Firestore has quotations,
+            // use Firestore as the source of truth (this happens on initial load)
+            if (currentEmails.length === 0) {
+                console.log('⚠️ currentEmails empty, using Firestore quotations directly')
+                const firestoreEmails = quotations.map(q => ({
+                    id: q.id,
+                    firestoreId: q.id,
+                    to: q.supplierEmail,
+                    supplierName: q.supplierName,
+                    supplierId: q.supplierId,
+                    supplierEmail: q.supplierEmail,
+                    subject: q.emailSubject || `Cotação - ${q.supplierName}`,
+                    items: q.items?.map(i => ({
+                        id: i.productId || i.id,
+                        name: i.productName || i.name,
+                        currentStock: 0,
+                        maxStock: i.quantityToOrder || i.neededQuantity || 0,
+                        quantityToOrder: i.quantityToOrder || i.neededQuantity || 0,
+                        unit: i.unit || '',
+                        quotedPrice: i.quotedUnitPrice ?? i.unitPrice ?? null
+                    })) || [],
+                    itemNames: q.items?.map(i => i.productName || i.name) || [],
+                    totalItems: q.items?.length || 0,
+                    sentAt: q.createdAt?.toISOString?.() || q.createdAt || new Date().toISOString(),
+                    status: mapFirestoreToFrontend(q.status),
+                    repliedAt: q.replyReceivedAt?.toISOString?.() || q.replyReceivedAt || null,
+                    replyBody: q.replyBody || null,
+                    quotedValue: q.quotedTotal,
+                    expectedDelivery: q.deliveryDate,
+                    orderId: q.orderId,
+                    confirmedAt: q.confirmedAt,
+                    autoConfirmed: q.autoConfirmed,
+                    firestoreData: q
+                }))
+                setSentEmails(firestoreEmails)
+                localStorage.setItem('padoca_sent_emails', JSON.stringify(firestoreEmails))
+                console.log('✅ Loaded', firestoreEmails.length, 'emails from Firestore directly')
+                return
+            }
 
             // CRITICAL FIX #1: Match by firestoreId OR id OR email (multi-criteria matching)
             const findMatchingQuotation = (email) => {
@@ -462,12 +601,27 @@ export default function AI() {
             const updatedEmails = currentEmails.map(email => {
                 const matchingQuotation = findMatchingQuotation(email)
 
-                if (!matchingQuotation) return email
+                if (!matchingQuotation) {
+                    // DEBUG: Log when no match found
+                    console.log('⚠️ No Firestore match for:', {
+                        emailId: email.id,
+                        supplier: email.supplierName,
+                        to: email.to,
+                        status: email.status
+                    })
+                    return email
+                }
 
                 // BUG FIX: Allow 'confirmed' to be synced if Firestore has additional data (e.g., orderId)
                 // Only block 'delivered' as true final state, and 'confirmed' only if fully synced
-                if (email.status === 'delivered') return email
-                if (email.status === 'confirmed' && email.orderId) return email // Already fully synced
+                if (email.status === 'delivered') {
+                    console.log('⏭️ Skipping delivered email:', email.id)
+                    return email
+                }
+                if (email.status === 'confirmed' && email.orderId) {
+                    console.log('⏭️ Skipping already confirmed:', email.id, email.orderId)
+                    return email
+                }
 
                 // Check if this is actually an update (quotation has data we don't have)
                 const hasNewReply = matchingQuotation.replyReceivedAt && !email.repliedAt
@@ -478,7 +632,19 @@ export default function AI() {
                 if (!hasNewReply && !hasStatusChange && !hasQuotedData && !hasNewOrderData) return email
 
                 hasUpdates = true
-                console.log('✅ Auto-update from Pub/Sub:', matchingQuotation.supplierEmail, '| Backend status:', matchingQuotation.status)
+
+                // DEBUG: Log the update for troubleshooting
+                console.log('🔄 Firestore sync update:', {
+                    emailId: email.id,
+                    supplier: email.supplierName,
+                    oldStatus: email.status,
+                    newStatus: matchingQuotation.status,
+                    hasNewReply,
+                    hasStatusChange,
+                    hasQuotedData,
+                    hasNewOrderData,
+                    firestoreQuotation: matchingQuotation
+                })
 
                 // Use AI data from backend (already extracted by Cloud Function)
                 const emailBody = matchingQuotation.replyBody || ''
@@ -501,75 +667,21 @@ export default function AI() {
                     suggestedAction: matchingQuotation.suggestedAction || backendAiData.suggestedAction || 'confirm'
                 } : null
 
-                console.log('📊 Using backend AI data:', quotedData ? 'YES' : 'NO')
+                // ═══════════════════════════════════════════════════════════════
+                // REENGINEERED: Read-only sync from Firestore (no order creation)
+                // Orders are created EXCLUSIVELY by Cloud Function onGmailNotification
+                // This prevents race conditions and duplicate orders
+                // ═══════════════════════════════════════════════════════════════
 
-                // CRITICAL FIX: Auto-confirm orders when AI suggests and no problems
-                // This creates orders automatically without requiring manual "Aprovar" click
-                const shouldAutoConfirm = quotedData &&
-                    quotedData.suggestedAction === 'confirm' &&
-                    !quotedData.hasProblems &&
-                    !quotedData.hasDelay &&
-                    email.status !== 'confirmed' &&
-                    email.status !== 'delivered' &&
-                    !email.orderId; // Don't re-create if order already exists
+                // Read values from backend - NEVER write orders from frontend
+                const orderId = matchingQuotation.orderId || email.orderId;
+                const confirmedAt = matchingQuotation.confirmedAt || email.confirmedAt;
+                const autoConfirmed = matchingQuotation.autoConfirmed || email.autoConfirmed;
 
-                let newStatus;
-                let orderId = email.orderId;
-                let confirmedAt = email.confirmedAt;
-                let autoConfirmed = email.autoConfirmed;
-
-                if (shouldAutoConfirm) {
-                    newStatus = 'confirmed';
-                    orderId = `order_${Date.now()}_${email.id}`;
-                    confirmedAt = new Date().toISOString();
-                    autoConfirmed = true;
-                    console.log('🚀 Auto-creating order via Firestore listener:', orderId);
-
-                    // Create order in Firestore
-                    FirebaseService.syncOrder(orderId, {
-                        quotationId: email.firestoreId || email.id,
-                        supplierEmail: email.to,
-                        supplierName: email.supplierName,
-                        items: emailItems.map(item => {
-                            const quotedItem = quotedData?.items?.find(qi =>
-                                qi.name?.toLowerCase().includes(item.name?.toLowerCase()) ||
-                                item.name?.toLowerCase().includes(qi.name?.toLowerCase())
-                            );
-                            return {
-                                ...item,
-                                quotedPrice: quotedItem?.unitPrice || null,
-                                available: quotedItem?.available ?? true
-                            };
-                        }),
-                        quotedValue: quotedData.totalQuote,
-                        expectedDelivery: quotedData.deliveryDate,
-                        deliveryDays: quotedData.deliveryDays,
-                        paymentTerms: quotedData.paymentTerms,
-                        status: 'confirmed',
-                        createdAt: new Date().toISOString(),
-                        confirmedAt: new Date().toISOString(),
-                        autoConfirmed: true
-                    }).then(() => {
-                        console.log('✅ Order auto-created successfully via Pub/Sub:', orderId);
-                    }).catch(e => console.warn('Auto-order creation failed:', e));
-
-                    // Sync quotation status update
-                    FirebaseService.syncQuotation(email.firestoreId || email.id, {
-                        status: 'confirmed',
-                        confirmedAt: new Date().toISOString(),
-                        orderId: orderId,
-                        autoConfirmed: true
-                    }).catch(e => console.warn('Quotation sync failed:', e));
-                } else {
-                    // Map Firestore status to frontend status
-                    newStatus = matchingQuotation.status === 'quoted' ? 'quoted'
-                        : matchingQuotation.status === 'ordered' ? 'confirmed'
-                            : matchingQuotation.status === 'confirmed' ? 'confirmed'
-                                : matchingQuotation.status === 'received' ? 'delivered'
-                                    : matchingQuotation.status === 'delivered' ? 'delivered'
-                                        : matchingQuotation.status === 'awaiting' ? 'awaiting'
-                                            : quotedData ? 'quoted' : email.status;
-                }
+                // Map Firestore status to frontend status (read-only)
+                const mappedStatus = mapFirestoreToFrontend(matchingQuotation.status);
+                const newStatus = mappedStatus !== 'sent' ? mappedStatus
+                    : quotedData ? 'quoted' : email.status;
 
                 // Map items with quoted prices from Firestore
                 const updatedItems = emailItems.map(item => {
@@ -583,7 +695,7 @@ export default function AI() {
                     )
                     return {
                         ...item,
-                        quotedPrice: firestoreItem?.quotedUnitPrice || quotedItem?.unitPrice || item.quotedPrice || null,
+                        quotedPrice: firestoreItem?.quotedUnitPrice ?? quotedItem?.unitPrice ?? item.quotedPrice ?? null,
                         available: firestoreItem?.quotedAvailability !== 0 && (quotedItem?.available ?? true),
                         partialAvailability: quotedItem?.partialAvailability || false,
                         availableQuantity: firestoreItem?.quotedAvailability || quotedItem?.availableQuantity || null,
@@ -624,8 +736,15 @@ export default function AI() {
 
             // Only update if there were actual changes
             if (hasUpdates) {
-                setSentEmails(updatedEmails)
-                localStorage.setItem('padoca_sent_emails', JSON.stringify(updatedEmails))
+                localStorage.setItem('padoca_sent_emails', JSON.stringify(updatedEmails));
+
+                setSentEmails(updatedEmails);
+
+                // Dispatch storage event for cross-tab sync
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'padoca_sent_emails',
+                    newValue: JSON.stringify(updatedEmails)
+                }));
 
                 const newlyQuoted = updatedEmails.filter((e, idx) =>
                     e.status === 'quoted' && currentEmails[idx]?.status !== 'quoted'
@@ -644,191 +763,27 @@ export default function AI() {
         })
 
         return () => {
-            console.log('🔕 Unsubscribing from Firestore listener')
             unsubscribe()
         }
     }, [showToast]) // CRITICAL FIX: Removed gmailConnected dependency - listener should always be active
 
-    // Fallback: Manual polling every 60s for edge cases (Pub/Sub not configured)
-    useEffect(() => {
-        if (!gmailConnected) return
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // FALLBACK POLLING REMOVED - Bug Fix for Duplicate Processing
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 
+    // The fallback polling was REMOVED because it duplicated the work of 
+    // EmailReplyMonitorService (started in App.jsx), causing:
+    // - Double Gmail API calls every 60 seconds
+    // - Duplicate email processing and state updates
+    // - Race conditions between the two systems
+    //
+    // Architecture now:
+    // 1. EmailReplyMonitorService polls Gmail → processes emails → updates Firestore
+    // 2. Firestore real-time listener (above) → receives updates → updates UI
+    //
+    // If EmailReplyMonitorService is not working, check App.jsx line 150
+    // ═══════════════════════════════════════════════════════════════════════════════
 
-        let isMounted = true
-
-        const checkForRepliesFallback = async () => {
-            if (!isMounted) return
-
-            const currentEmails = sentEmailsForRepliesRef.current
-            // CRITICAL FIX: Include 'pending' and 'awaiting' - auto-generated start as 'pending'
-            const pendingEmails = currentEmails.filter(e => ['sent', 'pending', 'awaiting'].includes(e.status))
-            if (pendingEmails.length === 0) return
-
-            try {
-                const supplierEmailsList = [...new Set(pendingEmails.map(e => e.to).filter(Boolean))]
-                const oldestPending = pendingEmails.reduce((oldest, e) =>
-                    new Date(e.sentAt) < new Date(oldest.sentAt) ? e : oldest
-                )
-
-                console.log('🔍 Fallback polling for replies...')
-                const replies = await gmailService.checkReplies(supplierEmailsList, new Date(oldestPending.sentAt))
-
-                if (!isMounted || replies.length === 0) return
-
-                setEmailReplies(replies)
-                console.log('📬 Fallback found replies:', replies.length)
-
-                // Process with AI
-                const updatedEmails = await Promise.all(currentEmails.map(async (email) => {
-                    const matchingReply = replies.find(r =>
-                        emailMatchesSupplier(r.supplierEmail, email.to)
-                    )
-
-                    // CRITICAL FIX: Include 'pending' and 'awaiting' in condition
-                    if (matchingReply && ['sent', 'pending', 'awaiting'].includes(email.status)) {
-                        const emailBody = matchingReply.body || matchingReply.snippet || ''
-                        const emailItems = email.items || []
-                        let quotedData = null
-
-                        if (GeminiService.isReady() && emailBody.length > 20) {
-                            try {
-                                const analysis = await GeminiService.analyzeSupplierResponse(
-                                    emailBody,
-                                    emailItems.map(i => ({ name: i.name }))
-                                )
-                                if (analysis.success && analysis.data?.hasQuote) {
-                                    quotedData = {
-                                        items: analysis.data.items || [],
-                                        totalQuote: analysis.data.totalQuote,
-                                        deliveryDate: analysis.data.deliveryDate,
-                                        deliveryDays: analysis.data.deliveryDays,
-                                        paymentTerms: analysis.data.paymentTerms,
-                                        supplierNotes: analysis.data.supplierNotes,
-                                        sentiment: analysis.data.sentiment,
-                                        hasProblems: analysis.data.hasProblems || false,
-                                        hasDelay: analysis.data.hasDelay || false,
-                                        delayReason: analysis.data.delayReason,
-                                        problemSummary: analysis.data.problemSummary,
-                                        urgency: analysis.data.urgency || 'low',
-                                        suggestedAction: analysis.data.suggestedAction || 'confirm'
-                                    }
-                                }
-                            } catch (e) { console.warn('AI analysis failed:', e) }
-                        }
-
-                        // CRITICAL FIX: Auto-confirm orders when supplier confirms availability
-                        // This creates the order automatically without requiring manual "Aprovar" click
-                        const shouldAutoConfirm = quotedData &&
-                            quotedData.suggestedAction === 'confirm' &&
-                            !quotedData.hasProblems &&
-                            !quotedData.hasDelay;
-
-                        const newStatus = shouldAutoConfirm ? 'confirmed' : (quotedData ? 'quoted' : 'replied');
-                        let orderId = undefined;
-
-                        // Auto-create order in Firestore when confirmed
-                        if (shouldAutoConfirm) {
-                            orderId = `order_${Date.now()}_${email.id}`;
-                            console.log('🚀 Auto-creating order:', orderId);
-
-                            // Sync order to Firestore
-                            FirebaseService.syncOrder(orderId, {
-                                quotationId: email.firestoreId || email.id,
-                                supplierEmail: email.to,
-                                supplierName: email.supplierName,
-                                items: emailItems.map(item => {
-                                    const quotedItem = quotedData?.items?.find(qi =>
-                                        qi.name?.toLowerCase().includes(item.name?.toLowerCase()) ||
-                                        item.name?.toLowerCase().includes(qi.name?.toLowerCase())
-                                    );
-                                    return {
-                                        ...item,
-                                        quotedPrice: quotedItem?.unitPrice || null,
-                                        available: quotedItem?.available ?? true
-                                    };
-                                }),
-                                quotedValue: quotedData.totalQuote,
-                                expectedDelivery: quotedData.deliveryDate,
-                                deliveryDays: quotedData.deliveryDays,
-                                paymentTerms: quotedData.paymentTerms,
-                                status: 'confirmed',
-                                createdAt: new Date().toISOString(),
-                                confirmedAt: new Date().toISOString(),
-                                autoConfirmed: true
-                            }).then(() => {
-                                console.log('✅ Order auto-created successfully:', orderId);
-                            }).catch(e => console.warn('Auto-order creation failed:', e));
-
-                            // Also sync quotation status update
-                            FirebaseService.syncQuotation(email.firestoreId || email.id, {
-                                status: 'confirmed',
-                                confirmedAt: new Date().toISOString(),
-                                orderId: orderId,
-                                autoConfirmed: true
-                            }).catch(e => console.warn('Quotation sync failed:', e));
-                        }
-
-                        return {
-                            ...email,
-                            status: newStatus,
-                            orderId: orderId,
-                            confirmedAt: shouldAutoConfirm ? new Date().toISOString() : undefined,
-                            autoConfirmed: shouldAutoConfirm,
-                            repliedAt: new Date().toISOString(),
-                            replySnippet: matchingReply.snippet,
-                            replySubject: matchingReply.subject,
-                            replyFrom: matchingReply.from,
-                            replyBody: emailBody,
-                            quotedData,
-                            quotedValue: quotedData?.totalQuote || null,
-                            expectedDelivery: quotedData?.deliveryDate || null,
-                            deliveryDays: quotedData?.deliveryDays || null,
-                            paymentTerms: quotedData?.paymentTerms || null,
-                            hasProblems: quotedData?.hasProblems || false,
-                            hasDelay: quotedData?.hasDelay || false,
-                            problemSummary: quotedData?.problemSummary || null,
-                            urgency: quotedData?.urgency || 'low',
-                            suggestedAction: quotedData?.suggestedAction || 'confirm',
-                            items: emailItems.map(item => {
-                                const quotedItem = quotedData?.items?.find(qi =>
-                                    qi.name?.toLowerCase().includes(item.name?.toLowerCase()) ||
-                                    item.name?.toLowerCase().includes(qi.name?.toLowerCase())
-                                )
-                                return { ...item, quotedPrice: quotedItem?.unitPrice || null, available: quotedItem?.available ?? true }
-                            })
-                        }
-                    }
-                    return email
-                }))
-
-                if (JSON.stringify(updatedEmails) !== JSON.stringify(currentEmails)) {
-                    setSentEmails(updatedEmails)
-                    localStorage.setItem('padoca_sent_emails', JSON.stringify(updatedEmails))
-
-                    // Show different toast for auto-confirmed vs just quoted
-                    const autoConfirmedCount = updatedEmails.filter(e => e.autoConfirmed && !currentEmails.find(ce => ce.id === e.id && ce.autoConfirmed)).length;
-                    if (autoConfirmedCount > 0) {
-                        showToast(`✅ ${autoConfirmedCount} ordem${autoConfirmedCount > 1 ? 's' : ''} criada${autoConfirmedCount > 1 ? 's' : ''} automaticamente!`, 'success');
-                    } else {
-                        showToast('📋 Cotação recebida (via fallback polling)', 'success');
-                    }
-                }
-            } catch (e) {
-                console.warn('Fallback polling error:', e)
-            }
-        }
-
-        // Fallback polling every 60 seconds (less aggressive than before)
-        const timeout = setTimeout(checkForRepliesFallback, 5000)
-        const interval = setInterval(checkForRepliesFallback, 60000)
-
-        console.log('🔄 Fallback polling ativado (60s interval)')
-
-        return () => {
-            isMounted = false
-            clearTimeout(timeout)
-            clearInterval(interval)
-        }
-    }, [gmailConnected, showToast])
 
     // Auto-complete orders when stock is replenished
     // When items in confirmed orders are back above minimum, mark as delivered
@@ -911,18 +866,28 @@ export default function AI() {
     // FIXED: Prevents duplicate quotations at item level, not just supplier level
     const alertsBySupplier = useMemo(() => {
         // 1. Get supplier IDs that already have pending emails/quotations
+        // FIXED 2025-12-31: Use isActiveStatus to cover ALL active quotation states
+        // This ensures items disappear from Pendente until they reach delivered/received
         const suppliersWithPendingEmails = new Set(
             sentEmails
-                .filter(e => ['sent', 'replied', 'quoted'].includes(e.status))
+                .filter(e => isActiveStatus(e.status))
                 .map(e => e.supplierId)
                 .filter(Boolean)
         )
 
         // 2. Get item IDs that are already in pending quotations (prevents duplicate requests)
+        // ENHANCED: Also check by item name to catch items with different IDs but same product
         const itemsWithPendingQuotations = new Set(
             sentEmails
-                .filter(e => ['sent', 'replied', 'quoted', 'confirmed'].includes(e.status))
+                .filter(e => isActiveStatus(e.status))
                 .flatMap(e => e.items?.map(i => i.id) || [])
+        )
+
+        const itemNamesInPendingQuotations = new Set(
+            sentEmails
+                .filter(e => isActiveStatus(e.status))
+                .flatMap(e => e.items?.map(i => i.name?.toLowerCase().trim()) || [])
+                .filter(Boolean)
         )
 
         // 3. Filter items with critical/warning stock that are NOT already in pending quotations
@@ -931,7 +896,8 @@ export default function AI() {
                 const status = getStockStatus(item)
                 const isCriticalOrWarning = status === 'critical' || status === 'warning'
                 const notInPendingQuotation = !itemsWithPendingQuotations.has(item.id)
-                return isCriticalOrWarning && notInPendingQuotation
+                const notInPendingByName = !itemNamesInPendingQuotations.has(item.name?.toLowerCase().trim())
+                return isCriticalOrWarning && notInPendingQuotation && notInPendingByName
             })
             .map(item => ({
                 ...item,
@@ -966,6 +932,29 @@ export default function AI() {
         return Object.values(grouped).filter(g => g.items.length > 0)
     }, [inventory, suppliers, sentEmails])
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // NUCLEAR ANTI-DUPLICATE SYSTEM - Using centralized service
+    // ALL quotation data MUST pass through quotationDeduplicationService
+    // This guarantees ZERO duplicates in any tab, forever.
+    // ═══════════════════════════════════════════════════════════════════════════════
+    const deduplicatedEmails = useMemo(() => {
+        return quotationDeduplicationService.deduplicate(sentEmails, {
+            prioritize: 'newest',
+            debug: true
+        });
+    }, [sentEmails]);
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // ALL ORDERS - Using centralized deduplication service
+    // This guarantees ZERO duplicate order cards, permanently.
+    // ═══════════════════════════════════════════════════════════════════════════════
+    const allOrders = useMemo(() => {
+        return quotationDeduplicationService.getActiveOrders(
+            deduplicatedEmails,
+            firestoreOrders,
+            { debug: true }
+        );
+    }, [deduplicatedEmails, firestoreOrders])
 
     // Stats for dashboard
     const stats = useMemo(() => {
@@ -1108,62 +1097,82 @@ ${today}`
         setIsComposerOpen(true)
     }
 
+    /**
+     * Resend email - Opens composer and shows confirmation modal
+     * @param {Object} email - Existing email to resend
+     */
+    const handleResendEmail = useCallback((email) => {
+        const supplier = suppliers.find(s => s.name === email.supplierName) ||
+            { name: email.supplierName, email: email.to }
+
+        showConfirmModal({
+            title: 'Reenviar Cotação?',
+            message: `Enviar nova cotação para ${email.supplierName}?`,
+            confirmLabel: 'Reenviar',
+            cancelLabel: 'Cancelar',
+            isDangerous: false,
+            onConfirm: () => {
+                openEmailComposer(supplier, email.items || [])
+                closeConfirmModal()
+            }
+        })
+    }, [suppliers, showConfirmModal, closeConfirmModal])
+
     const [isSendingEmail, setIsSendingEmail] = useState(false)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [lastSentEmail, setLastSentEmail] = useState(null)
 
     const handleSendEmail = async () => {
+        // ═══════════════════════════════════════════════════════════════════════════
+        // GOLDEN MASTER: Optimistic UI with Rollback + Idempotency + Debounce
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        // GUARD: Debounce - prevent double-click race conditions
+        if (isSendingRef.current) return
+        isSendingRef.current = true
+
         if (!emailDraft.to) {
             showToast('Email do fornecedor não cadastrado', 'error')
+            isSendingRef.current = false
             return
         }
 
-        // Check for duplicate - prevent sending if supplier already has pending email
+        // Check for duplicate - prevent sending if supplier already has pending quotation
+        const openStatuses = ['sent', 'pending', 'awaiting', 'quoted'];
         const existingPending = sentEmails.find(
             e => e.supplierId === selectedSupplier?.id &&
-                ['sent', 'replied', 'quoted'].includes(e.status)
+                openStatuses.includes(e.status)
         )
         if (existingPending) {
-            showToast('Já existe uma cotação pendente para este fornecedor', 'error')
+            showToast(`⚠️ Já existe uma cotação pendente para ${selectedSupplier?.name}`, 'warning')
             setIsComposerOpen(false)
+            isSendingRef.current = false
             return
         }
 
-        // IMPROVED: Check for duplicate at ITEM level - prevents same item in multiple quotations
+        // Check for duplicate at ITEM level
         const itemsAlreadyPending = selectedItems.filter(item =>
             sentEmails.some(e =>
-                ['sent', 'replied', 'quoted', 'confirmed'].includes(e.status) &&
+                openStatuses.includes(e.status) &&
                 e.items?.some(i => i.id === item.id)
             )
         )
 
         if (itemsAlreadyPending.length > 0) {
-            showToast(`Itens já em cotação: ${itemsAlreadyPending.map(i => i.name).join(', ')}`, 'error')
+            showToast(`⚠️ Itens já em cotação: ${itemsAlreadyPending.map(i => i.name).join(', ')}`, 'warning')
             setIsComposerOpen(false)
+            isSendingRef.current = false
             return
         }
 
-
-        // Start sending animation
-        setIsSendingEmail(true)
-
-        try {
-            // Send email via Gmail compose
-            console.log('📧 Opening email composer...')
-            await gmailService.sendEmail({
-                to: emailDraft.to,
-                subject: emailDraft.subject,
-                body: emailDraft.body,
-                supplierName: selectedSupplier?.name
-            })
-            console.log('✅ Email service completed!')
-
-            // Save to history with COMPLETE tracking data for audit log
-            const itemsWithDetails = selectedItems.map(item => {
-                const atual = item.totalQty || 0
-                const maximo = item.maxStock || 0
-                const quantidadePedir = Math.max(0, maximo - atual)
-                return {
+        // Prepare item details (before optimistic update for consistency)
+        const uniqueItemsMap = new Map();
+        selectedItems.forEach(item => {
+            if (!uniqueItemsMap.has(item.id)) {
+                const atual = item.totalQty || 0;
+                const maximo = item.maxStock || 0;
+                const quantidadePedir = Math.max(0, maximo - atual);
+                uniqueItemsMap.set(item.id, {
                     id: item.id,
                     name: item.name,
                     currentStock: atual,
@@ -1171,66 +1180,132 @@ ${today}`
                     quantityToOrder: quantidadePedir,
                     unit: item.unit || '',
                     supplierId: item.supplierId
-                }
-            })
-
-            const newEmail = {
-                id: Date.now().toString(),
-                ...emailDraft,
-                supplierName: selectedSupplier?.name,
-                supplierId: selectedSupplier?.id,
-                supplierEmail: emailDraft.to?.toLowerCase(), // CRITICAL: Needed for Cloud Function matching
-                // Complete item tracking for all tabs
-                items: itemsWithDetails,
-                itemNames: selectedItems.map(i => i.name), // Keep for backwards compat
-                totalItems: selectedItems.length,
-                sentAt: new Date().toISOString(),
-                status: 'sent',
-                sentViaGmail: gmailConnected
+                });
             }
+        });
+        const itemsWithDetails = Array.from(uniqueItemsMap.values());
 
-            const updated = [newEmail, ...sentEmails]
-            setSentEmails(updated)
-            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
+        // Generate idempotency key components
+        const itemIds = itemsWithDetails.map(i => i.id).sort().join('_');
+        const supplierEmailNormalized = emailDraft.to?.toLowerCase()?.trim();
+        const timestamp = Date.now();
 
-            // CRITICAL: Sync quotation to Firestore so Cloud Functions can find and update it
-            await FirebaseService.syncQuotation(newEmail.id, {
-                id: newEmail.id,
-                supplierEmail: emailDraft.to?.toLowerCase(),
-                supplierName: selectedSupplier?.name,
-                supplierId: selectedSupplier?.id,
-                items: itemsWithDetails,
-                subject: emailDraft.subject,
-                body: emailDraft.body,
-                status: 'sent',
-                createdAt: newEmail.sentAt,
-                updatedAt: newEmail.sentAt
-            })
-            console.log('✅ Quotation synced to Firestore for Cloud Function tracking')
+        // Check for duplicate quotations (last hour)
+        const oneHourAgo = timestamp - (60 * 60 * 1000);
+        const existingDuplicate = sentEmails.find(email => {
+            if ((email.supplierEmail || email.to)?.toLowerCase()?.trim() !== supplierEmailNormalized) return false;
+            if (!['sent', 'pending', 'awaiting'].includes(email.status)) return false;
+            const emailTime = new Date(email.sentAt).getTime();
+            if (emailTime < oneHourAgo) return false;
+            const existingItemIds = (email.items || []).map(i => i.id).sort().join('_');
+            return existingItemIds === itemIds;
+        });
 
-            // Close composer and stop loading
-            setIsSendingEmail(false)
-            setIsComposerOpen(false)
+        if (existingDuplicate) {
+            showToast('⚠️ Cotação duplicada! Já existe uma cotação pendente para este fornecedor com os mesmos itens.', 'warning')
+            isSendingRef.current = false
+            return;
+        }
 
-            // Show immediate toast confirmation
+        // Prepare new email object for optimistic update
+        const newEmailId = timestamp.toString();
+        const newEmail = {
+            id: newEmailId,
+            ...emailDraft,
+            supplierName: selectedSupplier?.name,
+            supplierId: selectedSupplier?.id,
+            supplierEmail: supplierEmailNormalized,
+            items: itemsWithDetails,
+            itemNames: selectedItems.map(i => i.name),
+            totalItems: selectedItems.length,
+            sentAt: new Date().toISOString(),
+            status: 'pending', // Changed from 'sent' to match Firestore status
+            sentViaGmail: gmailConnected
+        }
+
+        // Store original state for potential rollback
+        const originalEmails = [...sentEmails]
+        const operationId = `send_quotation_${newEmailId}`
+
+        // ─────────────────────────────────────────────────────────────────
+        // OPTIMISTIC UPDATE: Apply immediately for instant UI feedback
+        // ─────────────────────────────────────────────────────────────────
+        setIsSendingEmail(true)
+        const optimisticEmail = markAsPending(newEmail)
+        const optimisticList = [optimisticEmail, ...sentEmails]
+        setSentEmails(optimisticList)
+        localStorage.setItem('padoca_sent_emails', JSON.stringify(optimisticList))
+
+        // Close composer immediately for perceived speed
+        setIsComposerOpen(false)
+        setLastSentEmail(newEmail)
+        setShowSuccessModal(true)
+        setActiveProtocolTab('awaiting')
+
+        try {
+            // ─────────────────────────────────────────────────────────────────
+            // BACKGROUND SYNC: Gmail + Firestore with idempotency protection
+            // ─────────────────────────────────────────────────────────────────
+            await idempotencyMiddleware.execute(
+                'createQuotation',
+                { supplierId: selectedSupplier?.id, itemHash: itemIds, timestamp },
+                async () => {
+                    // CRITICAL FIX: Sync to Firestore FIRST (before Gmail)
+                    // This ensures the quotation exists even if Gmail fails
+                    await FirebaseService.syncQuotation(newEmail.id, {
+                        id: newEmail.id,
+                        supplierEmail: supplierEmailNormalized,
+                        supplierName: selectedSupplier?.name,
+                        supplierId: selectedSupplier?.id,
+                        items: itemsWithDetails,
+                        subject: emailDraft.subject,
+                        body: emailDraft.body,
+                        status: 'pending', // Use 'pending' so it shows up in Firestore listener
+                        createdAt: newEmail.sentAt,
+                        updatedAt: newEmail.sentAt
+                    })
+
+                    // Send email via Gmail (non-blocking - don't fail if Gmail not connected)
+                    try {
+                        await gmailService.sendEmail({
+                            to: emailDraft.to,
+                            subject: emailDraft.subject,
+                            body: emailDraft.body,
+                            supplierName: selectedSupplier?.name
+                        })
+                    } catch (gmailError) {
+                        console.warn('⚠️ Gmail send failed (quotation still saved):', gmailError.message)
+                        // Don't throw - quotation is already in Firestore
+                    }
+
+                    return { success: true, quotationId: newEmail.id }
+                }
+            )
+
+            // ─────────────────────────────────────────────────────────────────
+            // CONFIRM: Remove pending flag, finalize state
+            // ─────────────────────────────────────────────────────────────────
+            const confirmedList = optimisticList.map(e =>
+                e.id === newEmailId ? confirmItem(e) : e
+            )
+            setSentEmails(confirmedList)
+            localStorage.setItem('padoca_sent_emails', JSON.stringify(confirmedList))
             showToast('✅ Email enviado! Gmail aberto para finalizar.', 'success')
 
-            // Show success modal
-            console.log('🎉 Showing success modal...')
-            setLastSentEmail(newEmail)
-            setShowSuccessModal(true)
-
-            // Switch to Awaiting tab
-            setActiveProtocolTab('awaiting')
-
-            // Reset state
+        } catch (error) {
+            // ─────────────────────────────────────────────────────────────────
+            // ROLLBACK: Revert to original state on failure
+            // ─────────────────────────────────────────────────────────────────
+            setSentEmails(originalEmails)
+            localStorage.setItem('padoca_sent_emails', JSON.stringify(originalEmails))
+            setShowSuccessModal(false)
+            showToast('❌ Falha ao enviar email - cotação revertida: ' + error.message, 'error')
+        } finally {
+            setIsSendingEmail(false)
+            isSendingRef.current = false
             setSelectedSupplier(null)
             setSelectedItems([])
             setEmailDraft({ to: '', subject: '', body: '' })
-        } catch (error) {
-            console.error('❌ Send email failed:', error)
-            setIsSendingEmail(false)
-            showToast('Erro ao enviar email: ' + error.message, 'error')
         }
     }
 
@@ -1725,39 +1800,89 @@ ${today}`
 
                     {/* Apple-Style Segmented Control - Premium Design */}
                     <div className="flex p-1.5 bg-zinc-100/80 dark:bg-zinc-800/60 rounded-2xl border border-zinc-200/30 dark:border-white/5 overflow-x-auto scrollbar-hide -mx-2 md:mx-0 backdrop-blur-sm">
-                        {[
-                            { key: 'pending', label: 'Pendente', count: alertsBySupplier.length, color: 'zinc', icon: '○' },
-                            { key: 'awaiting', label: 'Aguardando', count: sentEmails.filter(e => e.status === 'sent' || e.status === 'quoted').length, color: 'zinc', icon: '◔' },
-                            { key: 'ordered', label: 'Ordens', count: sentEmails.filter(e => e.status === 'confirmed').length, color: 'zinc', icon: '◑' },
-                            { key: 'received', label: 'Recebido', count: sentEmails.filter(e => e.status === 'delivered').length, color: 'zinc', icon: '●' },
-                            { key: 'history', label: 'Histórico', count: sentEmails.length, color: 'zinc', icon: '◷' }
-                        ].map((tab) => (
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveProtocolTab(tab.key)}
-                                className={`relative flex-shrink-0 flex-1 min-w-[70px] flex items-center justify-center gap-1 py-2.5 md:py-3 px-2.5 md:px-4 rounded-xl text-[9px] md:text-[10px] font-semibold uppercase tracking-wide transition-all duration-300 whitespace-nowrap ${activeProtocolTab === tab.key
-                                    ? 'text-zinc-900 dark:text-white'
-                                    : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-400'
-                                    }`}
-                            >
-                                {activeProtocolTab === tab.key && (
-                                    <motion.div
-                                        layoutId="protocol-tab-indicator"
-                                        className="absolute inset-0 bg-white dark:bg-zinc-700/80 rounded-xl shadow-sm"
-                                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                                    />
-                                )}
-                                <span className="relative z-10">{tab.label}</span>
-                                {tab.count > 0 && (
-                                    <span className={`relative z-10 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[8px] font-bold ${activeProtocolTab === tab.key
-                                        ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                                        : 'bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-500 dark:text-zinc-400'
-                                        }`}>
-                                        {tab.count}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
+                        {/* 
+                          CRITICAL FIX: Define mutually exclusive status sets
+                          AWAITING_STATUSES = ['sent', 'pending', 'awaiting'] - emails waiting for supplier response
+                          ORDER_STATUSES = ['confirmed', 'ordered', 'quoted', 'pending_confirmation', 'shipped', 'delivered', 'received'] - emails that have progressed to order stage
+                          A quote can NEVER be in both Awaiting AND Orders tabs simultaneously.
+                        */}
+                        {(() => {
+                            const ORDER_STATUSES = ['confirmed', 'ordered', 'quoted', 'pending_confirmation', 'shipped', 'delivered', 'received'];
+                            const AWAITING_STATUSES = ['sent', 'pending', 'awaiting'];
+
+                            // Build cross-reference keys from allOrders - use ALL possible ID forms
+                            const orderQuotationIds = new Set([
+                                ...allOrders.map(o => o.quotationId).filter(Boolean),
+                                ...allOrders.map(o => o.id).filter(Boolean),
+                                ...allOrders.map(o => o.firestoreId).filter(Boolean),
+                            ]);
+
+                            // Awaiting: status in AWAITING_STATUSES AND NOT in ORDER_STATUSES AND no matching order
+                            const awaitingCount = deduplicatedEmails.filter(e => {
+                                if (!AWAITING_STATUSES.includes(e.status)) return false;
+                                if (ORDER_STATUSES.includes(e.status)) return false;
+
+                                // CRITICAL: Exclude if email has orderId set (already converted to order)
+                                if (e.orderId) return false;
+
+                                // Exclude if has matching order by any quotation ID form
+                                const emailQuotationId = e.firestoreId || e.id;
+                                if (orderQuotationIds.has(emailQuotationId)) return false;
+                                if (orderQuotationIds.has(e.id)) return false;
+                                if (e.firestoreId && orderQuotationIds.has(e.firestoreId)) return false;
+
+                                return true;
+                            }).length;
+
+                            // Ordens: filter out orders that have matching 'delivered' IDs
+                            const deliveredIds = new Set([
+                                ...deduplicatedEmails
+                                    .filter(e => e.status === 'delivered')
+                                    .flatMap(e => [e.id, e.firestoreId, e.quotationId, e.orderId].filter(Boolean))
+                            ]);
+                            const ordensCount = allOrders.filter(order => {
+                                if (deliveredIds.has(order.id)) return false;
+                                if (deliveredIds.has(order.quotationId)) return false;
+                                if (order.firestoreId && deliveredIds.has(order.firestoreId)) return false;
+                                if (order.status === 'delivered') return false;
+                                return true;
+                            }).length;
+
+                            return [
+                                { key: 'pending', label: 'Pendente', count: alertsBySupplier.length, color: 'zinc', icon: '○' },
+                                { key: 'awaiting', label: 'Aguardando', count: awaitingCount, color: 'zinc', icon: '◔' },
+                                { key: 'ordered', label: 'Ordens', count: ordensCount, color: 'zinc', icon: '◑' },
+                                { key: 'received', label: 'Recebido', count: deduplicatedEmails.filter(e => e.status === 'delivered').length, color: 'zinc', icon: '●' },
+                                { key: 'auto', label: 'Auto', count: autoQuoteRequests.length, color: 'violet', icon: '🤖' },
+                                { key: 'history', label: 'Histórico', count: deduplicatedEmails.length, color: 'zinc', icon: '◷' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveProtocolTab(tab.key)}
+                                    className={`relative flex-shrink-0 flex-1 min-w-[70px] flex items-center justify-center gap-1 py-2.5 md:py-3 px-2.5 md:px-4 rounded-xl text-[9px] md:text-[10px] font-semibold uppercase tracking-wide transition-all duration-300 whitespace-nowrap ${activeProtocolTab === tab.key
+                                        ? 'text-zinc-900 dark:text-white'
+                                        : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-400'
+                                        }`}
+                                >
+                                    {activeProtocolTab === tab.key && (
+                                        <motion.div
+                                            layoutId="protocol-tab-indicator"
+                                            className="absolute inset-0 bg-white dark:bg-zinc-700/80 rounded-xl shadow-sm"
+                                            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                                        />
+                                    )}
+                                    <span className="relative z-10">{tab.label}</span>
+                                    {tab.count > 0 && (
+                                        <span className={`relative z-10 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[8px] font-bold ${activeProtocolTab === tab.key
+                                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                                            : 'bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-500 dark:text-zinc-400'
+                                            }`}>
+                                            {tab.count}
+                                        </span>
+                                    )}
+                                </button>
+                            ));
+                        })()}
                     </div>
                 </div>
 
@@ -1908,61 +2033,101 @@ ${today}`
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {sentEmails.filter(e => e.status === 'sent' || e.status === 'quoted').length === 0 ? (
-                                    <motion.div
-                                        className="py-16 md:py-24 text-center flex flex-col items-center gap-6"
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-                                    >
-                                        {/* Animated Icon Container */}
-                                        <motion.div
-                                            className="relative"
-                                            animate={{ scale: [1, 1.05, 1] }}
-                                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                                        >
-                                            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-100 to-orange-50 dark:from-amber-500/20 dark:to-orange-500/10 flex items-center justify-center shadow-lg shadow-amber-500/10">
-                                                <svg className="w-10 h-10 text-amber-500 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                                                </svg>
-                                            </div>
-                                            {/* Decorative rings */}
-                                            <div className="absolute inset-0 rounded-3xl border-2 border-amber-200/30 dark:border-amber-500/10 animate-ping" style={{ animationDuration: '3s' }} />
-                                        </motion.div>
+                                {/* 
+                                  CRITICAL FIX: Mutually exclusive filter with multiple checks
+                                  1. Status check: status must be in AWAITING_STATUSES and NOT in ORDER_STATUSES
+                                  2. Cross-reference check: exclude emails that have a matching order in allOrders
+                                     (matched by supplierId or quotationId)
+                                  This prevents the same quote from appearing in both Aguardando and Ordens tabs.
+                                */}
+                                {(() => {
+                                    const ORDER_STATUSES = ['confirmed', 'ordered', 'quoted', 'pending_confirmation', 'shipped', 'delivered', 'received'];
+                                    const AWAITING_STATUSES = ['sent', 'pending', 'awaiting'];
 
-                                        <div className="space-y-2">
-                                            <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-200">
-                                                Nenhuma cotação em andamento
-                                            </h3>
-                                            <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-xs mx-auto">
-                                                Envie uma nova cotação para fornecedores através da aba Pendente
-                                            </p>
-                                        </div>
+                                    // Build a set of all order IDs for cross-reference
+                                    const orderQuotationIds = new Set([
+                                        ...allOrders.map(o => o.quotationId).filter(Boolean),
+                                        ...allOrders.map(o => o.id).filter(Boolean),
+                                        ...allOrders.map(o => o.firestoreId).filter(Boolean),
+                                    ]);
 
-                                        <button
-                                            onClick={() => setActiveProtocolTab('pending')}
-                                            className="mt-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl text-sm font-semibold shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center gap-2"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                            </svg>
-                                            Nova Cotação
-                                        </button>
-                                    </motion.div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        {/* Sem Resposta Section */}
-                                        {sentEmails.filter(e => e.status === 'sent').length > 0 && (
+                                    const awaitingEmails = deduplicatedEmails.filter(e => {
+                                        // Check 1: Status must be awaiting type
+                                        if (!AWAITING_STATUSES.includes(e.status)) return false;
+
+                                        // Check 2: Status must NOT be an order type
+                                        if (ORDER_STATUSES.includes(e.status)) return false;
+
+                                        // Check 3: CRITICAL - Exclude if email has orderId set
+                                        if (e.orderId) return false;
+
+                                        // Check 4: Exclude by any quotation ID form
+                                        const emailQuotationId = e.firestoreId || e.id;
+                                        if (orderQuotationIds.has(emailQuotationId)) return false;
+                                        if (orderQuotationIds.has(e.id)) return false;
+                                        if (e.firestoreId && orderQuotationIds.has(e.firestoreId)) return false;
+
+                                        return true;
+                                    });
+
+                                    if (awaitingEmails.length === 0) {
+                                        return (
+                                            <motion.div
+                                                className="py-16 md:py-24 text-center flex flex-col items-center gap-6"
+                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                                            >
+                                                {/* Animated Icon Container */}
+                                                <motion.div
+                                                    className="relative"
+                                                    animate={{ scale: [1, 1.05, 1] }}
+                                                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                                >
+                                                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-100 to-orange-50 dark:from-amber-500/20 dark:to-orange-500/10 flex items-center justify-center shadow-lg shadow-amber-500/10">
+                                                        <svg className="w-10 h-10 text-amber-500 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                                        </svg>
+                                                    </div>
+                                                    {/* Decorative rings */}
+                                                    <div className="absolute inset-0 rounded-3xl border-2 border-amber-200/30 dark:border-amber-500/10 animate-ping" style={{ animationDuration: '3s' }} />
+                                                </motion.div>
+
+                                                <div className="space-y-2">
+                                                    <h3 className="text-lg font-semibold text-zinc-700 dark:text-zinc-200">
+                                                        Nenhuma cotação em andamento
+                                                    </h3>
+                                                    <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-xs mx-auto">
+                                                        Envie uma nova cotação para fornecedores através da aba Pendente
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => setActiveProtocolTab('pending')}
+                                                    className="mt-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl text-sm font-semibold shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center gap-2"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                                    </svg>
+                                                    Nova Cotação
+                                                </button>
+                                            </motion.div>
+                                        );
+                                    }
+
+                                    // Has awaiting emails - show list
+                                    return (
+                                        <div className="space-y-6">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-4">
                                                     <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                                                     <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Aguardando Resposta</span>
                                                     <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/20 rounded text-[9px] font-bold text-amber-600 dark:text-amber-400">
-                                                        {sentEmails.filter(e => e.status === 'sent').length}
+                                                        {awaitingEmails.length}
                                                     </span>
                                                 </div>
                                                 <div className="space-y-3">
-                                                    {sentEmails.filter(e => e.status === 'sent').map((email) => (
+                                                    {awaitingEmails.map((email) => (
                                                         <motion.div
                                                             key={email.id}
                                                             className="rounded-2xl bg-amber-50/30 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/10 overflow-hidden"
@@ -1994,20 +2159,26 @@ ${today}`
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex gap-2">
+                                                                <div className="flex gap-2 relative z-10">
                                                                     <button
-                                                                        onClick={() => {
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
                                                                             setSelectedEmailForQuote(email)
                                                                             setQuoteDetails({ quotedValue: '', expectedDelivery: '' })
                                                                             setQuoteModalOpen(true)
                                                                         }}
-                                                                        className="px-4 py-2.5 bg-amber-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-amber-600 transition-all shadow-md"
+                                                                        className="px-4 py-2.5 bg-amber-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-amber-600 transition-all shadow-md touch-manipulation pointer-events-auto"
+                                                                        style={{ minHeight: '44px' }}
                                                                     >
                                                                         Registrar Cotação
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => openEmailComposer(suppliers.find(s => s.name === email.supplierName) || { name: email.supplierName, email: email.to }, [])}
-                                                                        className="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            handleResendEmail(email)
+                                                                        }}
+                                                                        className="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all touch-manipulation pointer-events-auto"
+                                                                        style={{ minHeight: '44px' }}
                                                                     >
                                                                         Reenviar
                                                                     </button>
@@ -2073,137 +2244,9 @@ ${today}`
                                                     ))}
                                                 </div>
                                             </div>
-                                        )}
-
-                                        {/* Cotação Recebida Section */}
-                                        {sentEmails.filter(e => e.status === 'quoted').length > 0 && (
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Cotação Recebida</span>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    {sentEmails.filter(e => e.status === 'quoted').map((email) => (
-                                                        <motion.div
-                                                            key={email.id}
-                                                            className="rounded-2xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10 overflow-hidden"
-                                                            initial={{ opacity: 0 }}
-                                                            animate={{ opacity: 1 }}
-                                                        >
-                                                            <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-5">
-                                                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                                    <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                                                                        {email.supplierName?.charAt(0)?.toUpperCase() || '?'}
-                                                                    </div>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{email.supplierName || email.to}</p>
-                                                                        <p className="text-[10px] text-blue-600 dark:text-blue-400">
-                                                                            {email.quotedValue ? (
-                                                                                <>Cotação: <span className="font-bold">{formatCurrency(email.quotedValue)}</span></>
-                                                                            ) : 'Aguardando aprovação'}
-                                                                            {email.expectedDelivery && (
-                                                                                <span className="ml-2 text-zinc-400">• Entrega: {formatDate(email.expectedDelivery, { month: 'short', day: '2-digit' })}</span>
-                                                                            )}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                                {/* Problems Alert Badge */}
-                                                                {email.hasProblems && (
-                                                                    <div className="w-full px-4 py-2 bg-rose-50 dark:bg-rose-500/10 border-t border-rose-100 dark:border-rose-500/10 flex items-center gap-2">
-                                                                        <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                                        </svg>
-                                                                        <span className="text-[10px] font-medium text-rose-600 dark:text-rose-400">
-                                                                            {email.hasDelay && '⏰ Atraso na entrega • '}
-                                                                            {email.problemSummary || 'Problemas detectados - verifique os detalhes'}
-                                                                        </span>
-                                                                        {email.urgency === 'high' && (
-                                                                            <span className="ml-auto px-2 py-0.5 bg-rose-500 text-white rounded-full text-[8px] font-bold uppercase">Urgente</span>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                                {/* Quote Summary Badge */}
-                                                                {email.quotedValue && (
-                                                                    <div className="hidden md:flex flex-col items-end gap-0.5 shrink-0 px-4">
-                                                                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
-                                                                        {email.expectedDelivery && (
-                                                                            <span className="text-[9px] text-zinc-400 uppercase tracking-wider">
-                                                                                Entrega: {formatDate(email.expectedDelivery, { month: 'short', day: '2-digit' })}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex gap-2">
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const confirmedData = {
-                                                                                status: 'confirmed',
-                                                                                confirmedAt: new Date().toISOString(),
-                                                                                quotedTotal: email.quotedValue,
-                                                                                items: email.items
-                                                                            }
-                                                                            // Sync quotation status update
-                                                                            FirebaseService.syncQuotation(email.firestoreId || email.id, confirmedData)
-                                                                                .catch(e => console.warn('Firestore quotation sync failed:', e))
-
-                                                                            // CRITICAL FIX: Create order in Firestore orders collection
-                                                                            const orderId = `order_${Date.now()}_${email.id}`
-                                                                            FirebaseService.syncOrder(orderId, {
-                                                                                quotationId: email.firestoreId || email.id,
-                                                                                supplierEmail: email.to,
-                                                                                supplierName: email.supplierName,
-                                                                                items: email.items || [],
-                                                                                quotedValue: email.quotedValue,
-                                                                                expectedDelivery: email.expectedDelivery,
-                                                                                status: 'confirmed',
-                                                                                createdAt: new Date().toISOString(),
-                                                                                confirmedAt: new Date().toISOString()
-                                                                            }).then(() => console.log('✅ Order created:', orderId))
-                                                                                .catch(e => console.warn('Order sync failed:', e))
-
-                                                                            const updated = sentEmails.map(e => e.id === email.id ? { ...e, ...confirmedData, orderId } : e)
-                                                                            setSentEmails(updated)
-                                                                            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
-                                                                            showToast('✓ Ordem de compra criada!', 'success')
-                                                                        }}
-                                                                        className="px-4 py-2 bg-blue-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-blue-600 transition-all flex items-center gap-1.5"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                                                        Aprovar
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const resetData = {
-                                                                                status: 'sent',
-                                                                                quotedValue: null,
-                                                                                expectedDelivery: null,
-                                                                                quotedTotal: null,
-                                                                                replyBody: null,
-                                                                                replyReceivedAt: null
-                                                                            }
-                                                                            // CRITICAL FIX: Sync reset to Firestore
-                                                                            FirebaseService.syncQuotation(email.firestoreId || email.id, resetData)
-                                                                                .catch(e => console.warn('Firestore sync failed:', e))
-
-                                                                            const updated = sentEmails.map(e => e.id === email.id ? { ...e, ...resetData } : e)
-                                                                            setSentEmails(updated)
-                                                                            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
-                                                                            showToast('Solicitando nova cotação...', 'info')
-                                                                            openEmailComposer(suppliers.find(s => s.name === email.supplierName) || { name: email.supplierName, email: email.to }, [])
-                                                                        }}
-                                                                        className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
-                                                                    >
-                                                                        Nova Cotação
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </motion.div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                        </div>
+                                    );
+                                })()}
                             </motion.div>
                         )}
 
@@ -2216,7 +2259,8 @@ ${today}`
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {sentEmails.filter(e => e.status === 'confirmed').length === 0 ? (
+                                {/* FIX Bug #3: Use allOrders merged list instead of sentEmails filter */}
+                                {allOrders.length === 0 ? (
                                     <motion.div
                                         className="py-16 md:py-24 text-center flex flex-col items-center gap-6"
                                         initial={{ opacity: 0, scale: 0.95 }}
@@ -2256,92 +2300,232 @@ ${today}`
                                     </motion.div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {sentEmails.filter(e => e.status === 'confirmed').map((email) => (
-                                            <motion.div
-                                                key={email.id}
-                                                className="rounded-2xl bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10 overflow-hidden"
-                                                initial={{ opacity: 0, scale: 0.98 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                            >
-                                                <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-5">
-                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                        <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{email.supplierName || email.to}</p>
-                                                            <p className="text-[10px] text-indigo-600 dark:text-indigo-400">
-                                                                Ordem criada em {formatDate(email.confirmedAt || email.sentAt, { month: 'short', day: '2-digit' })}
-                                                                {email.expectedDelivery && (
-                                                                    <span className="ml-2 text-zinc-400">• Entrega prev.: {formatDate(email.expectedDelivery, { month: 'short', day: '2-digit' })}</span>
+                                        {/* FIX Bug #3: Use allOrders merged list instead of sentEmails filter */}
+                                        {/* CRITICAL FIX: Also exclude orders that have matching 'delivered' records in sentEmails */}
+                                        {(() => {
+                                            // Build a set of all IDs for delivered items
+                                            const deliveredIds = new Set([
+                                                ...deduplicatedEmails
+                                                    .filter(e => e.status === 'delivered')
+                                                    .flatMap(e => [e.id, e.firestoreId, e.quotationId, e.orderId].filter(Boolean))
+                                            ]);
+
+                                            // Filter allOrders to exclude those with matching delivered records
+                                            const filteredOrders = allOrders.filter(order => {
+                                                // Exclude if order ID matches any delivered ID
+                                                if (deliveredIds.has(order.id)) return false;
+                                                if (deliveredIds.has(order.quotationId)) return false;
+                                                if (order.firestoreId && deliveredIds.has(order.firestoreId)) return false;
+
+                                                // Exclude if order status is already delivered
+                                                if (order.status === 'delivered') return false;
+
+                                                return true;
+                                            });
+
+                                            return filteredOrders.map((order) => (
+                                                <motion.div
+                                                    key={order.id}
+                                                    className={`rounded-2xl overflow-hidden ${order.status === 'pending_confirmation'
+                                                        ? 'bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20'
+                                                        : 'bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/10'
+                                                        }`}
+                                                    initial={{ opacity: 0, scale: 0.98 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                >
+                                                    <div className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-5">
+                                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-semibold shrink-0 ${order.status === 'pending_confirmation' ? 'bg-amber-500' : 'bg-indigo-500'
+                                                                }`}>
+                                                                {order.status === 'pending_confirmation' ? (
+                                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                                ) : (
+                                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                                                 )}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    {/* Value Badge */}
-                                                    {email.quotedValue && (
-                                                        <div className="hidden md:block px-4 py-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl">
-                                                            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
-                                                        </div>
-                                                    )}
-                                                    <button
-                                                        onClick={() => {
-                                                            const deliveredData = {
-                                                                status: 'delivered',
-                                                                deliveredAt: new Date().toISOString()
-                                                            }
-                                                            // CRITICAL FIX: Sync to Firestore
-                                                            FirebaseService.syncQuotation(email.firestoreId || email.id, deliveredData)
-                                                                .catch(e => console.warn('Firestore sync failed:', e))
-
-                                                            const updated = sentEmails.map(e => e.id === email.id ? { ...e, ...deliveredData } : e)
-                                                            setSentEmails(updated)
-                                                            localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
-                                                            showToast('📦 Produto recebido!', 'success')
-                                                        }}
-                                                        className="w-full md:w-auto px-5 py-2.5 bg-indigo-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                                                        Confirmar Recebimento
-                                                    </button>
-                                                </div>
-                                                {/* Mobile value display */}
-                                                {email.quotedValue && (
-                                                    <div className="md:hidden px-5 pb-4 flex items-center justify-between">
-                                                        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Valor:</span>
-                                                        <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">{formatCurrency(email.quotedValue)}</span>
-                                                    </div>
-                                                )}
-
-                                                {/* Items List - Show what was ordered */}
-                                                {email.items && email.items.length > 0 && (
-                                                    <div className="border-t border-indigo-100 dark:border-indigo-500/10 bg-white/50 dark:bg-zinc-900/30">
-                                                        <div className="hidden md:grid grid-cols-3 gap-4 px-5 py-2 text-[9px] font-medium text-zinc-400 uppercase tracking-wider border-b border-zinc-100 dark:border-white/5">
-                                                            <span>Item</span>
-                                                            <span className="text-center">Quantidade Solicitada</span>
-                                                            <span className="text-right">Unidade</span>
-                                                        </div>
-                                                        {email.items.slice(0, 4).map((item, idx) => (
-                                                            <div
-                                                                key={item.id || idx}
-                                                                className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 py-2.5 px-4 md:px-5 border-b border-zinc-100 dark:border-white/5 last:border-b-0"
-                                                            >
-                                                                <span className="col-span-2 md:col-span-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.name}</span>
-                                                                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 md:text-center tabular-nums">
-                                                                    {item.quantityToOrder}{item.unit}
-                                                                </span>
-                                                                <span className="text-xs text-zinc-400 md:text-right">{item.unit || '—'}</span>
                                                             </div>
-                                                        ))}
-                                                        {email.items.length > 4 && (
-                                                            <div className="px-5 py-2 text-[10px] text-zinc-400 text-center">
-                                                                +{email.items.length - 4} mais itens
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{order.supplierName || order.supplierEmail}</p>
+                                                                    {/* Status Badge */}
+                                                                    {order.status === 'pending_confirmation' ? (
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-full text-[9px] font-bold uppercase tracking-wider">
+                                                                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                                                                            Aguardando Revisão
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 rounded-full text-[9px] font-bold uppercase tracking-wider">
+                                                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                                                            Confirmada
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className={`text-[10px] ${order.status === 'pending_confirmation' ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                                                    {order.status === 'pending_confirmation' ? 'Recebida' : 'Ordem criada'} em {formatDate(order.confirmedAt || order.createdAt, { month: 'short', day: '2-digit' })}
+                                                                    {order.expectedDelivery && (
+                                                                        <span className="ml-2 text-zinc-400">• Entrega prev.: {formatDate(order.expectedDelivery, { month: 'short', day: '2-digit' })}</span>
+                                                                    )}
+                                                                    {order.hasProblems && (
+                                                                        <span className="ml-2 text-red-500">⚠️ Problemas detectados</span>
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        {/* Value Badge */}
+                                                        {order.quotedValue && (
+                                                            <div className="hidden md:block px-4 py-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl">
+                                                                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">{formatCurrency(order.quotedValue)}</span>
                                                             </div>
                                                         )}
+                                                        {/* Conditional action button based on order status */}
+                                                        {order.status === 'pending_confirmation' ? (
+                                                            /* APROVAR ORDEM button for orders needing review */
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const confirmData = {
+                                                                        status: 'confirmed',
+                                                                        confirmedAt: new Date().toISOString(),
+                                                                        manuallyConfirmed: true
+                                                                    }
+                                                                    // Update order in Firestore
+                                                                    await FirebaseService.updateOrderStatus(order.id, 'confirmed', confirmData)
+                                                                        .catch(e => console.warn('Order confirmation failed:', e))
+                                                                    // Update quotation status to ordered
+                                                                    await FirebaseService.syncQuotation(order.quotationId || order.id, {
+                                                                        status: 'ordered',
+                                                                        confirmedAt: new Date().toISOString(),
+                                                                        orderId: order.id
+                                                                    })
+                                                                        .catch(e => console.warn('Quotation sync failed:', e))
+
+                                                                    const updated = sentEmails.map(e => (e.id === order.quotationId || e.orderId === order.id)
+                                                                        ? { ...e, status: 'confirmed', confirmedAt: new Date().toISOString() }
+                                                                        : e)
+                                                                    setSentEmails(updated)
+                                                                    showToast('✅ Ordem aprovada!', 'success')
+                                                                }}
+                                                                className="w-full md:w-auto px-5 py-2.5 bg-amber-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-amber-600 transition-all flex items-center justify-center gap-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                                Aprovar Ordem
+                                                            </button>
+                                                        ) : (
+                                                            /* CONFIRMAR RECEBIMENTO button for confirmed orders */
+                                                            <button
+                                                                onClick={() => {
+                                                                    // LAW 2 GATEKEEPER: Require confirmation data
+                                                                    const receiptConfirmation = {
+                                                                        confirmed: true,
+                                                                        receivedAt: new Date().toISOString(),
+                                                                        notes: 'Confirmado pelo operador'
+                                                                    }
+                                                                    const deliveredData = {
+                                                                        status: 'delivered',
+                                                                        deliveredAt: new Date().toISOString()
+                                                                    }
+
+                                                                    // Use SmartSourcingService.confirmReceipt with gatekeeper enforcement
+                                                                    SmartSourcingService.confirmReceipt(
+                                                                        order.quotationId || order.id,
+                                                                        receiptConfirmation,
+                                                                        'user',
+                                                                        'Operador'
+                                                                    )
+                                                                        .then(() => {
+                                                                            // Update local state
+                                                                            const updated = sentEmails.map(e => (e.id === order.quotationId || e.orderId === order.id) ? { ...e, ...deliveredData } : e)
+                                                                            setSentEmails(updated)
+                                                                            showToast('📦 Produto recebido!', 'success')
+                                                                        })
+                                                                        .catch(e => {
+                                                                            console.error('❌ LAW 2 Gatekeeper blocked:', e.message)
+                                                                            showToast(`Erro: ${e.message}`, 'error')
+                                                                        })
+                                                                }}
+                                                                className="w-full md:w-auto px-5 py-2.5 bg-indigo-500 text-white rounded-xl text-[10px] font-semibold uppercase tracking-wider hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                                                                Confirmar Recebimento
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </motion.div>
-                                        ))}
+                                                    {/* Mobile value display */}
+                                                    {order.quotedValue && (
+                                                        <div className="md:hidden px-5 pb-4 flex items-center justify-between">
+                                                            <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Valor:</span>
+                                                            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">{formatCurrency(order.quotedValue)}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* SUPPLIER RESPONSE SECTION - Shows email reply data */}
+                                                    {(order.rawSupplierResponse || order.firestoreData?.rawSupplierResponse || order.replyBody) && (
+                                                        <div className="mx-4 mb-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-700/50">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                                </svg>
+                                                                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                                                                    Resposta do Fornecedor
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-zinc-600 dark:text-zinc-300 line-clamp-3 whitespace-pre-line">
+                                                                {(order.rawSupplierResponse || order.firestoreData?.rawSupplierResponse || order.replyBody || '').substring(0, 250)}
+                                                                {(order.rawSupplierResponse || order.firestoreData?.rawSupplierResponse || order.replyBody || '').length > 250 && '...'}
+                                                            </p>
+                                                            {/* AI Extracted Data Badges */}
+                                                            {(order.aiAnalysis || order.firestoreData?.aiAnalysis) && (
+                                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                                    {(order.aiAnalysis?.deliveryDate || order.firestoreData?.aiAnalysis?.deliveryDate) && (
+                                                                        <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded text-[10px] font-medium">
+                                                                            🚚 Entrega: {order.aiAnalysis?.deliveryDate || order.firestoreData?.aiAnalysis?.deliveryDate}
+                                                                        </span>
+                                                                    )}
+                                                                    {(order.aiAnalysis?.paymentTerms || order.firestoreData?.aiAnalysis?.paymentTerms) && (
+                                                                        <span className="px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 rounded text-[10px] font-medium">
+                                                                            💳 {order.aiAnalysis?.paymentTerms || order.firestoreData?.aiAnalysis?.paymentTerms}
+                                                                        </span>
+                                                                    )}
+                                                                    {(order.aiAnalysis?.confidence || order.firestoreData?.aiAnalysis?.confidence) && (
+                                                                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded text-[10px] font-medium">
+                                                                            🤖 {Math.round((order.aiAnalysis?.confidence || order.firestoreData?.aiAnalysis?.confidence) * 100)}% confiança
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Items List - Show what was ordered */}
+                                                    {order.items && order.items.length > 0 && (
+                                                        <div className="border-t border-indigo-100 dark:border-indigo-500/10 bg-white/50 dark:bg-zinc-900/30">
+                                                            <div className="hidden md:grid grid-cols-3 gap-4 px-5 py-2 text-[9px] font-medium text-zinc-400 uppercase tracking-wider border-b border-zinc-100 dark:border-white/5">
+                                                                <span>Item</span>
+                                                                <span className="text-center">Quantidade Solicitada</span>
+                                                                <span className="text-right">Unidade</span>
+                                                            </div>
+                                                            {order.items.slice(0, 4).map((item, idx) => (
+                                                                <div
+                                                                    key={item.id || idx}
+                                                                    className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 py-2.5 px-4 md:px-5 border-b border-zinc-100 dark:border-white/5 last:border-b-0"
+                                                                >
+                                                                    <span className="col-span-2 md:col-span-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.name}</span>
+                                                                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 md:text-center tabular-nums">
+                                                                        {item.quantityToOrder || item.quantity}{item.unit}
+                                                                    </span>
+                                                                    <span className="text-xs text-zinc-400 md:text-right">{item.unit || '—'}</span>
+                                                                </div>
+                                                            ))}
+                                                            {order.items.length > 4 && (
+                                                                <div className="px-5 py-2 text-[10px] text-zinc-400 text-center">
+                                                                    +{order.items.length - 4} mais itens
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </motion.div>
+                                            ));
+                                        })()}
                                     </div>
                                 )}
                             </motion.div>
@@ -2356,7 +2540,7 @@ ${today}`
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {sentEmails.filter(e => e.status === 'delivered').length === 0 ? (
+                                {deduplicatedEmails.filter(e => e.status === 'delivered').length === 0 ? (
                                     <div className="py-20 text-center flex flex-col items-center gap-4">
                                         <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
                                             <svg className="w-8 h-8 text-zinc-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
@@ -2366,7 +2550,7 @@ ${today}`
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {sentEmails.filter(e => e.status === 'delivered').map((email) => (
+                                        {deduplicatedEmails.filter(e => e.status === 'delivered').map((email) => (
                                             <motion.div
                                                 key={email.id}
                                                 className="rounded-2xl bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 overflow-hidden"
@@ -2440,7 +2624,33 @@ ${today}`
                             </motion.div>
                         )}
 
-                        {/* TAB 4: Histórico / Registro de Movimentações */}
+
+                        {/* TAB 5: Auto-Cotações - AutoQuoteDashboard */}
+                        {activeProtocolTab === 'auto' && (
+                            <motion.div
+                                key="auto"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <AutoQuoteDashboard
+                                    quotes={autoQuoteRequests}
+                                    onQuoteUpdate={async (updatedQuote) => {
+                                        // Reload auto-quote requests after update
+                                        try {
+                                            const requests = await FirebaseService.getAutoQuoteRequests()
+                                            setAutoQuoteRequests(requests)
+                                        } catch (e) {
+                                            console.warn('Failed to reload auto-quote requests:', e)
+                                        }
+                                    }}
+                                    suppliers={suppliers}
+                                />
+                            </motion.div>
+                        )}
+
+                        {/* TAB 6: Histórico / Registro de Movimentações */}
                         {activeProtocolTab === 'history' && (
                             <motion.div
                                 key="history"
@@ -2449,7 +2659,7 @@ ${today}`
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {sentEmails.length === 0 ? (
+                                {deduplicatedEmails.length === 0 ? (
                                     <div className="py-20 text-center flex flex-col items-center gap-4">
                                         <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
                                             <svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -2471,7 +2681,7 @@ ${today}`
 
                                         {/* Table Body */}
                                         <div className="space-y-2">
-                                            {sentEmails.slice(0, 20).map((email) => {
+                                            {deduplicatedEmails.slice(0, 20).map((email) => {
                                                 const statusConfig = {
                                                     sent: { color: 'amber', icon: '◔', label: 'Sem Resposta' },
                                                     quoted: { color: 'blue', icon: '◑', label: 'Cotado' },
@@ -2584,29 +2794,25 @@ ${today}`
                                                                             quotedTotal: email.quotedValue,
                                                                             items: email.items
                                                                         }
-                                                                        // Sync quotation status
-                                                                        FirebaseService.syncQuotation(email.firestoreId || email.id, confirmedData)
-                                                                            .catch(e => console.warn('Quotation sync failed:', e))
-
-                                                                        // Create order in Firestore
-                                                                        const orderId = `order_${Date.now()}_${email.id}`
-                                                                        FirebaseService.syncOrder(orderId, {
-                                                                            quotationId: email.firestoreId || email.id,
-                                                                            supplierEmail: email.to,
-                                                                            supplierName: email.supplierName,
-                                                                            items: email.items || [],
-                                                                            quotedValue: email.quotedValue,
-                                                                            expectedDelivery: email.expectedDelivery,
-                                                                            status: 'confirmed',
-                                                                            createdAt: new Date().toISOString(),
-                                                                            confirmedAt: new Date().toISOString()
-                                                                        }).then(() => console.log('✅ Order created in History tab:', orderId))
-                                                                            .catch(e => console.warn('Order sync failed:', e))
-
-                                                                        const updated = sentEmails.map(e => e.id === email.id ? { ...e, ...confirmedData, orderId } : e)
-                                                                        setSentEmails(updated)
-                                                                        localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
-                                                                        showToast('✓ Ordem de compra criada!', 'success')
+                                                                        // Use SmartSourcingService.confirm for idempotent order creation
+                                                                        const quotationId = email.firestoreId || email.id
+                                                                        SmartSourcingService.confirm(quotationId, 'user', 'Operador')
+                                                                            .then(result => {
+                                                                                const updated = sentEmails.map(e => e.id === email.id ? {
+                                                                                    ...e,
+                                                                                    status: 'confirmed',
+                                                                                    confirmedAt: new Date().toISOString(),
+                                                                                    orderId: result.orderId,
+                                                                                    quotedTotal: email.quotedValue
+                                                                                } : e)
+                                                                                setSentEmails(updated)
+                                                                                localStorage.setItem('padoca_sent_emails', JSON.stringify(updated))
+                                                                                showToast('✓ Ordem de compra criada!', 'success')
+                                                                            })
+                                                                            .catch(e => {
+                                                                                console.warn('Order creation failed:', e)
+                                                                                showToast('Erro ao criar ordem: ' + e.message, 'error')
+                                                                            })
                                                                     }}
                                                                     className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors group"
                                                                     title="Aprovar cotação"
@@ -2627,13 +2833,21 @@ ${today}`
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
-                                                                    const isPreConfirmation = ['sent', 'pending', 'awaiting', 'quoted'].includes(email.status);
-                                                                    const message = isPreConfirmation
-                                                                        ? 'Excluir cotação? Os itens voltarão para a aba Pendente.'
-                                                                        : 'Remover do histórico? Esta ação apenas remove o registro.';
-                                                                    if (window.confirm(message)) {
-                                                                        handleDeleteQuotation(email.id)
-                                                                    }
+                                                                    // FIXED: 'quoted' removed - supplier already responded, items should NOT return to Pendente
+                                                                    const isPreConfirmation = ['sent', 'pending', 'awaiting'].includes(email.status);
+                                                                    showConfirmModal({
+                                                                        title: isPreConfirmation ? 'Excluir Cotação?' : 'Remover do Histórico?',
+                                                                        message: isPreConfirmation
+                                                                            ? 'Os itens voltarão para a aba Pendente.'
+                                                                            : 'Esta ação apenas remove o registro.',
+                                                                        confirmLabel: 'Excluir',
+                                                                        cancelLabel: 'Cancelar',
+                                                                        isDangerous: true,
+                                                                        onConfirm: () => {
+                                                                            handleDeleteQuotation(email.id)
+                                                                            closeConfirmModal()
+                                                                        }
+                                                                    })
                                                                 }}
                                                                 className="p-2 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors group"
                                                                 title="Excluir cotação"
@@ -2650,9 +2864,9 @@ ${today}`
                                         </div>
 
                                         {/* Footer */}
-                                        {sentEmails.length > 10 && (
+                                        {deduplicatedEmails.length > 10 && (
                                             <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-white/5 text-center">
-                                                <p className="text-[10px] text-zinc-400">Mostrando 10 de {sentEmails.length} registros</p>
+                                                <p className="text-[10px] text-zinc-400">Mostrando 10 de {deduplicatedEmails.length} registros</p>
                                             </div>
                                         )}
                                     </div>
@@ -2663,133 +2877,136 @@ ${today}`
                 </div>
             </section >
 
-            {/* Email Composer Modal - Matching exactly Costs.jsx modal pattern */}
-            < AnimatePresence >
-                {isComposerOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 pt-20 md:pt-4"
-                    >
+            {/* Email Composer Modal - FIXED: Higher z-index and better positioning */}
+            {
+                isComposerOpen && createPortal(
+                    <AnimatePresence>
                         <motion.div
+                            key="email-composer-modal"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm"
-                            onClick={() => setIsComposerOpen(false)}
-                        />
-
-                        <motion.div
-                            initial={{ y: 50, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: 50, opacity: 0 }}
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="relative bg-zinc-100 dark:bg-zinc-900 w-full max-w-lg rounded-2xl md:rounded-[2rem] shadow-2xl border border-zinc-200/50 dark:border-white/5 flex flex-col overflow-hidden max-h-[85vh]"
+                            className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
                         >
-                            <ModalScrollLock />
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-black/30 dark:bg-black/80 backdrop-blur-sm"
+                                onClick={() => setIsComposerOpen(false)}
+                            />
 
-                            {/* Drag Handle - Mobile */}
-                            <div className="md:hidden w-full flex justify-center pt-4 pb-1 shrink-0">
-                                <div className="w-8 h-1 rounded-full bg-zinc-300 dark:bg-zinc-800"></div>
-                            </div>
+                            <motion.div
+                                initial={{ y: 50, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: 50, opacity: 0 }}
+                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                className="relative bg-zinc-100 dark:bg-zinc-900 w-full max-w-lg rounded-2xl md:rounded-[2rem] shadow-2xl border border-zinc-200/50 dark:border-white/5 flex flex-col overflow-hidden max-h-[90vh] my-auto"
+                            >
+                                <ModalScrollLock />
 
-                            {/* Header */}
-                            <div className="px-6 py-4 flex justify-between items-center shrink-0">
-                                <div>
-                                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Compor Email</h3>
-                                    <p className="text-xs text-zinc-500">{selectedSupplier?.name}</p>
+                                {/* Drag Handle - Mobile */}
+                                <div className="md:hidden w-full flex justify-center pt-4 pb-1 shrink-0">
+                                    <div className="w-8 h-1 rounded-full bg-zinc-300 dark:bg-zinc-800"></div>
                                 </div>
-                                <button
-                                    onClick={() => setIsComposerOpen(false)}
-                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 touch-manipulation"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
 
-                            <div className="overflow-y-auto custom-scrollbar flex-1 pb-10">
-                                <div className="space-y-6 px-4 animate-fade-in">
-                                    {/* Email Fields Group */}
-                                    <div className="bg-white dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-white/5 overflow-hidden">
-                                        <div className="flex items-center px-4 py-3 border-b border-zinc-100 dark:border-white/5">
-                                            <label className="w-20 text-[10px] font-bold text-zinc-400 uppercase tracking-widest shrink-0">Para</label>
-                                            <input
-                                                className="flex-1 bg-transparent border-none py-1 text-sm font-semibold text-zinc-800 dark:text-white outline-none placeholder:text-zinc-300"
-                                                value={emailDraft.to}
-                                                onChange={e => setEmailDraft(d => ({ ...d, to: e.target.value }))}
-                                                placeholder="email@fornecedor.com"
-                                            />
+                                {/* Header */}
+                                <div className="px-6 py-4 flex justify-between items-center shrink-0">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Compor Email</h3>
+                                        <p className="text-xs text-zinc-500">{selectedSupplier?.name}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsComposerOpen(false)}
+                                        className="w-11 h-11 flex items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 touch-manipulation"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+
+                                <div className="overflow-y-auto custom-scrollbar flex-1 pb-10">
+                                    <div className="space-y-6 px-4 animate-fade-in">
+                                        {/* Email Fields Group */}
+                                        <div className="bg-white dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-white/5 overflow-hidden">
+                                            <div className="flex items-center px-4 py-3 border-b border-zinc-100 dark:border-white/5">
+                                                <label className="w-20 text-[10px] font-bold text-zinc-400 uppercase tracking-widest shrink-0">Para</label>
+                                                <input
+                                                    className="flex-1 bg-transparent border-none py-1 text-sm font-semibold text-zinc-800 dark:text-white outline-none placeholder:text-zinc-300"
+                                                    value={emailDraft.to}
+                                                    onChange={e => setEmailDraft(d => ({ ...d, to: e.target.value }))}
+                                                    placeholder="email@fornecedor.com"
+                                                />
+                                            </div>
+                                            <div className="flex items-center px-4 py-3 border-b border-zinc-100 dark:border-white/5">
+                                                <label className="w-20 text-[10px] font-bold text-zinc-400 uppercase tracking-widest shrink-0">Assunto</label>
+                                                <input
+                                                    className="flex-1 bg-transparent border-none py-1 text-sm font-semibold text-zinc-800 dark:text-white outline-none placeholder:text-zinc-300"
+                                                    value={emailDraft.subject}
+                                                    onChange={e => setEmailDraft(d => ({ ...d, subject: e.target.value }))}
+                                                    placeholder="Assunto do email"
+                                                />
+                                            </div>
+                                            <div className="px-4 py-3">
+                                                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Mensagem</label>
+                                                <textarea
+                                                    className="w-full bg-transparent border-none py-1 text-sm font-medium text-zinc-700 dark:text-zinc-300 outline-none resize-none leading-relaxed min-h-[200px]"
+                                                    value={emailDraft.body}
+                                                    onChange={e => setEmailDraft(d => ({ ...d, body: e.target.value }))}
+                                                    placeholder="Conteúdo do email..."
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="flex items-center px-4 py-3 border-b border-zinc-100 dark:border-white/5">
-                                            <label className="w-20 text-[10px] font-bold text-zinc-400 uppercase tracking-widest shrink-0">Assunto</label>
-                                            <input
-                                                className="flex-1 bg-transparent border-none py-1 text-sm font-semibold text-zinc-800 dark:text-white outline-none placeholder:text-zinc-300"
-                                                value={emailDraft.subject}
-                                                onChange={e => setEmailDraft(d => ({ ...d, subject: e.target.value }))}
-                                                placeholder="Assunto do email"
-                                            />
-                                        </div>
-                                        <div className="px-4 py-3">
-                                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Mensagem</label>
-                                            <textarea
-                                                className="w-full bg-transparent border-none py-1 text-sm font-medium text-zinc-700 dark:text-zinc-300 outline-none resize-none leading-relaxed min-h-[200px]"
-                                                value={emailDraft.body}
-                                                onChange={e => setEmailDraft(d => ({ ...d, body: e.target.value }))}
-                                                placeholder="Conteúdo do email..."
-                                            />
+
+                                        {/* Actions */}
+                                        <div className="flex flex-col gap-2 pt-2">
+                                            <button
+                                                onClick={handleSendEmail}
+                                                disabled={isSendingEmail || !emailDraft.to}
+                                                className={`w-full py-4 rounded-2xl text-[11px] font-bold uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${isSendingEmail
+                                                    ? 'bg-emerald-500 text-white cursor-wait'
+                                                    : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 active:scale-95'
+                                                    } disabled:opacity-50`}
+                                            >
+                                                {isSendingEmail ? (
+                                                    <>
+                                                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                        </svg>
+                                                        Enviando...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                        </svg>
+                                                        Enviar Email
+                                                    </>
+                                                )}
+                                            </button>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    onClick={copyEmailToClipboard}
+                                                    className="py-3 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 text-zinc-600 dark:text-zinc-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-white/10 transition-all"
+                                                >
+                                                    Copiar
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsComposerOpen(false)}
+                                                    className="py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-all"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-
-                                    {/* Actions */}
-                                    <div className="flex flex-col gap-2 pt-2">
-                                        <button
-                                            onClick={handleSendEmail}
-                                            disabled={isSendingEmail || !emailDraft.to}
-                                            className={`w-full py-4 rounded-2xl text-[11px] font-bold uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 ${isSendingEmail
-                                                ? 'bg-emerald-500 text-white cursor-wait'
-                                                : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 active:scale-95'
-                                                } disabled:opacity-50`}
-                                        >
-                                            {isSendingEmail ? (
-                                                <>
-                                                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                    </svg>
-                                                    Enviando...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                                    </svg>
-                                                    Enviar Email
-                                                </>
-                                            )}
-                                        </button>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button
-                                                onClick={copyEmailToClipboard}
-                                                className="py-3 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 text-zinc-600 dark:text-zinc-300 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-white/10 transition-all"
-                                            >
-                                                Copiar
-                                            </button>
-                                            <button
-                                                onClick={() => setIsComposerOpen(false)}
-                                                className="py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-widest hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-all"
-                                            >
-                                                Cancelar
-                                            </button>
-                                        </div>
-                                    </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
+                    </AnimatePresence>,
+                    document.body
                 )
-                }
-            </AnimatePresence >
+            }
 
             {/* Email Success Modal */}
             {
@@ -3022,6 +3239,19 @@ ${today}`
                     document.body
                 )}
             </AnimatePresence>
+
+            {/* Apple Confirmation Modal */}
+            <AppleConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={closeConfirmModal}
+                confirmLabel={confirmModal.confirmLabel}
+                cancelLabel={confirmModal.cancelLabel}
+                isDangerous={confirmModal.isDangerous}
+            />
         </div >
+
     )
 }

@@ -830,7 +830,7 @@ export default function InvoiceScanner({
                 packageQuantity: item.quantity,
                 packageCount: 1,
                 unit: item.unit || 'un',
-                pricePerUnit: item.unitPrice || 0,
+                pricePerUnit: item.unitPrice ?? 0,
                 category: 'Ingredientes',
                 subcategory: 'Outros Ingredientes',
                 purchaseDate: new Date().toISOString().split('T')[0],

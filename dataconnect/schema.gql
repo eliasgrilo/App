@@ -9,6 +9,7 @@ type Supplier @table {
   id: UUID! @default(expr: "uuidV4()")
   name: String!
   email: String
+  autoRequest: Boolean! @default(value: false)  # Enable automated quotation creation on low stock
   phone: String
   address: String
   cnpj: String
@@ -51,7 +52,7 @@ type Product @table {
   semanticMapping: String                          # JSON: {"canonical": "Coca-Cola 350ml", "aliases": ["Refri Lata"]}
   aiMetadata: String                               # JSON: {"lastAnalyzed": "...", "source": "invoice", "model": "gemini-1.5-pro"}
   priceHistory: String                             # JSON array: [{"date": "...", "price": ..., "source": "..."}]
-  spatialAnchor: String                            # AR: JSON {"x": 0, "y": 0, "z": 0, "shelf": "A1"}
+  spatialAnchor: String                            # @DEPRECATED: AR feature not yet implemented
 }
 
 # ===========================================================
@@ -277,6 +278,7 @@ enum QuotationStatus {
 
 type Quotation @table {
   id: UUID! @default(expr: "uuidV4()")
+  requestId: String @unique                      # Unique ID for email tracking [REQ-xxx]
   supplier: Supplier! @relation
   status: QuotationStatus! @default(value: PENDING)
   sentAt: Timestamp
@@ -284,6 +286,8 @@ type Quotation @table {
   totalValue: Float
   notes: String
   emailThreadId: String
+  softDeleted: Boolean! @default(value: false)   # Soft delete for audit trail
+  deletedAt: Timestamp                            # When soft-deleted
   createdAt: Timestamp! @default(expr: "request.time")
   updatedAt: Timestamp! @default(expr: "request.time")
 }
@@ -296,6 +300,167 @@ type QuotationItem @table {
   quotedPrice: Float
   quotedQuantity: Float
   notes: String
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UNIQUE PROTOCOL: QuotationItem Duplicate Prevention
+# ═══════════════════════════════════════════════════════════════════════════
+# This constraint ensures a product can only appear ONCE per quotation.
+# Database will REJECT any duplicate (quotation, product) combinations.
+
+extend type QuotationItem {
+  # UNIQUE CONSTRAINT: Same product cannot be added twice to same quotation
+  itemByQuotationProduct: QuotationItem @unique(fields: ["quotation", "product"])
+}
+
+
+# ===========================================================
+# AUTO-QUOTE REQUEST (AI Auto-Quote System - State Machine)
+# ===========================================================
+# Manages the automated quotation workflow with strict duplicate prevention
+# Flow: PENDING → AWAITING → PROCESSING → ORDERED → RECEIVED
+
+enum AutoQuoteStatus {
+  PENDING     # Created by background job, waiting for user to send
+  AWAITING    # Email sent, waiting for supplier reply
+  PROCESSING  # Email received, AI analyzing
+  ORDERED     # Order card created from AI extraction
+  RECEIVED    # Goods received, inventory updated
+  CANCELLED   # User cancelled
+  EXPIRED     # No reply within 7 days
+}
+
+type AutoQuoteRequest @table {
+  id: UUID! @default(expr: "uuidV4()")
+  
+  # ═══════════════════════════════════════════════════════════
+  # UNIQUE IDENTIFIERS - Strict duplicate prevention
+  # ═══════════════════════════════════════════════════════════
+  requestId: String! @unique                    # [REQ-xxx] - Unique tracking ID for email correlation
+  deduplicationKey: String! @unique             # "productId:supplierId" - Prevents duplicate pending cards
+  
+  # ═══════════════════════════════════════════════════════════
+  # RELATIONS
+  # ═══════════════════════════════════════════════════════════
+  product: Product! @relation
+  supplier: Supplier! @relation
+  
+  # ═══════════════════════════════════════════════════════════
+  # REQUEST DATA
+  # ═══════════════════════════════════════════════════════════
+  requestedQuantity: Float!
+  currentStock: Float
+  minStock: Float
+  unit: String @default(value: "un")
+  status: AutoQuoteStatus! @default(value: PENDING)
+  
+  # ═══════════════════════════════════════════════════════════
+  # EMAIL TRACKING
+  # ═══════════════════════════════════════════════════════════
+  emailSentAt: Timestamp
+  emailMessageId: String
+  emailThreadId: String
+  emailSubject: String
+  emailBody: String
+  
+  # ═══════════════════════════════════════════════════════════
+  # AI EXTRACTED DATA (From supplier response)
+  # ═══════════════════════════════════════════════════════════
+  quotedPrice: Float
+  quotedAvailability: String
+  quotedDeliveryDate: Date
+  quotedDeliveryDays: Int
+  quotedPaymentTerms: String
+  aiConfidence: Float                           # 0-1 confidence score
+  aiRawResponse: String                         # Full AI response JSON
+  hasProblems: Boolean @default(value: false)
+  problemSummary: String
+  
+  # ═══════════════════════════════════════════════════════════
+  # ORDER REFERENCE
+  # ═══════════════════════════════════════════════════════════
+  orderId: String                               # Links to OrderCard when created
+  
+  # ═══════════════════════════════════════════════════════════
+  # SOFT DELETE FOR AUDIT TRAIL
+  # ═══════════════════════════════════════════════════════════
+  softDeleted: Boolean! @default(value: false)
+  deletedAt: Timestamp
+  deletedBy: String
+  deletedReason: String
+  
+  # ═══════════════════════════════════════════════════════════
+  # METADATA
+  # ═══════════════════════════════════════════════════════════
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+  createdBy: String
+  createdByName: String
+}
+
+# ===========================================================
+# ORDER CARD (Created from AI-processed quotation)
+# ===========================================================
+# Represents a confirmed order after AI extracts quote data
+# Strictly linked 1:1 with AutoQuoteRequest via requestId
+
+enum OrderCardStatus {
+  PENDING     # Created from AI extraction, awaiting confirmation
+  CONFIRMED   # User confirmed the order
+  SHIPPED     # Supplier marked as shipped
+  RECEIVED    # Goods received, inventory updated
+  CANCELLED   # Order cancelled (soft delete)
+}
+
+type OrderCard @table {
+  id: UUID! @default(expr: "uuidV4()")
+  
+  # ═══════════════════════════════════════════════════════════
+  # UNIQUE CONSTRAINT - Prevents duplicate orders
+  # ═══════════════════════════════════════════════════════════
+  requestId: String! @unique                    # Links back to AutoQuoteRequest (1:1)
+  
+  # ═══════════════════════════════════════════════════════════
+  # SUPPLIER & ITEMS
+  # ═══════════════════════════════════════════════════════════
+  supplier: Supplier! @relation
+  items: String!                                # JSON: [{productId, name, quantity, unitPrice}]
+  
+  # ═══════════════════════════════════════════════════════════
+  # QUOTE DATA (Extracted by AI)
+  # ═══════════════════════════════════════════════════════════
+  totalValue: Float!
+  deliveryDate: Date
+  deliveryDays: Int
+  availability: String
+  paymentTerms: String
+  supplierNotes: String
+  
+  # ═══════════════════════════════════════════════════════════
+  # STATUS & WORKFLOW
+  # ═══════════════════════════════════════════════════════════
+  status: OrderCardStatus! @default(value: PENDING)
+  confirmedAt: Timestamp
+  confirmedBy: String
+  confirmedByName: String
+  shippedAt: Timestamp
+  receivedAt: Timestamp
+  receivedBy: String
+  receivedByName: String
+  
+  # ═══════════════════════════════════════════════════════════
+  # SOFT DELETE FOR AUDIT TRAIL
+  # ═══════════════════════════════════════════════════════════
+  softDeleted: Boolean! @default(value: false)
+  deletedAt: Timestamp
+  deletedBy: String
+  deletedReason: String
+  
+  # ═══════════════════════════════════════════════════════════
+  # METADATA
+  # ═══════════════════════════════════════════════════════════
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
 }
 
 # ===========================================================
@@ -420,6 +585,158 @@ type StockSnapshot @table {
 }
 
 # ===========================================================
+# DEMAND FORECAST (Predictive Order Intelligence)
+# ===========================================================
+# Stores 90-day demand predictions with seasonal analysis
+# Used for automated reorder optimization
+
+type DemandForecast @table {
+  id: UUID! @default(expr: "uuidV4()")
+  product: Product! @relation
+  
+  # ═══════════════════════════════════════════════════════════
+  # FORECAST CONFIGURATION
+  # ═══════════════════════════════════════════════════════════
+  forecastDate: Date!                  # Date of the forecast
+  forecastHorizon: Int!                # Days ahead (30, 60, 90)
+  method: String! @default(value: "seasonal_decomposition")
+  
+  # ═══════════════════════════════════════════════════════════
+  # PREDICTED VALUES
+  # ═══════════════════════════════════════════════════════════
+  predictedDailyDemand: Float!         # Expected daily consumption
+  predictedWeeklyDemand: Float!        # Expected weekly consumption
+  predictedMonthlyDemand: Float!       # Expected monthly consumption
+  lowerBound: Float!                   # 95% CI lower bound
+  upperBound: Float!                   # 95% CI upper bound
+  confidence: Float!                   # 0-1 confidence score
+  
+  # ═══════════════════════════════════════════════════════════
+  # TREND ANALYSIS
+  # ═══════════════════════════════════════════════════════════
+  trendDirection: String               # "increasing", "decreasing", "stable"
+  trendSlope: Float                    # Rate of change
+  trendPercentChange: Float            # % change over period
+  
+  # ═══════════════════════════════════════════════════════════
+  # PATTERN DETECTION
+  # ═══════════════════════════════════════════════════════════
+  weeklyPattern: String                # JSON: consumption by day of week
+  monthlyPattern: String               # JSON: payday effects
+  seasonalFactors: String              # JSON: seasonal adjustments
+  detectedAnomalies: String            # JSON: detected anomalies
+  
+  # ═══════════════════════════════════════════════════════════
+  # ORDER RECOMMENDATIONS
+  # ═══════════════════════════════════════════════════════════
+  recommendedOrderDate: Date           # When to place order
+  recommendedOrderQuantity: Float      # How much to order
+  daysUntilStockout: Int              # Days of stock remaining
+  orderUrgency: String                 # "critical", "high", "medium", "low", "none"
+  
+  # ═══════════════════════════════════════════════════════════
+  # METADATA
+  # ═══════════════════════════════════════════════════════════
+  inputDataPoints: Int                 # Number of data points used
+  computedAt: Timestamp! @default(expr: "request.time")
+  expiresAt: Timestamp                 # When forecast should be recalculated
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# CRDT STATE (Conflict-free Multi-Device Sync)
+# ===========================================================
+# Stores CRDT state for eventual consistency across devices
+# Supports: G-Counter, PN-Counter, LWW-Register, LWW-Map
+
+type CRDTState @table {
+  id: UUID! @default(expr: "uuidV4()")
+  
+  # ═══════════════════════════════════════════════════════════
+  # ENTITY REFERENCE
+  # ═══════════════════════════════════════════════════════════
+  entityType: String!                  # "quotation", "order", "product"
+  entityId: String!                    # ID of the entity
+  
+  # ═══════════════════════════════════════════════════════════
+  # DEVICE TRACKING
+  # ═══════════════════════════════════════════════════════════
+  deviceId: String!                    # Unique device identifier
+  deviceName: String                   # Human-readable device name
+  
+  # ═══════════════════════════════════════════════════════════
+  # VERSION VECTOR (Logical Clock)
+  # ═══════════════════════════════════════════════════════════
+  vectorClock: String!                 # JSON: {"device1": 5, "device2": 3}
+  
+  # ═══════════════════════════════════════════════════════════
+  # CRDT STATE STORAGE
+  # ═══════════════════════════════════════════════════════════
+  gCounters: String                    # JSON: G-Counter states
+  pnCounters: String                   # JSON: PN-Counter states
+  lwwRegisters: String                 # JSON: LWW-Register states
+  lwwMaps: String                      # JSON: LWW-Map states
+  
+  # ═══════════════════════════════════════════════════════════
+  # SYNC STATUS
+  # ═══════════════════════════════════════════════════════════
+  lastLocalUpdate: Timestamp           # Last local change
+  lastSyncAt: Timestamp                # Last sync with server
+  syncStatus: String                   # "synced", "pending", "conflict"
+  pendingOperations: String            # JSON: unsynced operations
+  
+  # ═══════════════════════════════════════════════════════════
+  # METADATA
+  # ═══════════════════════════════════════════════════════════
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
+# EVENT PROJECTION (Time-Travel State Optimization)
+# ===========================================================
+# Materialized views for fast state lookup without full replay
+# Used for time-travel debugging and state reconstruction
+
+type EventProjection @table {
+  id: UUID! @default(expr: "uuidV4()")
+  
+  # ═══════════════════════════════════════════════════════════
+  # PROJECTION IDENTITY
+  # ═══════════════════════════════════════════════════════════
+  projectionName: String!              # "quotation_state", "order_timeline"
+  aggregateType: String!               # "AutoQuoteRequest", "OrderCard"
+  aggregateId: String!                 # Entity ID
+  
+  # ═══════════════════════════════════════════════════════════
+  # CURRENT STATE
+  # ═══════════════════════════════════════════════════════════
+  projectedState: String!              # JSON: current materialized state
+  stateChecksum: String                # Hash for integrity verification
+  
+  # ═══════════════════════════════════════════════════════════
+  # EVENT TRACKING
+  # ═══════════════════════════════════════════════════════════
+  lastEventVersion: Int!               # Version of last applied event
+  lastEventId: String!                 # ID of last applied event
+  lastEventType: String                # Type of last event
+  lastEventAt: Timestamp               # When last event occurred
+  
+  # ═══════════════════════════════════════════════════════════
+  # TIME-TRAVEL SUPPORT
+  # ═══════════════════════════════════════════════════════════
+  snapshotAt: Timestamp                # When this snapshot was taken
+  eventsApplied: Int                   # Total events applied
+  rebuildRequired: Boolean! @default(value: false)  # Needs full rebuild
+  
+  # ═══════════════════════════════════════════════════════════
+  # METADATA
+  # ═══════════════════════════════════════════════════════════
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# ===========================================================
 # INDEXES for Performance
 # ===========================================================
 
@@ -461,4 +778,63 @@ extend type Quotation {
 extend type Notification {
   # Query notifications by read status
   notificationsByRead: [Notification!]! @index(fields: ["isRead"])
+}
+
+# ===========================================================
+# INDEXES for Auto-Quote System (Duplicate Prevention)
+# ===========================================================
+
+extend type AutoQuoteRequest {
+  # Query by deduplication key - prevents duplicate pending cards for same product+supplier
+  requestsByDedup: [AutoQuoteRequest!]! @index(fields: ["deduplicationKey"])
+  # Query by requestId - for email matching
+  requestsByRequestId: [AutoQuoteRequest!]! @index(fields: ["requestId"])
+  # Query by status - for state-based filtering
+  requestsByStatus: [AutoQuoteRequest!]! @index(fields: ["status"])
+  # Query by supplier - for supplier dashboard
+  requestsBySupplier: [AutoQuoteRequest!]! @index(fields: ["supplier"])
+  # Query active (non-soft-deleted) requests
+  activeRequests: [AutoQuoteRequest!]! @index(fields: ["softDeleted"])
+}
+
+extend type OrderCard {
+  # Query by requestId - prevents duplicate orders for same request
+  ordersByRequestId: [OrderCard!]! @index(fields: ["requestId"])
+  # Query by status - for order dashboard
+  ordersByStatus: [OrderCard!]! @index(fields: ["status"])
+  # Query by supplier - for supplier analytics
+  ordersBySupplier: [OrderCard!]! @index(fields: ["supplier"])
+  # Query active (non-soft-deleted) orders
+  activeOrders: [OrderCard!]! @index(fields: ["softDeleted"])
+}
+
+# ===========================================================
+# INDEXES for Advanced Features
+# ===========================================================
+
+extend type DemandForecast {
+  # Query forecasts by product
+  forecastsByProduct: [DemandForecast!]! @index(fields: ["product"])
+  # Query forecasts by date for expiration cleanup
+  forecastsByDate: [DemandForecast!]! @index(fields: ["forecastDate"])
+  # Query forecasts by urgency for alerts
+  forecastsByUrgency: [DemandForecast!]! @index(fields: ["orderUrgency"])
+}
+
+extend type CRDTState {
+  # Query CRDT state by entity
+  crdtByEntity: [CRDTState!]! @index(fields: ["entityType", "entityId"])
+  # Query CRDT state by device
+  crdtByDevice: [CRDTState!]! @index(fields: ["deviceId"])
+  # Query pending syncs
+  crdtPendingSync: [CRDTState!]! @index(fields: ["syncStatus"])
+}
+
+extend type EventProjection {
+  # Query projections by aggregate
+  projectionsByAggregate: [EventProjection!]! @index(fields: ["aggregateType", "aggregateId"])
+  # Query projections by name
+  projectionsByName: [EventProjection!]! @index(fields: ["projectionName"])
+  # Query projections needing rebuild
+  projectionsNeedingRebuild: [EventProjection!]! @index(fields: ["rebuildRequired"])
 }

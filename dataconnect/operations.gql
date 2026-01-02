@@ -979,6 +979,50 @@ mutation UpdateQuotationItem(
   })
 }
 
+# ═══════════════════════════════════════════════════════════════════════════
+# UNIQUE PROTOCOL: Smart Merge Operations
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Query to find existing item by quotation + product (for smart merge check)
+query FindQuotationItemByProductId(
+  $quotationId: UUID!
+  $productId: UUID!
+) @auth(level: PUBLIC) {
+  quotationItems(
+    where: {
+      quotation: { id: { eq: $quotationId } }
+      product: { id: { eq: $productId } }
+    }
+    limit: 1
+  ) {
+    id
+    requestedQuantity
+    quotedPrice
+    quotedQuantity
+    notes
+    product {
+      id
+      name
+    }
+  }
+}
+
+# Update quantity only (for incrementing existing item)
+mutation UpdateQuotationItemQuantity(
+  $id: UUID!
+  $requestedQuantity: Float!
+) @auth(level: PUBLIC) {
+  quotationItem_update(id: $id, data: {
+    requestedQuantity: $requestedQuantity
+  })
+}
+
+# Delete a quotation item (for cleanup)
+mutation DeleteQuotationItem($id: UUID!) @auth(level: PUBLIC) {
+  quotationItem_delete(id: $id)
+}
+
+
 # ===========================================================
 # NOTIFICATIONS OPERATIONS
 # ===========================================================

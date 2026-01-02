@@ -252,7 +252,7 @@ export function checkAndEmitReorderEvent(item) {
             supplierId: item.supplierId,
             supplierName: item.supplierName,
             supplierEmail: item.supplierEmail,
-            currentPrice: item.pricePerUnit || item.currentPrice,
+            currentPrice: item.pricePerUnit ?? item.currentPrice,
             enableAutoQuotation: item.enableAutoQuotation, // Flag for auto-quotation permission
             timestamp: new Date().toISOString()
         }
@@ -320,7 +320,7 @@ export function calculateRestockNeeds(products, movements = [], daysBuffer = 14)
             currentStock,
             neededQuantity,
             daysUntilStockout,
-            estimatedCost: neededQuantity * (product.currentPrice || product.pricePerUnit || 0),
+            estimatedCost: neededQuantity * (product.currentPrice ?? product.pricePerUnit ?? 0),
             urgency
         }
     }).filter(p => p.neededQuantity > 0)

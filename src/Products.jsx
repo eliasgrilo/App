@@ -88,7 +88,7 @@ export default function Products() {
             subcategory: item.subcategory,
             currentStock: StockService.getTotalQuantity(item),
             unit: item.unit || 'un',
-            currentPrice: item.pricePerUnit || 0,
+            currentPrice: item.pricePerUnit ?? 0,
             supplier: item.supplierName || 'Sem fornecedor',
             minStock: item.minStock || 0,
             maxStock: item.maxStock || 0,

@@ -149,7 +149,7 @@ function calculatePriceTrends(quotations, itemId = null) {
             if (itemId && item.id !== itemId) return
             if (!item.quotedUnitPrice && !item.unitPrice) return
 
-            const price = item.quotedUnitPrice || item.unitPrice
+            const price = item.quotedUnitPrice ?? item.unitPrice
             const date = q.quotedAt || q.sentAt
 
             if (!pricesByItem[item.id]) {
@@ -351,7 +351,7 @@ export const SupplierAnalyticsService = {
             const item = q.items.find(i => i.id === itemId)
             if (!item) return
 
-            const price = item.quotedUnitPrice || item.unitPrice
+            const price = item.quotedUnitPrice ?? item.unitPrice
             if (!price) return
 
             if (!supplierData[q.supplierId]) {
@@ -395,9 +395,9 @@ export const SupplierAnalyticsService = {
 
         const totalValue = quotations
             .filter(q => ['confirmed', 'delivered'].includes(q.status))
-            .reduce((sum, q) => sum + (q.quotedTotal || q.quotedValue || 0), 0)
+            .reduce((sum, q) => sum + (q.quotedTotal ?? q.quotedValue ?? 0), 0)
 
-        const avgOrderValue = quotations.filter(q => q.quotedTotal || q.quotedValue).length > 0
+        const avgOrderValue = quotations.filter(q => q.quotedTotal ?? q.quotedValue).length > 0
             ? totalValue / quotations.filter(q => ['confirmed', 'delivered'].includes(q.status)).length
             : 0
 
@@ -414,7 +414,7 @@ export const SupplierAnalyticsService = {
             avgOrderValue,
             thisMonth: {
                 count: thisMonth.length,
-                value: thisMonth.reduce((sum, q) => sum + (q.quotedTotal || q.quotedValue || 0), 0)
+                value: thisMonth.reduce((sum, q) => sum + (q.quotedTotal ?? q.quotedValue ?? 0), 0)
             },
             conversionRate: calculateConversionRate(quotations),
             avgResponseTime: calculateResponseTime(quotations)
@@ -454,7 +454,7 @@ export const SupplierAnalyticsService = {
             }
             if (['confirmed', 'delivered'].includes(q.status)) {
                 dataByDate[dateKey].confirmed++
-                dataByDate[dateKey].value += q.quotedTotal || q.quotedValue || 0
+                dataByDate[dateKey].value += q.quotedTotal ?? q.quotedValue ?? 0
             }
             if (q.status === 'delivered') {
                 dataByDate[dateKey].delivered++

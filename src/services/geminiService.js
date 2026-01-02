@@ -36,7 +36,7 @@ async function generateContent(prompt) {
     }
 
     const response = await fetch(
-        `${GEMINI_API_BASE}/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+        `${GEMINI_API_BASE}/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
         {
             method: 'POST',
             headers: {
@@ -130,58 +130,66 @@ CORPO:
 export async function analyzeSupplierResponse(emailBody, expectedItems = []) {
     const itemNames = expectedItems.map(i => i.name).join(', ');
 
-    const prompt = `
-Você é um assistente especializado em análise de emails comerciais de fornecedores. 
-Analise a resposta do fornecedor e extraia TODAS as informações em formato JSON.
+    const prompt = `You are a specialized assistant for analyzing commercial emails from suppliers.
+The email may be in ENGLISH or PORTUGUESE - analyze it in whichever language it is written.
 
-IMPORTANTE: Identifique problemas como:
-- Itens indisponíveis ou em falta
-- Atrasos na entrega
-- Quantidades parciais disponíveis
-- Preços alterados
+CRITICAL EXTRACTION RULES:
+1. PRICES: Output as decimal number (12.50 format). Convert from any format (R$ 12,50 → 12.50, $12.50 → 12.50)
+2. ITEMS: Use EXACTLY the names as they appear in the email
+3. DATES: Convert to YYYY-MM-DD format
+4. If an item does NOT have an explicit price, return unitPrice: null (DO NOT invent prices)
 
-Email do fornecedor:
+Supplier email:
 """
 ${emailBody}
 """
 
-Itens esperados na cotação: ${itemNames || 'não especificados'}
+${itemNames ? `Itens esperados na cotação: ${itemNames}\nTente encontrar correspondência para cada um destes itens no email.` : ''}
 
-Extraia as seguintes informações em JSON válido:
+PROBLEMAS A IDENTIFICAR:
+- Itens indisponíveis ou em falta
+- Atrasos na entrega
+- Quantidades parciais disponíveis
+- Preços alterados ou condições especiais
+
+Retorne APENAS JSON válido (SEM markdown, SEM \`\`\`, SEM texto explicativo):
 {
-    "hasQuote": boolean, // true se o email contém cotação/resposta
+    "hasQuote": boolean,
     "items": [
         {
-            "name": "nome do item",
-            "unitPrice": number, // preço unitário em reais, null se não informado
-            "availableQuantity": number, // quantidade DISPONÍVEL, null se não informado
-            "requestedQuantity": number, // quantidade solicitada originalmente, null se não mencionado
-            "unit": "unidade de medida",
-            "available": boolean, // true se disponível, false se em falta
-            "partialAvailability": boolean, // true se só parte está disponível
-            "unavailableReason": "motivo da indisponibilidade", // null se disponível
-            "alternativeOffered": "produto alternativo oferecido" // null se não há alternativa
+            "name": "nome EXATO do item como aparece no email",
+            "unitPrice": number | null,
+            "availableQuantity": number | null,
+            "requestedQuantity": number | null,
+            "unit": "kg | un | cx | L | etc",
+            "available": boolean,
+            "partialAvailability": boolean,
+            "unavailableReason": "motivo" | null
         }
     ],
-    "deliveryDate": "YYYY-MM-DD", // data de entrega prometida, null se não informada
-    "deliveryDays": number, // dias úteis para entrega, null se não informado
-    "hasDelay": boolean, // true se há atraso ou prazo maior que esperado
-    "delayReason": "motivo do atraso", // null se não há atraso
-    "originalDeliveryDate": "YYYY-MM-DD", // data original prometida se mencionada
-    "paymentTerms": "condições de pagamento", // null se não informado
-    "totalQuote": number, // valor total da cotação, null se não informado
-    "supplierNotes": "observações importantes do fornecedor",
-    "hasProblems": boolean, // true se há qualquer problema (falta, atraso, indisponibilidade)
-    "problemSummary": "resumo dos problemas identificados", // null se não há problemas
-    "sentiment": "positive" | "neutral" | "negative", // tom geral da resposta
-    "urgency": "low" | "medium" | "high", // urgência baseada nos problemas
-    "needsFollowUp": boolean, // true se precisa de esclarecimento ou ação
-    "followUpReason": "motivo do follow-up necessário",
-    "suggestedAction": "ação sugerida: confirm | negotiate | cancel | wait"
-}
+    "deliveryDate": "YYYY-MM-DD" | null,
+    "deliveryDays": number | null,
+    "hasDelay": boolean,
+    "delayReason": "motivo" | null,
+    "paymentTerms": "condições" | null,
+    "totalQuote": number | null,
+    "supplierNotes": "observações importantes",
+    "hasProblems": boolean,
+    "problemSummary": "resumo dos problemas" | null,
+    "suggestedAction": "confirm" | "negotiate" | "cancel" | "wait",
+    "confidence": number
+}`;
 
-Responda APENAS com o JSON, sem explicações ou markdown.
-`;
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CRITICAL FIX 2026-01-01: Use regex fallback when Gemini API is not available
+    // This ensures paymentTerms, deliveryDays, supplierNotes are ALWAYS extracted
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Try Gemini AI first, fall back to local extraction
+    if (!geminiApiKey) {
+        console.warn('⚠️ Gemini API key not configured. Using local regex extraction.');
+        return extractWithRegex(emailBody, expectedItems);
+    }
 
     try {
         const result = await generateContent(prompt);
@@ -194,6 +202,12 @@ Responda APENAS com o JSON, sem explicações ou markdown.
 
         const parsed = JSON.parse(cleanJson);
 
+        console.log('🤖 Gemini extracted fields:', {
+            paymentTerms: parsed.paymentTerms,
+            deliveryDays: parsed.deliveryDays,
+            supplierNotes: parsed.supplierNotes
+        });
+
         return {
             success: true,
             data: parsed,
@@ -201,18 +215,189 @@ Responda APENAS com o JSON, sem explicações ou markdown.
         };
     } catch (error) {
         console.error('Gemini email analysis failed:', error);
-        return {
-            success: false,
-            error: error.message,
-            data: {
-                hasQuote: false,
-                items: [],
-                needsFollowUp: true,
-                followUpReason: 'Não foi possível processar a resposta automaticamente'
-            },
-            rawResponse: emailBody
-        };
+        // FALLBACK: Use local regex extraction when AI fails
+        console.log('🔄 Falling back to regex extraction...');
+        return extractWithRegex(emailBody, expectedItems);
     }
+}
+
+/**
+ * CRITICAL FALLBACK: Extract email data using regex patterns
+ * Used when Gemini API is not available or fails
+ * @param {string} emailBody - The email body text  
+ * @param {Array} expectedItems - Items we requested quotes for
+ * @returns {Object} - Extracted data
+ */
+function extractWithRegex(emailBody, expectedItems = []) {
+    console.log('📧 REGEX EXTRACTION: Processing email body...');
+
+    const text = emailBody || '';
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXTRACT PAYMENT TERMS
+    // ═══════════════════════════════════════════════════════════════════════════
+    let paymentTerms = null;
+    const paymentPatterns = [
+        // Portuguese patterns
+        /pagamento[:\s]*(.+?)(?:\n|$)/i,
+        /condi[çc][õo]es?\s*de\s*pagamento[:\s]*(.+?)(?:\n|$)/i,
+        /prazo\s*de\s*pagamento[:\s]*(.+?)(?:\n|$)/i,
+        /(\d+)\s*dias?\s*(?:boleto|faturado|líquido|net)/i,
+        /boleto\s*(?:em\s*)?(\d+)\s*dias?/i,
+        // English patterns
+        /payment\s*terms?[:\s]*(.+?)(?:\n|$)/i,
+        /net\s*(\d+)/i,
+        /payment[:\s]*(.+?)(?:\n|$)/i
+    ];
+
+    for (const pattern of paymentPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+            paymentTerms = match[1]?.trim() || match[0]?.trim();
+            // Clean up common patterns
+            if (/^\d+$/.test(paymentTerms)) {
+                paymentTerms = `${paymentTerms} dias`;
+            }
+            console.log(`✓ Payment terms found: "${paymentTerms}"`);
+            break;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXTRACT DELIVERY DAYS / DELIVERY DATE
+    // ═══════════════════════════════════════════════════════════════════════════
+    let deliveryDays = null;
+    let deliveryDate = null;
+
+    const deliveryPatterns = [
+        // "3 dias úteis", "5 dias", "em 3 dias"
+        /(?:prazo|entrega|delivery)[\s:]*(?:em\s*)?(\d+)\s*dias?\s*(?:úteis|uteis)?/i,
+        /(\d+)\s*dias?\s*(?:úteis|uteis)?\s*(?:após|depois|after)/i,
+        /(\d+)\s*business\s*days?/i,
+        /(\d+)\s*days?\s*(?:delivery|after)/i
+    ];
+
+    for (const pattern of deliveryPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+            deliveryDays = parseInt(match[1], 10);
+            console.log(`✓ Delivery days found: ${deliveryDays}`);
+            break;
+        }
+    }
+
+    // Try to find explicit date
+    const datePatterns = [
+        /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,  // DD/MM/YYYY or DD-MM-YYYY
+        /(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/   // YYYY-MM-DD
+    ];
+
+    for (const pattern of datePatterns) {
+        const match = text.match(pattern);
+        if (match) {
+            if (match[1].length === 4) {
+                deliveryDate = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+            } else {
+                deliveryDate = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+            }
+            console.log(`✓ Delivery date found: ${deliveryDate}`);
+            break;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXTRACT PRICES FROM EMAIL
+    // ═══════════════════════════════════════════════════════════════════════════
+    const items = [];
+    const pricePatterns = [
+        // "Farinha: R$ 5,80/kg" or "Farinha: R$ 5.80 por kg"
+        /([^:\n]+)[:\s]+R?\$?\s*(\d+[.,]\d{2})\s*(?:\/|por)\s*(\w+)/gi,
+        // "- Produto: R$ 10,50"
+        /[-•]\s*([^:]+)[:\s]+R?\$?\s*(\d+[.,]\d{2})/gi
+    ];
+
+    for (const pattern of pricePatterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const name = match[1].trim();
+            const priceStr = match[2].replace(',', '.');
+            const price = parseFloat(priceStr);
+            const unit = match[3] || 'un';
+
+            if (price > 0 && name.length > 1) {
+                items.push({
+                    name,
+                    unitPrice: price,
+                    unit,
+                    available: true
+                });
+            }
+        }
+    }
+
+    console.log(`✓ Items found: ${items.length}`);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXTRACT SUPPLIER NOTES / OBSERVATIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+    let supplierNotes = null;
+    const notesPatterns = [
+        /observa[çc][ãa]o[:\s]*(.+?)(?:\n\n|atenciosamente|$)/is,
+        /obs[:\s]*(.+?)(?:\n\n|atenciosamente|$)/is,
+        /nota[:\s]*(.+?)(?:\n\n|atenciosamente|$)/is,
+        /note[:\s]*(.+?)(?:\n\n|regards|$)/is,
+        /válido\s*até[:\s]*(.+?)(?:\n|$)/i,
+        /frete[:\s]*(.+?)(?:\n|$)/i
+    ];
+
+    for (const pattern of notesPatterns) {
+        const match = text.match(pattern);
+        if (match && match[1]?.trim().length > 3) {
+            supplierNotes = match[1].trim();
+            console.log(`✓ Supplier notes found: "${supplierNotes.substring(0, 50)}..."`);
+            break;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CALCULATE TOTAL AND CONFIDENCE
+    // ═══════════════════════════════════════════════════════════════════════════
+    const totalQuote = items.reduce((sum, i) => sum + (i.unitPrice || 0), 0);
+
+    // Calculate confidence based on what was extracted
+    let confidence = 0.5; // Base
+    if (items.length > 0) confidence += 0.2;
+    if (paymentTerms) confidence += 0.1;
+    if (deliveryDays || deliveryDate) confidence += 0.1;
+    if (supplierNotes) confidence += 0.05;
+
+    const result = {
+        success: true,
+        data: {
+            hasQuote: items.length > 0 || paymentTerms || deliveryDays,
+            items,
+            deliveryDate,
+            deliveryDays,
+            paymentTerms,
+            totalQuote: totalQuote > 0 ? totalQuote : null,
+            supplierNotes,
+            hasProblems: false,
+            confidence,
+            suggestedAction: items.length > 0 ? 'confirm' : 'wait',
+            extractionMethod: 'regex_fallback'  // Flag that we used regex
+        },
+        rawResponse: emailBody
+    };
+
+    console.log('📧 REGEX EXTRACTION COMPLETE:', {
+        paymentTerms: result.data.paymentTerms,
+        deliveryDays: result.data.deliveryDays,
+        supplierNotes: result.data.supplierNotes,
+        itemsCount: result.data.items.length,
+        confidence: result.data.confidence
+    });
+
+    return result;
 }
 
 /**

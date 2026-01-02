@@ -9,8 +9,8 @@
 -- Este script deve ser executado diretamente no PostgreSQL do
 -- Firebase Data Connect através do Cloud SQL ou console.
 --
--- NOTA: Os nomes de tabela e coluna podem variar dependendo de
--- como o Firebase Data Connect gera o schema. Ajuste conforme necessário.
+-- NOTA: Os nomes de coluna usam camelCase conforme definido
+-- no schema.gql do Firebase Data Connect.
 -- ============================================================
 
 -- ============================================================
@@ -23,13 +23,15 @@ BEGIN
         '[SECURITY VIOLATION] Registros de auditoria não podem ser modificados. '
         'ID: %, EntityType: %, EntityId: %, Action: %, CreatedAt: %',
         OLD.id, 
-        OLD.entity_type, 
-        OLD.entity_id, 
+        OLD."entityType", 
+        OLD."entityId", 
         OLD.action,
-        OLD.created_at;
+        OLD."createdAt";
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = public;
 
 -- ============================================================
 -- FUNÇÃO: Prevenir DELETE em AuditLog
@@ -41,13 +43,15 @@ BEGIN
         '[SECURITY VIOLATION] Registros de auditoria não podem ser deletados. '
         'ID: %, EntityType: %, EntityId: %, Action: %, CreatedAt: %',
         OLD.id, 
-        OLD.entity_type, 
-        OLD.entity_id, 
+        OLD."entityType", 
+        OLD."entityId", 
         OLD.action,
-        OLD.created_at;
+        OLD."createdAt";
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = public;
 
 -- ============================================================
 -- TRIGGER: Bloquear UPDATE
@@ -76,22 +80,23 @@ CREATE TRIGGER audit_log_no_delete
 -- ============================================================
 -- ÍNDICES PARA PERFORMANCE
 -- ============================================================
+-- NOTA: Os nomes de coluna usam camelCase conforme schema.gql
 
 -- Índice para busca por entidade
 CREATE INDEX IF NOT EXISTS idx_audit_log_entity 
-    ON "AuditLog" (entity_type, entity_id);
+    ON "AuditLog" ("entityType", "entityId");
 
 -- Índice para busca por data (relatórios fiscais)
 CREATE INDEX IF NOT EXISTS idx_audit_log_created 
-    ON "AuditLog" (created_at);
+    ON "AuditLog" ("createdAt");
 
 -- Índice para busca por usuário
 CREATE INDEX IF NOT EXISTS idx_audit_log_user 
-    ON "AuditLog" (user_id);
+    ON "AuditLog" ("userId");
 
 -- Índice composto para relatórios de período + entidade
 CREATE INDEX IF NOT EXISTS idx_audit_log_period_entity 
-    ON "AuditLog" (created_at, entity_type);
+    ON "AuditLog" ("createdAt", "entityType");
 
 -- ============================================================
 -- VERIFICAÇÃO

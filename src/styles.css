@@ -1876,3 +1876,405 @@ html.lenis {
 .scroll-indicator {
   animation: scroll-bounce 1.5s ease-in-out infinite;
 }
+
+/* ============================================
+   AI AUTO-QUOTE - GLASSMORPHISM & SUCCESS STATES
+   Apple-quality visual feedback for quotation flow
+   ============================================ */
+
+/* Glassmorphism effect for "Awaiting" state quotation cards */
+.quotation-card-awaiting {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px) saturate(1.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.quotation-card-awaiting:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.12),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Dark mode glassmorphism */
+.dark .quotation-card-awaiting {
+  background: rgba(30, 30, 30, 0.6);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+}
+
+.dark .quotation-card-awaiting:hover {
+  background: rgba(40, 40, 40, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Success Green completion state - triggers on "Mark Received" */
+.quotation-card-received {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+  animation: successPulse 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow:
+    0 8px 24px rgba(16, 185, 129, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.quotation-card-received * {
+  color: white !important;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25);
+  }
+}
+
+/* Archive exit animation */
+@keyframes archiveSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+}
+
+.quotation-card-archiving {
+  animation: archiveSlideOut 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+/* Haptic feedback visual indicator (companion to JS haptic) */
+.haptic-trigger {
+  transition: transform 0.1s ease-out;
+}
+
+.haptic-trigger:active {
+  transform: scale(0.98);
+}
+
+/* Processing state with shimmer */
+.quotation-card-processing {
+  position: relative;
+  overflow: hidden;
+}
+
+.quotation-card-processing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%);
+  animation: processingShimmer 1.5s infinite;
+}
+
+@keyframes processingShimmer {
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 100%;
+  }
+}
+
+/* ============================================
+   GPU ACCELERATION - ANTI-FLICKERING
+   Prevents Repaints & ensures 60fps animations
+   ============================================ */
+
+/* Force GPU acceleration on all animated/transitioning elements */
+.gpu-accelerated,
+.modal,
+.dialog,
+.menu-overlay,
+.mobile-menu-overlay,
+[class*="animate-"],
+[class*="motion-"],
+.card,
+.button,
+.toast,
+.bottom-sheet {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+}
+
+/* Dynamic will-change management - apply during animation only */
+.animating,
+.transitioning,
+.is-opening,
+.is-closing {
+  will-change: transform, opacity;
+}
+
+/* Remove will-change after animation completes (memory optimization) */
+.animation-complete,
+.transition-complete {
+  will-change: auto;
+}
+
+/* Prevent layout thrashing during transitions */
+.no-reflow {
+  contain: layout style paint;
+}
+
+/* ============================================
+   APPLE iOS GLASSMORPHISM - MOBILE MENU
+   Premium frosted glass effect for modals
+   ============================================ */
+
+/* Primary mobile menu overlay - Apple HIG compliant */
+.mobile-menu-overlay {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  /* GPU acceleration for smooth blur */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+.dark .mobile-menu-overlay {
+  background: rgba(0, 0, 0, 0.75);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced glassmorphism for bottom sheets and dialogs */
+.glass-ios {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .glass-ios {
+  background: rgba(28, 28, 30, 0.75);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   COMPOSITE-ONLY ANIMATIONS
+   Only transform/opacity - never layout props
+   ============================================ */
+
+/* Safe menu slide animation (transform only) */
+@keyframes menu-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes menu-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+.menu-enter {
+  animation: menu-slide-in 0.3s var(--ease-spring) forwards;
+}
+
+.menu-exit {
+  animation: menu-slide-out 0.2s var(--ease-out) forwards;
+}
+
+/* Prevent any accidental layout animations */
+.composite-only {
+  transition-property: transform, opacity !important;
+}
+
+/* ============================================
+   QUOTE MANAGEMENT - Glassmorphism System
+   ============================================ */
+
+/* Quote Card Base */
+.quote-card {
+  @apply relative overflow-hidden rounded-3xl border;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Quote Card Status Variants */
+.quote-card-pending {
+  @apply bg-gradient-to-br from-amber-500/10 to-orange-500/5;
+  @apply border-amber-500/20;
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.1);
+}
+
+.quote-card-awaiting {
+  @apply bg-gradient-to-br from-blue-500/10 to-cyan-500/5;
+  @apply border-blue-500/20;
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.1);
+}
+
+.quote-card-processing {
+  @apply bg-gradient-to-br from-purple-500/10 to-indigo-500/5;
+  @apply border-purple-500/20;
+  box-shadow: 0 8px 32px rgba(168, 85, 247, 0.1);
+}
+
+.quote-card-quoted {
+  @apply bg-gradient-to-br from-indigo-500/10 to-violet-500/5;
+  @apply border-indigo-500/20;
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
+}
+
+.quote-card-confirmed {
+  @apply bg-gradient-to-br from-emerald-500/10 to-green-500/5;
+  @apply border-emerald-500/20;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.1);
+}
+
+.quote-card-delivered {
+  @apply bg-gradient-to-br from-teal-500/10 to-cyan-500/5;
+  @apply border-teal-500/20;
+  box-shadow: 0 8px 32px rgba(20, 184, 166, 0.1);
+}
+
+/* Quote Card Shimmer Animation */
+@keyframes quote-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.quote-shimmer {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%);
+  background-size: 200% 100%;
+  animation: quote-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Quote Card Spring Hover */
+.quote-card-interactive {
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    box-shadow 0.3s ease-out;
+}
+
+.quote-card-interactive:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Quote Comparison Table */
+.quote-comparison-cell {
+  @apply px-4 py-3 rounded-xl border transition-colors duration-200;
+}
+
+.quote-comparison-best {
+  @apply bg-emerald-50 border-emerald-200;
+  @apply dark:bg-emerald-900/20 dark:border-emerald-800/50;
+}
+
+.quote-comparison-worst {
+  @apply bg-rose-50 border-rose-200;
+  @apply dark:bg-rose-900/10 dark:border-rose-800/50;
+}
+
+/* Quote Timeline */
+.quote-timeline-connector {
+  @apply w-0.5 h-12 transition-colors duration-300;
+}
+
+.quote-timeline-connector-complete {
+  @apply bg-emerald-500;
+}
+
+.quote-timeline-connector-pending {
+  @apply bg-zinc-200 dark:bg-zinc-700;
+}
+
+/* Quote Filter Pills */
+.quote-filter-active {
+  @apply bg-white dark:bg-zinc-700 shadow-sm;
+  @apply text-zinc-900 dark:text-white;
+}
+
+.quote-filter-inactive {
+  @apply text-zinc-500 hover:text-zinc-700;
+  @apply dark:hover:text-zinc-300;
+}
+
+/* Quote Status Badge */
+.quote-badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full;
+  @apply text-[10px] font-bold uppercase tracking-wider;
+}
+
+.quote-badge-pending {
+  @apply bg-amber-500/10 text-amber-600 dark:text-amber-400;
+}
+
+.quote-badge-awaiting {
+  @apply bg-blue-500/10 text-blue-600 dark:text-blue-400;
+}
+
+.quote-badge-quoted {
+  @apply bg-indigo-500/10 text-indigo-600 dark:text-indigo-400;
+}
+
+.quote-badge-confirmed {
+  @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400;
+}
+
+.quote-badge-delivered {
+  @apply bg-teal-500/10 text-teal-600 dark:text-teal-400;
+}

@@ -462,10 +462,21 @@ exports.onStockLow = functions.firestore
         }
 
         const supplier = supplierDoc.data();
+
+        // Check if supplier has autoRequest enabled
+        if (!supplier.autoRequest) {
+            console.log(`⏭️ Supplier ${supplier.name} has autoRequest disabled`);
+            return null;
+        }
+
         const quantityToOrder = maxStock - currentStock;
+
+        // Generate unique Request-ID for email tracking
+        const requestId = Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 8).toUpperCase();
 
         // Create auto-quotation
         const quotation = {
+            requestId,  // Unique ID for email correlation
             itemIds: [itemId],
             items: [{
                 id: itemId,
@@ -572,6 +583,98 @@ exports.processSupplierEmail = functions.https.onCall(async (data, context) => {
         success: true,
         message: 'Email logged for processing',
         quotationId
+    };
+});
+
+/**
+ * HTTP Callable: Mark Quotation as Received
+ * Updates inventory quantities + writes to audit log atomically
+ * Called when user clicks "Mark Received" on a delivered order
+ */
+exports.markQuotationReceived = functions.https.onCall(async (data, context) => {
+    const { quotationId, receivedItems, notes } = data;
+
+    if (!quotationId || !receivedItems || !Array.isArray(receivedItems)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing quotationId or receivedItems');
+    }
+
+    console.log(`📦 Marking quotation ${quotationId} as received with ${receivedItems.length} items`);
+
+    // Get quotation to verify it exists and is in correct state
+    const quotationRef = admin.firestore().collection('quotations').doc(quotationId);
+    const quotationDoc = await quotationRef.get();
+
+    if (!quotationDoc.exists) {
+        throw new functions.https.HttpsError('not-found', 'Quotation not found');
+    }
+
+    const quotation = quotationDoc.data();
+
+    // Prevent duplicate receipt processing
+    if (quotation.status === 'received' || quotation.receivedAt) {
+        throw new functions.https.HttpsError('already-exists', 'Quotation already marked as received');
+    }
+
+    // Atomic batch write for all updates
+    const batch = admin.firestore().batch();
+
+    // 1. Update inventory quantities for each received item
+    for (const item of receivedItems) {
+        if (!item.productId || typeof item.quantity !== 'number') continue;
+
+        const productRef = admin.firestore().collection('inventory').doc(item.productId);
+
+        // Increment package count (or custom quantity field)
+        batch.update(productRef, {
+            packageCount: admin.firestore.FieldValue.increment(item.quantity),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        console.log(`   📦 Product ${item.productId}: +${item.quantity}`);
+    }
+
+    // 2. Update quotation status to received
+    batch.update(quotationRef, {
+        status: 'received',
+        receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+        receivedItems: receivedItems,
+        receivedNotes: notes || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 3. Write comprehensive audit log
+    const auditRef = admin.firestore().collection('auditLogs').doc();
+    batch.set(auditRef, {
+        entityType: 'quotation',
+        entityId: quotationId,
+        action: 'RECEIVED',
+        data: {
+            supplierName: quotation.supplierName,
+            requestId: quotation.requestId || null,
+            itemCount: receivedItems.length,
+            items: receivedItems.map(i => ({
+                productId: i.productId,
+                productName: i.productName || 'Unknown',
+                quantity: i.quantity,
+                unitPrice: i.unitPrice || null
+            })),
+            notes: notes || null
+        },
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        userId: context.auth?.uid || 'system',
+        userName: context.auth?.token?.name || 'Sistema'
+    });
+
+    // Commit all changes atomically
+    await batch.commit();
+
+    console.log(`✅ Quotation ${quotationId} marked as received successfully`);
+
+    return {
+        success: true,
+        quotationId,
+        itemsUpdated: receivedItems.length,
+        message: 'Inventory updated and quotation marked as received'
     };
 });
 
@@ -919,6 +1022,46 @@ exports.onGmailNotification = functions.pubsub
                     const messageId = messageData.message.id;
                     console.log(`📩 Processing message: ${messageId}`);
 
+                    // ═══════════════════════════════════════════════════════════
+                    // IDEMPOTENCY CHECK - Prevent duplicate email processing
+                    // Uses dedicated collection to track processed messages
+                    // This handles: Pub/Sub retries, duplicate webhooks, race conditions
+                    // ═══════════════════════════════════════════════════════════
+                    const processedEmailRef = admin.firestore()
+                        .collection('processedEmails')
+                        .doc(messageId);
+
+                    try {
+                        // Atomic check-and-set using Firestore transaction
+                        const wasAlreadyProcessed = await admin.firestore().runTransaction(async (transaction) => {
+                            const doc = await transaction.get(processedEmailRef);
+
+                            if (doc.exists) {
+                                console.log(`⏭️ [IDEMPOTENT] Message ${messageId} already processed at ${doc.data().processedAt?.toDate?.()}`);
+                                return true; // Already processed
+                            }
+
+                            // Mark as processed BEFORE actually processing
+                            // If processing fails, we'll clean up or retry via manual intervention
+                            transaction.set(processedEmailRef, {
+                                messageId,
+                                processedAt: admin.firestore.FieldValue.serverTimestamp(),
+                                ttl: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 day TTL for cleanup
+                                status: 'processing'
+                            });
+
+                            return false; // Not yet processed
+                        });
+
+                        if (wasAlreadyProcessed) {
+                            continue; // Skip to next message
+                        }
+                    } catch (idempotencyError) {
+                        // If transaction fails, log and skip to be safe (avoid duplicates)
+                        console.error(`⚠️ Idempotency check failed for ${messageId}:`, idempotencyError.message);
+                        continue;
+                    }
+
                     // Fetch full message content
                     const messageResponse = await gmail.users.messages.get({
                         userId: GMAIL_USER_ID,
@@ -1028,6 +1171,11 @@ exports.onGmailNotification = functions.pubsub
                     }
 
                     console.log(`📄 Extracted body length: ${body.length} chars`);
+                    console.log(`📊 [DEBUG] Email processing metadata:`, JSON.stringify({
+                        messageId,
+                        bodyPreview: body.substring(0, 100),
+                        timestamp: new Date().toISOString()
+                    }));
 
 
                     // Extract sender email
@@ -1059,12 +1207,20 @@ exports.onGmailNotification = functions.pubsub
                     let quotationsSnapshot = { empty: true, docs: [] };
 
                     try {
+                        // REENGINEERED: Comprehensive status matching
+                        // Include ALL statuses that could potentially receive supplier replies
+                        const RECEIVABLE_STATUSES = [
+                            'sent', 'pending', 'awaiting', 'draft', 'quoted',
+                            'PENDENTE', 'AGUARDANDO', 'ABERTO', 'ENVIADO', 'COTADO'
+                        ];
+
                         const allPendingSnapshot = await admin.firestore()
                             .collection('quotations')
-                            .where('status', 'in', ['sent', 'pending', 'awaiting'])
+                            .where('status', 'in', RECEIVABLE_STATUSES)
                             .orderBy('createdAt', 'desc')
-                            .limit(50) // Check up to 50 recent pending quotations
+                            .limit(100)
                             .get();
+
 
                         console.log(`📋 Found ${allPendingSnapshot.docs.length} pending quotations to check`);
 
@@ -1084,12 +1240,34 @@ exports.onGmailNotification = functions.pubsub
                         if (matchingDoc) {
                             quotationsSnapshot = { empty: false, docs: [matchingDoc] };
                         } else {
-                            console.log(`⚠️ No matching quotation found for ${normalizedSender}`);
+                            console.log(`⚠️ No matching quotation in pending statuses for ${normalizedSender}`);
                             console.log(`   Pending quotation emails:`, allPendingSnapshot.docs.map(d => d.data().supplierEmail));
+
+                            // FALLBACK: Search ALL quotations regardless of status
+                            // This catches edge cases where status was manually changed
+                            console.log(`🔄 Attempting fallback query (all statuses)...`);
+                            const fallbackSnapshot = await admin.firestore()
+                                .collection('quotations')
+                                .orderBy('createdAt', 'desc')
+                                .limit(100)
+                                .get();
+
+                            const fallbackMatch = fallbackSnapshot.docs.find(doc => {
+                                const quotationData = doc.data();
+                                const supplierEmail = quotationData.supplierEmail || '';
+                                return emailsMatch(senderEmail, supplierEmail);
+                            });
+
+                            if (fallbackMatch) {
+                                console.log(`✅ Fallback found match: ${fallbackMatch.id} (status: ${fallbackMatch.data().status})`);
+                                quotationsSnapshot = { empty: false, docs: [fallbackMatch] };
+                            } else {
+                                console.log(`❌ No quotation found for ${normalizedSender} in any status`);
+                            }
                         }
                     } catch (queryError) {
                         console.error('❌ Query failed:', queryError.message);
-                        // If compound index doesn't exist, this will fail - that's OK, we log it
+                        console.error('   Stack:', queryError.stack);
                     }
 
                     if (!quotationsSnapshot.empty) {
@@ -1104,11 +1282,31 @@ exports.onGmailNotification = functions.pubsub
                         const aiResult = await analyzeEmailWithGemini(body, quotation.items || []);
                         const aiData = aiResult.data || {};
 
-                        // FIX: Always use 'quoted' when email is received - moves to Orders tab
-                        // The aiSuccess flag indicates if data was auto-extracted or needs manual review
-                        // This ensures ALL received quotes appear in "Ordens" tab, not "Aguardando"
-                        const newStatus = 'quoted';
-                        const needsManualReview = !aiResult.success || !aiData.hasQuote;
+                        // ═══════════════════════════════════════════════════════════════
+                        // CRITICAL FIX: ALWAYS create order when email is processed
+                        // Orders appear in Orders tab regardless of auto-confirm status
+                        // Status indicates whether manual review is needed
+                        // ═══════════════════════════════════════════════════════════════
+                        const shouldAutoConfirm = aiResult.success &&
+                            aiData.hasQuote &&
+                            (aiData.suggestedAction === 'confirm' || aiData.suggestedAction === 'accept') &&
+                            !aiData.hasProblems &&
+                            !aiData.hasDelay;
+
+                        // Set quotation status based on AI analysis
+                        // 'ordered' = auto-confirmed, ready for fulfillment
+                        // 'quoted' = needs manual review in Orders tab
+                        const newStatus = shouldAutoConfirm ? 'ordered' : 'quoted';
+                        const needsManualReview = !aiResult.success || !aiData.hasQuote || aiData.hasProblems;
+
+                        // CRITICAL FIX: ALWAYS generate order ID - not just for auto-confirmed
+                        // Order will have different status based on shouldAutoConfirm
+                        // REENGINEERED: Use deterministic ID based on quotationId for consistency
+                        const orderId = `order_${quotationId.replace('quot_', '')}`;
+                        const orderStatus = shouldAutoConfirm ? 'confirmed' : 'pending_confirmation';
+                        const confirmedAt = shouldAutoConfirm ? admin.firestore.FieldValue.serverTimestamp() : null;
+
+                        console.log(`📋 Status Decision: quotation=${newStatus} | order=${orderStatus} | Auto-confirm: ${shouldAutoConfirm} | Problems: ${aiData.hasProblems || false}`);
 
                         // Calculate quoted total from AI-extracted items
                         let quotedTotal = aiData.totalQuote || 0;
@@ -1120,6 +1318,15 @@ exports.onGmailNotification = functions.pubsub
                             }, 0);
                         }
 
+                        // VALIDATION: Fallback to estimated total if quotedTotal is still invalid
+                        if (!quotedTotal || quotedTotal <= 0) {
+                            console.warn('⚠️ No valid quotedTotal from AI, using estimated total');
+                            quotedTotal = quotation.estimatedTotal || quotation.items?.reduce((sum, item) => {
+                                return sum + ((item.estimatedUnitPrice || 0) * (item.quantityToOrder || 0));
+                            }, 0) || 0;
+                        }
+
+
                         // BUG FIX: Update items array directly with quoted prices
                         // This ensures frontend can read quotedUnitPrice from items
                         const updatedItems = (quotation.items || []).map((item, index) => {
@@ -1128,10 +1335,12 @@ exports.onGmailNotification = functions.pubsub
                                 (item.productName && qi.name && item.productName.toLowerCase().includes(qi.name.toLowerCase()))
                             ) || aiData.items?.[index] || {};
 
+                            // CRITICAL FIX 2026-01-01: Use ?? instead of || to preserve 0 values
+                            // This was THE ROOT CAUSE - || converted 0 prices to null
                             return {
                                 ...item,
-                                quotedUnitPrice: quotedItem.unitPrice || item.quotedUnitPrice || null,
-                                quotedAvailability: quotedItem.availableQuantity || item.quotedAvailability || null
+                                quotedUnitPrice: quotedItem.unitPrice ?? item.quotedUnitPrice ?? null,
+                                quotedAvailability: quotedItem.availableQuantity ?? item.quotedAvailability ?? null
                             };
                         });
 
@@ -1172,7 +1381,12 @@ exports.onGmailNotification = functions.pubsub
 
                             // Update items with quoted prices
                             items: updatedItems,
-                            quotedItems: aiData.items || []
+                            quotedItems: aiData.items || [],
+
+                            // Order linkage (if auto-confirmed)
+                            orderId: orderId,
+                            confirmedAt: confirmedAt,
+                            autoConfirmed: shouldAutoConfirm
                         };
 
                         const quotationRef = admin.firestore()
@@ -1199,7 +1413,7 @@ exports.onGmailNotification = functions.pubsub
                         batch.set(auditRef, {
                             entityType: 'quotation',
                             entityId: quotationId,
-                            action: 'EMAIL_PROCESSED_AI',
+                            action: shouldAutoConfirm ? 'ORDER_AUTO_CREATED' : 'EMAIL_PROCESSED_AI',
                             data: {
                                 from: senderEmail,
                                 subject,
@@ -1210,13 +1424,119 @@ exports.onGmailNotification = functions.pubsub
                                 quotedTotal,
                                 deliveryDate: aiData.deliveryDate,
                                 hasProblems: aiData.hasProblems,
-                                itemsExtracted: aiData.items?.length || 0
+                                itemsExtracted: aiData.items?.length || 0,
+                                orderId: orderId,
+                                autoConfirmed: shouldAutoConfirm
                             },
                             timestamp: admin.firestore.FieldValue.serverTimestamp()
                         });
 
+                        // 4. ALWAYS CREATE ORDER - regardless of auto-confirm status
+                        // IDEMPOTENCY: Double-check to prevent duplicates
+                        // Check 1: By quotationId field (catches variations in order ID format)
+                        const existingOrderSnapshot = await admin.firestore()
+                            .collection('orders')
+                            .where('quotationId', '==', quotationId)
+                            .limit(1)
+                            .get();
+
+                        let finalOrderId = orderId;
+                        let orderAlreadyExists = false;
+
+                        if (!existingOrderSnapshot.empty) {
+                            // Order already exists - use existing orderId
+                            const existingOrder = existingOrderSnapshot.docs[0];
+                            finalOrderId = existingOrder.id;
+                            orderAlreadyExists = true;
+                            console.log(`⏭️ Order already exists for quotation ${quotationId}: ${finalOrderId}`);
+
+                            // Update the quotation's orderId reference if it's different
+                            if (updateData.orderId !== finalOrderId) {
+                                updateData.orderId = finalOrderId;
+                                updateData.confirmedAt = existingOrder.data().confirmedAt;
+                            }
+                        } else {
+                            // Check 2: By predicted order document ID (handles edge cases)
+                            const predictedOrderRef = admin.firestore().collection('orders').doc(orderId);
+                            const predictedOrderDoc = await predictedOrderRef.get();
+
+                            if (predictedOrderDoc.exists) {
+                                finalOrderId = orderId;
+                                orderAlreadyExists = true;
+                                console.log(`⏭️ Order document already exists: ${orderId}`);
+                                updateData.orderId = finalOrderId;
+                                updateData.confirmedAt = predictedOrderDoc.data().confirmedAt;
+                            }
+                        }
+
+                        if (!orderAlreadyExists) {
+                            console.log(`📦 Creating order: ${orderId} with status: ${orderStatus}`);
+
+                            const orderRef = admin.firestore()
+                                .collection('orders')
+                                .doc(orderId);
+
+                            batch.set(orderRef, {
+                                // Order identification
+                                orderId: orderId,
+                                quotationId: quotationId,
+
+                                // Supplier info
+                                supplierEmail: senderEmail,
+                                supplierName: quotation.supplierName || '',
+                                supplierId: quotation.supplierId || null,
+
+                                // Items with quoted prices
+                                items: updatedItems.map(item => ({
+                                    productId: item.productId,
+                                    productName: item.productName,
+                                    name: item.productName, // Alias for frontend compatibility
+                                    quantityOrdered: item.quantityToOrder || item.neededQuantity,
+                                    quantityToOrder: item.quantityToOrder || item.neededQuantity, // Alias
+                                    unit: item.unit || '',
+                                    quotedUnitPrice: item.quotedUnitPrice,
+                                    quotedAvailability: item.quotedAvailability,
+                                    subtotal: (item.quotedUnitPrice || 0) * (item.quantityToOrder || item.neededQuantity || 0)
+                                })),
+
+                                // Totals and terms
+                                quotedTotal: quotedTotal,
+                                quotedValue: quotedTotal, // Alias for frontend compatibility
+                                deliveryDate: aiData.deliveryDate || null,
+                                expectedDelivery: aiData.deliveryDate || null, // Alias
+                                deliveryDays: aiData.deliveryDays || null,
+                                paymentTerms: aiData.paymentTerms || null,
+
+                                // Status tracking - CRITICAL: Use orderStatus not hardcoded 'confirmed'
+                                status: orderStatus,
+                                autoConfirmed: shouldAutoConfirm,
+                                needsManualReview: needsManualReview,
+                                hasProblems: aiData.hasProblems || false,
+                                problemSummary: aiData.problemSummary || null,
+                                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                                confirmedAt: confirmedAt,
+
+                                // Email reference
+                                sourceEmailId: messageId,
+                                sourceEmailSubject: subject,
+
+                                // AI analysis summary
+                                aiSuggestedAction: aiData.suggestedAction,
+                                supplierNotes: aiData.supplierNotes || null
+                            });
+
+                            console.log(`✅ Order ${orderId} added to batch with status: ${orderStatus}`);
+                        }
+
                         // ATOMIC COMMIT - All writes succeed or all fail
                         await batch.commit();
+
+                        // Mark email as fully processed (idempotency lifecycle complete)
+                        await processedEmailRef.update({
+                            status: 'completed',
+                            quotationId: quotationId,
+                            completedAt: admin.firestore.FieldValue.serverTimestamp()
+                        });
 
                         console.log(`✅ Quotation ${quotationId} auto-processed: ${newStatus}`);
                         console.log(`   💰 Total: ${quotedTotal}, 📅 Delivery: ${aiData.deliveryDate || 'N/A'}`);

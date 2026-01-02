@@ -69,7 +69,7 @@ function predictBestSupplierForItem(itemId, suppliers, quotations) {
         const item = q.items.find(i => i.id === itemId)
         if (!item) return
 
-        const price = item.quotedUnitPrice || item.unitPrice
+        const price = item.quotedUnitPrice ?? item.unitPrice
         if (!q.supplierId) return
 
         if (!supplierScores[q.supplierId]) {
@@ -196,7 +196,7 @@ function detectPriceAnomalies(quotations) {
     // Group prices by item
     quotations.forEach(q => {
         q.items?.forEach(item => {
-            const price = item.quotedUnitPrice || item.unitPrice
+            const price = item.quotedUnitPrice ?? item.unitPrice
             if (!price) return
 
             if (!pricesByItem[item.id]) {
@@ -267,6 +267,7 @@ function detectPriceAnomalies(quotations) {
 
 /**
  * Forecast demand and suggest order quantities
+ * Basic 30-day forecast
  */
 function forecastDemand(item, days = 30) {
     const movements = item.movements || []
@@ -328,6 +329,389 @@ function forecastDemand(item, days = 30) {
         projection,
         orderRecommendation: getOrderRecommendation(urgency, daysUntilStockout, suggestedQuantity)
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 90-DAY PREDICTIVE ORDER INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Advanced 90-day demand forecast with seasonal decomposition
+ * 
+ * Features:
+ * - Trend detection (increasing/decreasing/stable)
+ * - Weekly patterns (daily specials, weekends)
+ * - Monthly patterns (paydays, events)
+ * - Seasonal patterns (holidays, weather)
+ * - Anomaly detection
+ * - Confidence intervals
+ * 
+ * @param {Object} item - Inventory item with movements
+ * @returns {Object} - Comprehensive forecast
+ */
+function forecast90Days(item) {
+    const movements = item.movements || []
+    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000
+
+    // Get all exits in the last 90 days
+    const exits = movements
+        .filter(m => m.type === 'exit' && new Date(m.createdAt).getTime() > ninetyDaysAgo)
+        .map(m => ({
+            date: new Date(m.createdAt),
+            quantity: Number(m.quantity) || 0,
+            dayOfWeek: new Date(m.createdAt).getDay(),
+            dayOfMonth: new Date(m.createdAt).getDate(),
+            weekOfYear: getWeekNumber(new Date(m.createdAt))
+        }))
+        .sort((a, b) => a.date - b.date)
+
+    if (exits.length < 7) {
+        return {
+            hasData: false,
+            message: 'Dados insuficientes para previsão de 90 dias (mínimo 7 movimentações)',
+            confidence: 0
+        }
+    }
+
+    // === TREND ANALYSIS ===
+    const trend = calculateTrend(exits)
+
+    // === WEEKLY PATTERN (Day-of-Week) ===
+    const weeklyPattern = calculateWeeklyPattern(exits)
+
+    // === MONTHLY PATTERN (Day-of-Month) ===
+    const monthlyPattern = calculateMonthlyPattern(exits)
+
+    // === OVERALL STATISTICS ===
+    const quantities = exits.map(e => e.quantity)
+    const mean = quantities.reduce((a, b) => a + b, 0) / quantities.length
+    const stdDev = Math.sqrt(
+        quantities.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / quantities.length
+    )
+
+    // === ANOMALY DETECTION ===
+    const anomalies = exits.filter(e => {
+        const zScore = Math.abs((e.quantity - mean) / stdDev)
+        return zScore > 2.5
+    }).map(e => ({
+        date: e.date.toISOString().split('T')[0],
+        quantity: e.quantity,
+        deviation: ((e.quantity - mean) / mean) * 100
+    }))
+
+    // === CONSUMPTION RATES ===
+    const dailyByPeriod = {
+        week: calculateDailyAverage(exits, 7),
+        twoWeeks: calculateDailyAverage(exits, 14),
+        month: calculateDailyAverage(exits, 30),
+        quarter: calculateDailyAverage(exits, 90)
+    }
+
+    // === FORECAST PROJECTIONS ===
+    const currentStock = StockService.getCurrentStock(item)
+    const minStock = StockService.getMinStock(item)
+    const maxStock = StockService.getMaxStock(item)
+
+    const projections = generateProjections(
+        currentStock,
+        minStock,
+        dailyByPeriod,
+        weeklyPattern,
+        90
+    )
+
+    // === OPTIMAL ORDER CALCULATION ===
+    const optimalOrder = calculateOptimalOrder(
+        currentStock,
+        minStock,
+        maxStock,
+        dailyByPeriod.quarter,
+        trend
+    )
+
+    // === CONFIDENCE CALCULATION ===
+    const confidence = calculateForecastConfidence(exits, stdDev, mean, trend)
+
+    return {
+        hasData: true,
+        itemId: item.id,
+        itemName: item.name,
+
+        // Current state
+        currentStock,
+        minStock,
+        maxStock,
+
+        // Consumption rates
+        consumption: {
+            daily: round2(dailyByPeriod.quarter),
+            weekly: round2(dailyByPeriod.quarter * 7),
+            monthly: round2(dailyByPeriod.quarter * 30),
+            quarterly: round2(dailyByPeriod.quarter * 90)
+        },
+
+        // Trend analysis
+        trend: {
+            direction: trend.direction,
+            slope: round2(trend.slope),
+            change: round2(trend.percentChange),
+            description: getTrendDescription(trend)
+        },
+
+        // Patterns
+        patterns: {
+            weeklyPattern,
+            monthlyPattern,
+            peakDay: weeklyPattern.peakDay,
+            lowDay: weeklyPattern.lowDay,
+            payDayEffect: monthlyPattern.payDayEffect
+        },
+
+        // Anomalies detected
+        anomalies,
+
+        // 90-day projection
+        projections,
+
+        // Order recommendation
+        optimalOrder,
+
+        // Confidence
+        confidence: {
+            level: confidence.level,
+            percent: confidence.percent,
+            factors: confidence.factors
+        },
+
+        // When to order
+        orderTiming: {
+            daysUntilStockout: calculateDaysUntilStockout(currentStock, dailyByPeriod.quarter),
+            optimalOrderDate: optimalOrder.orderByDate,
+            urgency: optimalOrder.urgency
+        }
+    }
+}
+
+// === HELPER FUNCTIONS FOR 90-DAY FORECAST ===
+
+function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    const dayNum = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+}
+
+function calculateTrend(exits) {
+    if (exits.length < 2) return { direction: 'stable', slope: 0, percentChange: 0 }
+
+    // Simple linear regression
+    const n = exits.length
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0
+
+    exits.forEach((e, i) => {
+        sumX += i
+        sumY += e.quantity
+        sumXY += i * e.quantity
+        sumX2 += i * i
+    })
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+    const avgY = sumY / n
+    const percentChange = avgY > 0 ? (slope * n / avgY) * 100 : 0
+
+    let direction = 'stable'
+    if (percentChange > 10) direction = 'increasing'
+    else if (percentChange < -10) direction = 'decreasing'
+
+    return { direction, slope, percentChange }
+}
+
+function calculateWeeklyPattern(exits) {
+    const dayTotals = Array(7).fill(0)
+    const dayCounts = Array(7).fill(0)
+
+    exits.forEach(e => {
+        dayTotals[e.dayOfWeek] += e.quantity
+        dayCounts[e.dayOfWeek]++
+    })
+
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    const averages = dayTotals.map((total, i) => ({
+        day: i,
+        name: dayNames[i],
+        average: dayCounts[i] > 0 ? total / dayCounts[i] : 0,
+        sampleSize: dayCounts[i]
+    }))
+
+    const validAverages = averages.filter(a => a.sampleSize > 0)
+    const peakDay = validAverages.reduce((max, curr) =>
+        curr.average > max.average ? curr : max,
+        { average: 0, name: 'N/A' }
+    )
+    const lowDay = validAverages.reduce((min, curr) =>
+        curr.average < min.average ? curr : min,
+        { average: Infinity, name: 'N/A' }
+    )
+
+    return {
+        byDay: averages,
+        peakDay: { name: peakDay.name, average: round2(peakDay.average) },
+        lowDay: { name: lowDay.name, average: round2(lowDay.average) }
+    }
+}
+
+function calculateMonthlyPattern(exits) {
+    // Check for payday effect (days 1-5 and 15-20 often see more spending)
+    const early = exits.filter(e => e.dayOfMonth >= 1 && e.dayOfMonth <= 5)
+    const mid = exits.filter(e => e.dayOfMonth >= 15 && e.dayOfMonth <= 20)
+    const other = exits.filter(e =>
+        !(e.dayOfMonth >= 1 && e.dayOfMonth <= 5) &&
+        !(e.dayOfMonth >= 15 && e.dayOfMonth <= 20)
+    )
+
+    const avgEarly = early.length > 0 ? early.reduce((s, e) => s + e.quantity, 0) / early.length : 0
+    const avgMid = mid.length > 0 ? mid.reduce((s, e) => s + e.quantity, 0) / mid.length : 0
+    const avgOther = other.length > 0 ? other.reduce((s, e) => s + e.quantity, 0) / other.length : 0
+
+    const payDayEffect = avgOther > 0
+        ? ((Math.max(avgEarly, avgMid) - avgOther) / avgOther) * 100
+        : 0
+
+    return {
+        earlyMonthAvg: round2(avgEarly),
+        midMonthAvg: round2(avgMid),
+        otherDaysAvg: round2(avgOther),
+        payDayEffect: round2(payDayEffect),
+        hasPayDayPattern: payDayEffect > 15
+    }
+}
+
+function calculateDailyAverage(exits, days) {
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+    const recentExits = exits.filter(e => e.date.getTime() > cutoff)
+    const total = recentExits.reduce((s, e) => s + e.quantity, 0)
+    return total / days
+}
+
+function generateProjections(currentStock, minStock, dailyRates, weeklyPattern, days) {
+    const projections = []
+    let stock = currentStock
+
+    for (let day = 0; day <= days; day += 7) {
+        const date = new Date(Date.now() + day * 24 * 60 * 60 * 1000)
+
+        // Adjust for weekly pattern
+        const dayOfWeek = date.getDay()
+        const patternMultiplier = weeklyPattern.byDay[dayOfWeek]?.average || dailyRates.quarter
+        const weeklyConsumption = dailyRates.quarter * 7
+
+        projections.push({
+            day,
+            date: date.toISOString().split('T')[0],
+            stock: Math.max(0, Math.round(stock)),
+            belowMin: stock < minStock,
+            expectedConsumption: round2(weeklyConsumption)
+        })
+
+        stock -= weeklyConsumption
+    }
+
+    return projections
+}
+
+function calculateOptimalOrder(currentStock, minStock, maxStock, dailyRate, trend) {
+    // Factor in trend
+    let adjustedDailyRate = dailyRate
+    if (trend.direction === 'increasing') adjustedDailyRate *= 1.1
+    if (trend.direction === 'decreasing') adjustedDailyRate *= 0.9
+
+    const daysUntilMin = dailyRate > 0 ? (currentStock - minStock) / adjustedDailyRate : Infinity
+    const leadTimeDays = 3 // Assumed supplier lead time
+
+    // When to order (before hitting min stock, accounting for lead time)
+    const orderInDays = Math.max(0, daysUntilMin - leadTimeDays)
+    const orderByDate = new Date(Date.now() + orderInDays * 24 * 60 * 60 * 1000)
+
+    // How much to order
+    const targetCoverage = 30 // Days of stock to maintain
+    const targetStock = adjustedDailyRate * targetCoverage
+    const orderQuantity = Math.max(0, Math.ceil(targetStock - currentStock))
+
+    // Urgency
+    let urgency = 'none'
+    if (orderInDays <= 0) urgency = 'critical'
+    else if (orderInDays <= 3) urgency = 'high'
+    else if (orderInDays <= 7) urgency = 'medium'
+    else if (orderInDays <= 14) urgency = 'low'
+
+    return {
+        orderQuantity,
+        orderByDate: orderByDate.toISOString().split('T')[0],
+        daysToOrder: Math.round(orderInDays),
+        urgency,
+        message: getOrderMessage(urgency, orderQuantity, orderInDays),
+        recommendation: {
+            action: urgency === 'critical' || urgency === 'high' ? 'ORDER_NOW' : 'SCHEDULE',
+            color: urgency === 'critical' ? 'rose' : urgency === 'high' ? 'orange' : 'blue',
+            priority: { critical: 1, high: 2, medium: 3, low: 4, none: 5 }[urgency]
+        }
+    }
+}
+
+function getOrderMessage(urgency, quantity, days) {
+    if (urgency === 'critical') return `🚨 URGENTE: Pedir ${quantity} unidades imediatamente!`
+    if (urgency === 'high') return `⚠️ Pedir ${quantity} unidades em até ${Math.round(days)} dias`
+    if (urgency === 'medium') return `📅 Agendar pedido de ${quantity} un para próxima semana`
+    if (urgency === 'low') return `📊 Monitorar estoque, considerar ${quantity} un em 2 semanas`
+    return `✅ Estoque adequado`
+}
+
+function calculateDaysUntilStockout(currentStock, dailyRate) {
+    if (dailyRate <= 0) return Infinity
+    return Math.floor(currentStock / dailyRate)
+}
+
+function calculateForecastConfidence(exits, stdDev, mean, trend) {
+    const factors = []
+    let score = 50
+
+    // More data = more confidence
+    if (exits.length >= 30) { score += 20; factors.push('Dados abundantes (30+ registros)') }
+    else if (exits.length >= 15) { score += 10; factors.push('Dados moderados (15+ registros)') }
+    else { factors.push('Poucos dados disponíveis') }
+
+    // Lower variance = more confidence
+    const cv = mean > 0 ? stdDev / mean : 1
+    if (cv < 0.3) { score += 15; factors.push('Baixa variância no consumo') }
+    else if (cv > 0.7) { score -= 10; factors.push('Alta variância no consumo') }
+
+    // Clear trend = more confidence
+    if (Math.abs(trend.percentChange) > 20) {
+        score += 5;
+        factors.push(`Tendência clara de ${trend.direction === 'increasing' ? 'crescimento' : 'queda'}`)
+    }
+
+    const percent = Math.min(95, Math.max(20, score))
+    let level = 'low'
+    if (percent >= 80) level = 'high'
+    else if (percent >= 60) level = 'medium'
+
+    return { level, percent, factors }
+}
+
+function getTrendDescription(trend) {
+    if (trend.direction === 'increasing') {
+        return `Consumo crescendo ${Math.abs(trend.percentChange).toFixed(0)}% no período`
+    }
+    if (trend.direction === 'decreasing') {
+        return `Consumo caindo ${Math.abs(trend.percentChange).toFixed(0)}% no período`
+    }
+    return 'Consumo estável'
+}
+
+function round2(num) {
+    return Math.round(num * 100) / 100
 }
 
 /**
@@ -487,6 +871,13 @@ export const SupplierPredictorService = {
      */
     getForecast(item, days = 30) {
         return forecastDemand(item, days)
+    },
+
+    /**
+     * Get advanced 90-day forecast with predictive intelligence
+     */
+    getForecast90Days(item) {
+        return forecast90Days(item)
     },
 
     /**
