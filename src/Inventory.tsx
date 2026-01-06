@@ -290,7 +290,6 @@ export default function Inventory() {
 
     // Stock Management state
     const [stockFilter, setStockFilter] = useState('alerts') // 'all' | 'noLimits' | 'alerts' | 'ok'
-    const [stockSearchQuery, setStockSearchQuery] = useState('')
     const [configuringItem, setConfiguringItem] = useState<InventoryItem | null>(null)
 
 
