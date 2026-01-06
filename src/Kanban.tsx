@@ -6,161 +6,11 @@ import { motion, AnimatePresence, Reorder, useMotionValue, MotionValue, Transiti
 import { FixedSizeList as List } from 'react-window'
 import { useModal } from './contexts/ModalContext'
 import { useToast } from './contexts/ToastContext'
+import { CardLabel, ChecklistItem, Checklist, KanbanCardData, KanbanColumnData, KanbanBoard, ActiveDrag, DragTarget, DragState, PendingDrag, SpringConfigs, ZoomConfig, DEFAULT_KANBAN, STORAGE_KEY, spring, LABELS, ZOOM_CONFIG, VIRTUALIZATION_THRESHOLD, CARD_HEIGHT, DRAG_THRESHOLD } from './kanbanModules'
 
-// Type Definitions
-interface CardLabel {
-    id: string
-    color: string
-    name?: string
-}
-
-interface ChecklistItem {
-    id: string
-    text: string
-    done: boolean
-}
-
-interface Checklist {
-    id: string
-    title: string
-    items: ChecklistItem[]
-}
-
-interface KanbanCardData {
-    id: string
-    title: string
-    labels: CardLabel[]
-    checklists: Checklist[]
-    description: string
-    createdAt: string
-    columnId?: string
-}
-
-interface KanbanColumnData {
-    id: string
-    title: string
-    cards: KanbanCardData[]
-}
-
-interface KanbanBoard {
-    columns: KanbanColumnData[]
-}
-
-interface ActiveDrag {
-    id: string
-    sourceColId: string
-    sourceIndex: number
-    data: KanbanCardData
-    rect: DOMRect
-    offsetX: number
-    offsetY: number
-}
-
-interface DragTarget {
-    colId: string | null
-    index: number
-}
-
-interface DragState {
-    active: ActiveDrag | null
-    target: DragTarget | null
-    isDragging: boolean
-}
-
-interface PendingDrag {
-    card: KanbanCardData
-    colId: string
-    element: HTMLElement
-    rect: DOMRect
-    startX: number
-    startY: number
-    offsetX: number
-    offsetY: number
-    cardIndex: number
-}
-
-interface SpringConfig {
-    type: string
-    stiffness: number
-    damping: number
-    mass: number
-}
-
-interface SpringConfigs {
-    layout: Transition
-    enter: Transition
-    placeholder: Transition
-    ghost: Transition
-    shift: Transition
-    modal: Transition
-}
-
-interface ZoomConfig {
-    width: string
-    label: string
-    cardPadding: string
-}
 /**
  * Kanban Pro Max - Apple Quality Edition
- * 
- * DESIGN PRINCIPLES (Apple HIG Inspired):
- * 1. Physics-based feel: Cards have weight and momentum with spring dynamics
- * 2. Visual Fidelity: Premium glassmorphism, subtle shadows, refined typography
- * 3. Fluid Motion: 60fps animations, spring physics, gesture-driven interactions
- * 4. Touch-First: Native-feeling drag with haptic feedback simulation
- * 5. Maximalist Clean: Rich features presented with clarity and elegance
  */
-
-// Note: Kanban uses session state by design - no Zustand persistence
-// Board resets to default on page reload (use case: temporary task tracking)
-const DEFAULT_KANBAN = {
-    columns: [
-        {
-            id: 'todo', title: 'A Fazer', cards: [
-                { id: 'card-1', title: 'Revisar receita de massa napoletana', labels: [{ id: 'indigo', color: '#6366f1' }], checklists: [], description: '', createdAt: new Date().toISOString() },
-                { id: 'card-2', title: 'Contatar novo fornecedor de azeite', labels: [{ id: 'amber', color: '#f59e0b' }], checklists: [], description: '', createdAt: new Date().toISOString() }
-            ]
-        },
-        {
-            id: 'doing', title: 'Em Progresso', cards: [
-                { id: 'card-3', title: 'Fotografar novas pizzas', labels: [{ id: 'indigo', color: '#6366f1' }], checklists: [], description: '', createdAt: new Date().toISOString() }
-            ]
-        },
-        {
-            id: 'done', title: 'Concluído', cards: [
-                { id: 'card-4', title: 'Renovar contrato Moinho Globo', labels: [{ id: 'emerald', color: '#10b981' }], checklists: [], description: '', createdAt: new Date().toISOString() }
-            ]
-        }
-    ]
-}
-
-const STORAGE_KEY = 'padoca_kanban_pro_max'
-
-// Premium Spring Configurations - "Apple-like" Physics
-const spring = {
-    layout: { type: "spring", stiffness: 500, damping: 40, mass: 1 },
-    enter: { type: "spring", stiffness: 450, damping: 35, mass: 0.8 },
-    placeholder: { type: "spring", stiffness: 600, damping: 45, mass: 0.7 },
-    ghost: { type: "spring", stiffness: 500, damping: 40, mass: 1 },
-    shift: { type: "spring", stiffness: 450, damping: 35, mass: 1 },
-    modal: { type: "spring", stiffness: 400, damping: 30, mass: 1 }
-} as const satisfies SpringConfigs
-
-const LABELS = [
-    { id: 'emerald', name: 'Concluído', color: '#10b981' },
-    { id: 'amber', name: 'Atenção', color: '#f59e0b' },
-    { id: 'rose', name: 'Urgente', color: '#f43f5e' },
-    { id: 'indigo', name: 'Em Progresso', color: '#6366f1' },
-    { id: 'sky', name: 'Ideia', color: '#0ea5e9' },
-    { id: 'violet', name: 'Revisão', color: '#8b5cf6' },
-]
-
-// Zoom configurations
-const ZOOM_CONFIG = [
-    { width: 'w-[85vw] md:w-[320px]', label: 'Foco', cardPadding: 'p-5' },
-    { width: 'w-[45vw] md:w-[280px]', label: 'Visão', cardPadding: 'p-4' },
-    { width: 'w-[30vw] md:w-[220px]', label: 'Quadro', cardPadding: 'p-3' }
-]
 
 export default function Kanban() {
     // ═══════════════════════════════════════════════════════════════
@@ -204,7 +54,7 @@ export default function Kanban() {
 
     // Pending drag state
     const pendingDragRef = useRef<PendingDrag | null>(null)
-    const DRAG_THRESHOLD = 4
+
 
     const scrollContainerRef = useRef<HTMLDivElement | null>(null)
     const rafRef = useRef<number | null>(null)
@@ -657,11 +507,6 @@ export default function Kanban() {
         </div>
     )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// EXTRACTED COMPONENTS (PERFORMANCE OPTIMIZATION)
-// ═══════════════════════════════════════════════════════════════
-
 interface KanbanColumnProps {
     col: any
     dragState: DragState
@@ -740,8 +585,7 @@ const KanbanColumn = React.memo(({
 // VIRTUALIZED CARD LIST - 60fps PERFORMANCE OPTIMIZATION
 // ═══════════════════════════════════════════════════════════════
 
-const VIRTUALIZATION_THRESHOLD = 15 // Use windowing when cards exceed this count
-const CARD_HEIGHT = 100 // Approximate card height for virtualization
+
 
 interface VirtualizedCardListProps {
     cards: any[]
