@@ -9,7 +9,7 @@ import { useToast } from './contexts/ToastContext'
 import ModalScrollLock from './components/ModalScrollLock'
 import { useAppStore, useIngredients, useSuppliers, useStockMovements } from './stores/useAppStore'
 import { Supplier, ID, NewIngredient, IngredientUpdate } from './types'
-import { ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal } from './inventoryModules'
+import { ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal, StockMovementModal } from './inventoryModules'
 
 // ═══ LOCAL TYPE DEFINITIONS ═══
 type StockStatus = 'noLimit' | 'critical' | 'warning' | 'excess' | 'ok' | 'low' | 'high'
@@ -236,49 +236,6 @@ export default function Inventory() {
         else if (type === 'error') toast.error(message)
         else toast.info(message)
     }, [toast])
-
-    // Filtered items for modal search
-    const modalFilteredItems = useMemo(() => {
-        if (!movementItemSearch.trim() || movementItemSearch.trim().length < 2) return []
-        const words = movementItemSearch.toLowerCase().split(/\s+/).filter(w => w.length > 0)
-        return items.filter(i => {
-            const name = i.name.toLowerCase()
-            return words.every(word => name.split(/\s+/).some(nameWord => nameWord.startsWith(word)))
-        }).slice(0, 6)
-    }, [items, movementItemSearch])
-
-    const selectedMovementItem = items.find(i => i.id === movementForm.itemId)
-
-    // Save movement
-    const saveMovement = useCallback(() => {
-        if (!movementForm.itemId || !movementForm.qty || !movementForm.reasonLabel) {
-            toast.error('Preencha todos os campos'); return
-        }
-        const it = items.find(i => i.id === movementForm.itemId)!
-        const q = parseFloat(movementForm.qty)
-        const t = MOVEMENT_TYPES[movementForm.type]
-        if (!t) { toast.error('Tipo de movimento inválido'); return }
-        const prev = getStock(it)
-        const next = t.isOut ? prev - q : prev + q
-        const fullReason = movementForm.reasonNote ? `${movementForm.reasonLabel} - ${movementForm.reasonNote}` : movementForm.reasonLabel
-
-        addStockMovement({
-            itemId: it.id,
-            itemName: it.name,
-            type: movementForm.type,
-            quantity: q,
-            unit: movementForm.unit,
-            previousStock: prev,
-            newStock: next,
-            costAtTime: (it.pricePerUnit || 0) * q,
-            reason: fullReason
-        })
-        updateIngredient(it.id, { packageCount: Math.max(0, next / (it.packageQuantity || 1)) })
-        toast.success('Movimentação salva')
-        setMovementModalOpen(false)
-        setMovementForm({ type: 'entrada', itemId: 0, qty: '', unit: 'kg', reasonLabel: 'Sobra de Produção', reasonNote: '' })
-        setMovementItemSearch('')
-    }, [movementForm, items, addStockMovement, updateIngredient, toast, MOVEMENT_TYPES])
 
     // Subcategories from store constant
     const [subcategories, setSubcategories] = useState(defaultIngredientSubcategories)
@@ -1433,215 +1390,29 @@ export default function Inventory() {
                 )
             }
 
-            {/* Movement Modal */}
-            {
-                createPortal(
-                    <AnimatePresence>
-                        {movementModalOpen && (
-                            <div className="fixed inset-0 z-[10000] flex items-start justify-center">
-                                <ModalScrollLock />
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-xl"
-                                    onClick={() => setMovementModalOpen(false)}
-                                />
-                                <motion.div
-                                    initial={{ opacity: 0, y: -50 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -50 }}
-                                    transition={{ type: "spring", stiffness: 300, damping: 30, mass: 0.8 }}
-                                    className="relative w-full md:max-w-md bg-white dark:bg-zinc-900 md:bg-white/95 md:dark:bg-zinc-900/95 md:backdrop-blur-2xl md:rounded-[24px] shadow-2xl overflow-hidden mt-16 md:mt-20 mx-4 md:mx-0 rounded-2xl"
-                                    style={{ marginTop: 'max(calc(env(safe-area-inset-top, 0px) + 60px), 60px)' }}
-                                >
-                                    {/* Header */}
-                                    <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                                        <div className="w-12" />
-                                        <h3 className="text-[17px] font-semibold text-zinc-900 dark:text-white">Nova Movimentação</h3>
-                                        <button
-                                            onClick={() => setMovementModalOpen(false)}
-                                            className="w-12 h-12 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
-                                        >
-                                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div className="h-px bg-zinc-200 dark:bg-zinc-700/50 mx-4" />
 
-                                    <div className="px-6 py-6 space-y-5">
-                                        {/* Type */}
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Tipo</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {Object.entries(MOVEMENT_TYPES).map(([k, v]) => (
-                                                    <button
-                                                        key={k}
-                                                        onClick={() => setMovementForm(f => ({ ...f, type: k as 'entrada' | 'saida', reasonLabel: REASON_BY_TYPE[k as 'entrada' | 'saida'][0] || '', reasonNote: '' }))}
-                                                        className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${movementForm.type === k
-                                                            ? `bg-${v.color}-50 dark:bg-${v.color}-500/20 text-${v.color}-600 dark:text-${v.color}-400 ring-2 ring-${v.color}-500/30`
-                                                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
-                                                            }`}
-                                                    >
-                                                        {v.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {/* Stock Movement Modal */}
+            {/* ════════════════════════════════════════════════════════════════ */}
+            <StockMovementModal
+                isOpen={movementModalOpen}
+                onClose={() => {
+                    setMovementModalOpen(false)
+                    setMovementForm({ type: 'entrada', itemId: 0, qty: '', unit: 'kg', reasonLabel: 'Sobra de Produção', reasonNote: '' })
+                    setMovementItemSearch('')
+                }}
+                items={items as any}
+                onSaveMovement={(data) => {
+                    addStockMovement(data)
+                    const item = items.find(i => i.id === data.itemId)
+                    if (item) {
+                        updateIngredient(item.id, { packageCount: Math.max(0, data.newStock / (item.packageQuantity || 1)) })
+                    }
+                    toast.success('Movimentação salva')
+                }}
+                getStock={getStock as any}
+            />
 
-                                        {/* Item Search */}
-                                        <div className="relative">
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Item</label>
-                                            <motion.div
-                                                className="relative"
-                                                animate={selectedMovementItem ? { scale: [1, 1.02, 1] } : {}}
-                                                transition={{ duration: 0.2 }}
-                                            >
-                                                {selectedMovementItem ? (
-                                                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                ) : (
-                                                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                                    </svg>
-                                                )}
-                                                <input
-                                                    type="text"
-                                                    value={selectedMovementItem ? selectedMovementItem.name : movementItemSearch}
-                                                    onChange={e => {
-                                                        setMovementItemSearch(e.target.value)
-                                                        setMovementForm(f => ({ ...f, itemId: 0 }))
-                                                        setShowMovementItemResults(true)
-                                                    }}
-                                                    onFocus={() => setShowMovementItemResults(true)}
-                                                    placeholder="Buscar ingrediente..."
-                                                    className={`w-full h-14 pl-12 pr-12 rounded-2xl text-[17px] font-medium placeholder:text-zinc-400 outline-none transition-all ${selectedMovementItem
-                                                        ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30'
-                                                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
-                                                        }`}
-                                                />
-                                                {selectedMovementItem && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setMovementForm(f => ({ ...f, itemId: 0 }))
-                                                            setMovementItemSearch('')
-                                                            setShowMovementItemResults(true)
-                                                        }}
-                                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400 dark:hover:bg-zinc-500 transition-colors"
-                                                    >
-                                                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
-                                            </motion.div>
-                                            {/* Dropdown */}
-                                            <AnimatePresence>
-                                                {showMovementItemResults && !selectedMovementItem && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: -8 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        exit={{ opacity: 0, y: -8 }}
-                                                        transition={{ duration: 0.15 }}
-                                                        className="absolute z-50 w-full mt-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-zinc-200/50 dark:border-white/10 overflow-hidden max-h-64 overflow-y-auto"
-                                                    >
-                                                        {modalFilteredItems.length === 0 ? (
-                                                            <div className="px-4 py-6 text-center text-zinc-400 text-sm">Nenhum item encontrado</div>
-                                                        ) : (
-                                                            modalFilteredItems.map(i => (
-                                                                <button
-                                                                    key={i.id}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setMovementForm(f => ({ ...f, itemId: i.id, unit: (i.unit as typeof UNITS[number]) || 'kg' }))
-                                                                        setMovementItemSearch('')
-                                                                        setShowMovementItemResults(false)
-                                                                    }}
-                                                                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors text-left"
-                                                                >
-                                                                    <span className="text-[15px] font-medium text-zinc-800 dark:text-zinc-100">{i.name}</span>
-                                                                    <span className="text-xs text-zinc-400">{getStock(i).toFixed(1)} {i.unit}</span>
-                                                                </button>
-                                                            ))
-                                                        )}
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                            {selectedMovementItem && <p className="text-xs text-zinc-400 mt-2 ml-1">Estoque atual: {getStock(selectedMovementItem).toFixed(2)} {selectedMovementItem.unit}</p>}
-                                        </div>
-
-                                        {/* Quantity + Unit */}
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Quantidade</label>
-                                                <input
-                                                    type="number"
-                                                    value={movementForm.qty}
-                                                    onChange={e => setMovementForm(f => ({ ...f, qty: e.target.value }))}
-                                                    placeholder="0"
-                                                    className="w-full h-14 px-5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-[20px] font-semibold text-zinc-900 dark:text-white placeholder:text-zinc-300 outline-none focus:ring-2 focus:ring-zinc-200 dark:focus:ring-zinc-700 tabular-nums"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Unidade</label>
-                                                <select
-                                                    value={movementForm.unit}
-                                                    onChange={e => setMovementForm(f => ({ ...f, unit: e.target.value as typeof UNITS[number] }))}
-                                                    className="w-full h-14 px-5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-[17px] font-medium text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-200 dark:focus:ring-zinc-700 cursor-pointer appearance-none"
-                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', backgroundSize: '18px' }}
-                                                >
-                                                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        {/* Reason Labels */}
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Motivo</label>
-                                            <div className="flex flex-wrap gap-2 mb-3">
-                                                {REASON_BY_TYPE[movementForm.type].map((label: string) => (
-                                                    <button
-                                                        key={label}
-                                                        type="button"
-                                                        onClick={() => setMovementForm(f => ({ ...f, reasonLabel: label }))}
-                                                        className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${movementForm.reasonLabel === label
-                                                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                                                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                                                            }`}
-                                                    >
-                                                        {label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <input
-                                                type="text"
-                                                value={movementForm.reasonNote}
-                                                onChange={e => setMovementForm(f => ({ ...f, reasonNote: e.target.value }))}
-                                                placeholder="Digitar o motivo:"
-                                                className="w-full h-12 px-4 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Save */}
-                                    <div className="px-6 pb-6">
-                                        <button
-                                            onClick={saveMovement}
-                                            className="w-full h-14 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-sm font-bold uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                        >
-                                            Salvar Movimentação
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            </div>
-                        )}
-                    </AnimatePresence>,
-                    document.body
-                )
-            }
         </div >
     )
 }
