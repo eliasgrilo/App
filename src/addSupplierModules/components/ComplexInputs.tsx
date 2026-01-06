@@ -53,7 +53,7 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
                                     </motion.button>
                                 ))}
                             </motion.div>
-                            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+                            <button type="button" aria-label="Fechar lista" className="fixed inset-0 z-40 bg-transparent border-none cursor-default" onClick={() => setIsOpen(false)} />
                         </>
                     )}
                 </AnimatePresence>

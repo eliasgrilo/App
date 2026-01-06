@@ -38,7 +38,7 @@ export function SupplierAlertsSection({ alertsBySupplier, openEmailComposer }: S
                 ) : (
                     <div className="space-y-3 md:space-y-1">
                         {alertsBySupplier.map(({ supplier, items }) => (
-                            <div key={supplier.id} className="flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 md:items-center group hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-4 rounded-2xl md:rounded-[1.5rem] transition-all cursor-pointer border border-zinc-100/80 dark:border-white/5 md:border-transparent"
+                            <button type="button" key={supplier.id} className="w-full flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 md:items-center group hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-4 rounded-2xl md:rounded-[1.5rem] transition-all cursor-pointer border border-zinc-100/80 dark:border-white/5 md:border-transparent text-left"
                                 onClick={() => openEmailComposer(supplier, items)}
                             >
                                 <div className="md:col-span-5 flex items-start md:items-center gap-4">
@@ -79,7 +79,7 @@ export function SupplierAlertsSection({ alertsBySupplier, openEmailComposer }: S
                                         Solicitar
                                     </button>
                                 </div>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 )}

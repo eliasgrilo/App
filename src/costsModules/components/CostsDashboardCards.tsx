@@ -2,7 +2,9 @@
 // COSTS MODULE — Dashboard Cards
 // ═══════════════════════════════════════════════════════════════════
 
+import { useMemo } from 'react'
 import type { CostTotals } from '../types'
+import { Sparkline } from '../../components/Sparkline'
 
 interface CostsDashboardCardsProps {
     totals: CostTotals
@@ -33,8 +35,8 @@ export function CostsDashboardCards({
                                         value={dashboardTitle} onChange={(e) => setDashboardTitle(e.target.value)}
                                         onBlur={() => setIsEditingTitle(false)} onKeyDown={(e) => e.key === 'Enter' && setIsEditingTitle(false)} autoFocus />
                                 ) : (
-                                    <h3 className="text-[10px] font-bold text-zinc-400 dark:text-indigo-300/60 uppercase tracking-widest cursor-text hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                        onClick={() => setIsEditingTitle(true)}>{dashboardTitle}</h3>
+                                    <button type="button" className="bg-transparent border-none p-0 m-0 text-[10px] font-bold text-zinc-400 dark:text-indigo-300/60 uppercase tracking-widest cursor-text hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
+                                        onClick={() => setIsEditingTitle(true)}>{dashboardTitle}</button>
                                 )}
                                 <p className="text-zinc-400 dark:text-white/30 text-[9px] font-medium tracking-wide mt-1">Status: Ativo</p>
                             </div>
@@ -80,13 +82,25 @@ function CostTypeCard({ label, value, total, formatCurrency, color }: CostTypeCa
     const dotColor = color === 'indigo' ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'
     const barColor = color === 'indigo' ? 'bg-indigo-500/80' : 'bg-orange-500/80'
     const textColor = color === 'indigo' ? 'text-indigo-500' : 'text-orange-500'
+    const sparklineColor = color === 'indigo' ? '#6366f1' : '#f97316'
+
+    // Generate sample trend data based on value (simulating historical data)
+    const trendData = useMemo(() => {
+        const base = value * 0.8
+        return Array.from({ length: 7 }, (_, i) => base + (Math.random() * value * 0.4) * (i / 7))
+    }, [value])
 
     return (
         <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-3xl rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/5 flex flex-col justify-between group shadow-md hover:shadow-lg transition-all">
             <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`}></div>
-                    <h3 className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-0">{label}</h3>
+                <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`}></div>
+                        <h3 className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-0">{label}</h3>
+                    </div>
+                    <div className="opacity-60 group-hover:opacity-100 transition-opacity">
+                        <Sparkline data={trendData} width={60} height={20} color={sparklineColor} strokeWidth={1.5} />
+                    </div>
                 </div>
                 <div className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums tracking-tight">{formatCurrency(value)}</div>
             </div>

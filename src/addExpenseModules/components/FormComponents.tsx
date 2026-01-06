@@ -24,8 +24,19 @@ export function Section({ icon, title, children, delay = 0 }: SectionProps) {
 // Row
 export interface RowProps { label: string; last?: boolean; children: ReactNode; onClick?: () => void }
 export function Row({ label, last, children, onClick }: RowProps) {
+    const baseClasses = `flex items-center justify-between min-h-[52px] px-4 ${!last ? 'border-b border-[#e5e5ea]/60 dark:border-[#38383a]/80' : ''}`
+
+    if (onClick) {
+        return (
+            <button type="button" onClick={onClick} className={`${baseClasses} w-full text-left active:bg-[#f5f5f7] dark:active:bg-[#2c2c2e] cursor-pointer transition-colors`}>
+                <span className="text-[17px] text-[#1d1d1f] dark:text-white">{label}</span>
+                <div className="flex items-center gap-2">{children}</div>
+            </button>
+        )
+    }
+
     return (
-        <div className={`flex items-center justify-between min-h-[52px] px-4 ${!last ? 'border-b border-[#e5e5ea]/60 dark:border-[#38383a]/80' : ''} ${onClick ? 'active:bg-[#f5f5f7] dark:active:bg-[#2c2c2e] cursor-pointer transition-colors' : ''}`} onClick={onClick}>
+        <div className={baseClasses}>
             <span className="text-[17px] text-[#1d1d1f] dark:text-white">{label}</span>
             <div className="flex items-center gap-2">{children}</div>
         </div>
