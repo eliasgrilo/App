@@ -9,7 +9,8 @@ import { useToast } from './contexts/ToastContext'
 import ModalScrollLock from './components/ModalScrollLock'
 import { useAppStore, useIngredients, useSuppliers, useStockMovements } from './stores/useAppStore'
 import { Supplier, ID, NewIngredient, IngredientUpdate } from './types'
-import { ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal, StockMovementModal, CategoryManagementModal, InventoryTable, InventoryDashboard, InventoryFilters } from './inventoryModules'
+import { ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal, StockMovementModal, CategoryManagementModal, InventoryTable, InventoryDashboard, InventoryFilters, InventoryHeader, useNewItemForm } from './inventoryModules'
+import { getStockStatus as getStockStatusService, getTotalQuantity as getTotalQuantityService, getCurrentStock } from './services/stockService'
 
 // ═══ LOCAL TYPE DEFINITIONS ═══
 type StockStatus = 'noLimit' | 'critical' | 'warning' | 'excess' | 'ok' | 'low' | 'high'
@@ -79,58 +80,6 @@ interface ColorScheme {
     pulse: string
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SERVICES
-// ═══════════════════════════════════════════════════════════════
-const StockService = {
-    getCurrentStock: (item: InventoryItem): number => (item.packageQuantity || 0) * (item.packageCount || 1),
-    getTotalQuantity: (item: InventoryItem): number => (item.packageQuantity || 0) * (item.packageCount || 1),
-    getStockLevel: (item: InventoryItem): number => (item.packageQuantity || 0) * (item.packageCount || 1),
-    getStockValue: (item: InventoryItem): number => ((item.packageQuantity || 0) * (item.packageCount || 1) * (item.pricePerUnit || 0)),
-    getStockStatus: (item: InventoryItem): StockStatus => {
-        const currentStock = (item.packageQuantity || 0) * (item.packageCount || 1)
-        const minStock = Number(item.minStock) || 0
-        const maxStockRaw = Number(item.maxStock) || 0
-        const criticalStockRaw = Number(item.criticalStock) || 0
-
-        // Smart automation: Se usuário não definir crítico, assume 25% do mínimo
-        // Se usuário não definir máximo, assume 3x o mínimo
-        const criticalStock = criticalStockRaw > 0 ? criticalStockRaw : (minStock > 0 ? minStock * 0.25 : 0)
-        const maxStock = maxStockRaw > 0 ? maxStockRaw : (minStock > 0 ? minStock * 3 : 0)
-
-        // Sem limite: falta configurar estoque mínimo
-        if (minStock <= 0) return 'noLimit'
-
-        // Crítico (Vermelho - "Pânico"): abaixo de 25% do mínimo
-        // "Se você não comprar AGORA, a produção vai parar hoje"
-        if (currentStock <= criticalStock) return 'critical'
-
-        // Mínimo (Amarelo - "Planejamento"): abaixo do mínimo
-        // "Está na hora de fazer pedido ao fornecedor"
-        if (currentStock < minStock) return 'warning'
-
-        // Máximo (Evitar desperdício): acima do máximo
-        // "Não compre mais que isso"
-        if (maxStock > 0 && currentStock > maxStock) return 'excess'
-
-        // Adequado: dentro dos limites
-        return 'ok'
-    },
-    getMinStock: (item: InventoryItem): number => Number(item.minStock) || 0,
-    needsReorder: (item: InventoryItem): boolean => {
-        const currentStock = (item.packageQuantity || 0) * (item.packageCount || 1)
-        const minStock = Number(item.minStock) || 0
-        return minStock > 0 && currentStock <= minStock
-    },
-    getReorderQuantity: (item: InventoryItem): number => {
-        const currentStock = (item.packageQuantity || 0) * (item.packageCount || 1)
-        const maxStock = Number(item.maxStock) || 0
-        const minStock = Number(item.minStock) || 0
-        if (maxStock > 0) return Math.max(0, maxStock - currentStock)
-        if (minStock > 0) return Math.max(0, minStock * 2 - currentStock)
-        return 0
-    },
-}
 
 // Tax configuration (12% default rate)
 const TAX_RATE = 0.12
@@ -259,7 +208,7 @@ export default function Inventory() {
         // Check each item for low stock - trigger if has supplier
         // Exception handling: Items without minStock defined (minStock <= 0) are skipped
         const lowStockItems = items.filter(item => {
-            const currentStock = StockService.getCurrentStock(item)
+            const currentStock = getCurrentStock(item)
             const minStock = item.minStock || 0
             // Guard: Skip items without minStock defined to prevent loop issues with zero-stock items
             if (minStock <= 0) return false
@@ -269,7 +218,7 @@ export default function Inventory() {
 
         // Create a stable signature: sorted IDs + their current stock levels
         const newSignature = lowStockItems
-            .map(item => `${item.id}:${StockService.getCurrentStock(item)}`)
+            .map(item => `${item.id}:${getCurrentStock(item)}`)
             .sort()
             .join('|')
 
@@ -289,59 +238,20 @@ export default function Inventory() {
 
     // Suppliers from Zustand store (persistent)
     const suppliers = storeSuppliers
-    const [supplierSearchQuery, setSupplierSearchQuery] = useState('')
-    const [showSupplierDropdown, setShowSupplierDropdown] = useState(false)
 
-    // Helper: Check if supplier name matches exactly (same name and word count)
-    const isExactSupplierMatch = useCallback((searchTerm: string, supplierName: string): boolean => {
-        if (!searchTerm || !supplierName) return false
-        const normalizedSearch = searchTerm.trim().toLowerCase()
-        const normalizedSupplier = supplierName.trim().toLowerCase()
-        // Must be exactly equal AND have same word count
-        const searchWords = normalizedSearch.split(/\s+/).filter((w: string) => w.length > 0)
-        const supplierWords = normalizedSupplier.split(/\s+/).filter((w: string) => w.length > 0)
-        return normalizedSearch === normalizedSupplier && searchWords.length === supplierWords.length
-    }, [])
-
-    // Filter suppliers based on search - only show when pattern is found (min 2 chars)
-    const filteredSuppliers = useMemo(() => {
-        const query = supplierSearchQuery.trim().toLowerCase()
-        // Only show suggestions if at least 2 characters are typed
-        if (query.length < 2) return []
-        return suppliers.filter((s: Supplier) =>
-            s.name?.toLowerCase().includes(query)
-        ).slice(0, 8)
-    }, [suppliers, supplierSearchQuery])
-
-    const [newItem, setNewItem] = useState({
-        name: '',
-        packageQuantity: '',
-        packageCount: '1',
-        unit: 'kg',
-        pricePerUnit: '',
-        category: 'Ingredientes',
-        subcategory: 'Outros Ingredientes',
-        purchaseDate: new Date().toISOString().split('T')[0],
-        supplierId: null,
-        supplierName: '',
-        minStock: '',
-        maxStock: '',
-        enableAutoQuotation: false,
-        leadTimeDays: 3,
-        shelfLifeDays: '',
-        barcode: ''
-    })
+    // New item form state (encapsulated in hook)
+    const { newItem, setNewItem, supplierSearchQuery, setSupplierSearchQuery, showSupplierDropdown, setShowSupplierDropdown, filteredSuppliers, isExactSupplierMatch } = useNewItemForm(suppliers as Supplier[])
 
     // Note: All data persisted via Zustand store
 
     // Calculate total quantity for an item (total weight/volume)
     // Use centralized StockService for consistency
-    const getTotalQuantity = (item: InventoryItem): number => StockService.getTotalQuantity(item)
+    const getTotalQuantity = (item: InventoryItem): number => getTotalQuantityService(item)
 
     // Stock status indicator - Apple-quality 5-tier system
     // Use centralized StockService for consistency across the app
     const getStockStatus = (item: InventoryItem): StockStatus => {
-        const status = StockService.getStockStatus(item)
+        const status = getStockStatusService(item)
         // Map to Inventory's existing status names for UI compatibility
         switch (status) {
             case 'critical': return 'low'
@@ -405,7 +315,7 @@ export default function Inventory() {
             createdAt: new Date().toISOString()
         }
 
-        setItems(prev => [...prev, item])
+        setItems(prev => [...prev, item as InventoryItem])
         setNewItem({
             name: '',
             packageQuantity: '',
@@ -414,7 +324,7 @@ export default function Inventory() {
             pricePerUnit: '',
             category: 'Ingredientes',
             subcategory: 'Outros Ingredientes',
-            purchaseDate: new Date().toISOString().split('T')[0],
+            purchaseDate: new Date().toISOString().split('T')[0] || '',
             supplierId: null,
             supplierName: '',
             minStock: '',
@@ -493,40 +403,14 @@ export default function Inventory() {
                 <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/5 blur-[120px] rounded-full"></div>
             </div>
 
-            {/* Header: Identity & Actions - z-20 to prevent sticky header overlap */}
-            <div className="relative z-20 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
-                <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">Estoque</h1>
-                    </div>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">Gestão inteligente de insumos e provisões</p>
-                </div>
 
-                <div className="flex items-center gap-3">
-                    {/* Invoice Scanner Button */}
-                    <button
-                        onClick={() => alert('📸 Scan Nota - Funcionalidade em desenvolvimento!')}
-                        className="flex w-auto px-4 md:px-6 py-3 md:py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl md:rounded-2xl text-[11px] md:text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all items-center justify-center gap-2 group"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span className="hidden md:inline">Scan Nota</span>
-                        <span className="md:hidden">Scan</span>
-                    </button>
-
-                    <button
-                        onClick={() => setIsAddingItem(true)}
-                        className="w-full md:w-auto px-8 py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs md:text-sm font-bold uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group touch-manipulation relative z-30"
-                        style={{ minHeight: '44px' }}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-                        Adicionar Insumo
-                    </button>
-                </div>
-            </div>
-
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {/* Header: Identity & Actions */}
+            {/* ════════════════════════════════════════════════════════════════ */}
+            <InventoryHeader
+                onScanInvoice={() => alert('📸 Scan Nota - Funcionalidade em desenvolvimento!')}
+                onAddItem={() => setIsAddingItem(true)}
+            />
 
             {/* ════════════════════════════════════════════════════════════════ */}
             {/* Dashboard: Precise & Light */}

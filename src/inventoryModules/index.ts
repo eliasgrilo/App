@@ -14,9 +14,12 @@ export { CategoryManagementModal } from './components/CategoryManagementModal'
 export { InventoryTable } from './components/InventoryTable'
 export { InventoryDashboard } from './components/InventoryDashboard'
 export { InventoryFilters } from './components/InventoryFilters'
+export { InventoryHeader } from './components/InventoryHeader'
 export type { StockMovement } from './components/MovementRegistry'
 
 // Hooks
-export { useStockCalculations } from './hooks/useStockCalculations'
 export { useExpiryMonitoring } from './hooks/useExpiryMonitoring'
+export { useStockCalculations } from './hooks/useStockCalculations'
 export { useInventoryFilters } from './hooks/useInventoryFilters'
+export { useNewItemForm } from './hooks/useNewItemForm'
+export type { NewItemState } from './hooks/useNewItemForm'
