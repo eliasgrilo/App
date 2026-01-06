@@ -13,6 +13,38 @@
   --font-sans: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', 'Monaco', 'Fira Code', 'Cascadia Mono', monospace;
 
+  /* Apple-Quality Typography Tracking */
+  --tracking-tighter: -0.03em;
+  /* Large headlines (48px+) */
+  --tracking-tight: -0.02em;
+  /* Headlines (32px+) */
+  --tracking-snug: -0.015em;
+  /* Subheadlines (24px+) */
+  --tracking-normal: -0.011em;
+  /* Body text */
+  --tracking-wide: 0.02em;
+  /* Small caps, labels */
+  --tracking-wider: 0.05em;
+  /* Uppercase labels */
+  --tracking-widest: 0.1em;
+  /* Micro labels */
+
+  /* Apple-Quality Line Heights */
+  --leading-none: 1;
+  /* Large display numbers */
+  --leading-tighter: 1.1;
+  /* Headlines */
+  --leading-tight: 1.15;
+  /* Subheadlines */
+  --leading-snug: 1.25;
+  /* Large body */
+  --leading-normal: 1.5;
+  /* Body text */
+  --leading-relaxed: 1.625;
+  /* Long-form reading */
+  --leading-loose: 1.75;
+  /* Spacious text */
+
   /* Spacing Scale (8px grid with micro-adjustments) */
   --space-px: 1px;
   --space-0: 0;
@@ -125,6 +157,18 @@
   --shadow-glow-lg: 0 0 24px rgba(99, 102, 241, 0.25);
   --shadow-glow-success: 0 0 16px rgba(16, 185, 129, 0.2);
   --shadow-glow-danger: 0 0 16px rgba(239, 68, 68, 0.2);
+
+  /* Apple-Quality Card Highlights (inner light edge) */
+  --shadow-card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-card-highlight-strong: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+  /* Premium Focus Glow (for inputs/buttons) */
+  --shadow-focus-ring: 0 0 0 4px rgba(99, 102, 241, 0.12);
+  --shadow-focus-ring-strong: 0 0 0 4px rgba(99, 102, 241, 0.2);
+
+  /* Button Hover Glow */
+  --shadow-button-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --shadow-button-glow-primary: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 20px rgba(99, 102, 241, 0.12);
 
   /* Premium Color Palette */
   --color-primary: #09090b;
@@ -255,11 +299,10 @@ body {
   @apply border-zinc-200/80 dark:border-zinc-700/50;
   @apply dark:bg-zinc-900/80 dark:text-white;
   @apply placeholder:text-zinc-400 dark:placeholder:text-zinc-600;
-  @apply focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/5;
-  @apply dark:focus:border-zinc-500 dark:focus:ring-white/10;
+  @apply focus:border-indigo-400/60 dark:focus:border-indigo-500/50;
   min-height: 54px;
   box-shadow: var(--shadow-xs), var(--shadow-inner-sm);
-  transition: all var(--duration-medium) var(--ease-smooth);
+  transition: all 250ms var(--ease-elegant);
 }
 
 .input:hover:not(:focus) {
@@ -268,7 +311,7 @@ body {
 }
 
 .input:focus {
-  box-shadow: var(--shadow-md), 0 0 0 3px rgba(99, 102, 241, 0.08);
+  box-shadow: var(--shadow-md), var(--shadow-focus-ring);
 }
 
 /* Premium Textarea */
@@ -303,7 +346,7 @@ body {
   @apply rounded-[2rem] border bg-white/95 p-6 transition-all duration-300;
   @apply border-zinc-200/60 dark:border-white/[0.06];
   @apply dark:bg-zinc-950/95;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-card-highlight);
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
 }
@@ -375,7 +418,7 @@ body {
   transform: translateY(-1px) scale(1.01);
   box-shadow:
     var(--shadow-xl),
-    0 8px 20px rgba(0, 0, 0, 0.2);
+    var(--shadow-button-glow-primary);
 }
 
 /* Secondary Button */
@@ -424,9 +467,10 @@ body {
 
 .button.accent:hover:not(:disabled) {
   @apply bg-indigo-600;
+  transform: translateY(-1px);
   box-shadow:
     var(--shadow-xl),
-    0 8px 20px rgba(99, 102, 241, 0.35);
+    var(--shadow-glow-lg);
 }
 
 /* Icon Button */
@@ -766,6 +810,34 @@ body {
 
 .animate-glow {
   animation: glow 2s ease-in-out infinite;
+}
+
+/* Shake Animation for Validation Errors */
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s var(--ease-spring);
 }
 
 /* ============================================
@@ -2056,10 +2128,11 @@ html.lenis {
 
 /* Primary mobile menu overlay - Apple HIG compliant */
 .mobile-menu-overlay {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  /* Solid fallback for devices without backdrop-filter support */
+  background: rgb(255, 255, 255);
+  /* Enhanced glassmorphism with higher opacity for readability */
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
   /* GPU acceleration for smooth blur */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -2067,9 +2140,21 @@ html.lenis {
   transform: translateZ(0);
 }
 
+/* Apply glassmorphism only if supported */
+@supports (backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px)) {
+  .mobile-menu-overlay {
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+
 .dark .mobile-menu-overlay {
-  background: rgba(0, 0, 0, 0.75);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgb(0, 0, 0);
+}
+
+@supports (backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px)) {
+  .dark .mobile-menu-overlay {
+    background: rgba(0, 0, 0, 0.92);
+  }
 }
 
 /* Enhanced glassmorphism for bottom sheets and dialogs */

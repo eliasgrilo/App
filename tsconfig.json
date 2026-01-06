@@ -16,44 +16,54 @@
         "isolatedModules": true,
         "noEmit": true,
         "jsx": "react-jsx",
-        /* Strict Mode - Enterprise Quality (relaxed for JS migration) */
+        /* Strict mode - ALL enabled */
         "strict": true,
         "noImplicitAny": true,
         "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "noImplicitThis": true,
         "alwaysStrict": true,
-        /* Code Quality */
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
+        /* Additional strict checks */
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
-        /* Paths */
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": false,
+        /* Path aliases */
         "baseUrl": ".",
         "paths": {
             "@/*": [
                 "src/*"
             ],
-            "@/machines/*": [
-                "src/machines/*"
+            "@components/*": [
+                "src/components/*"
             ],
-            "@/hooks/*": [
+            "@hooks/*": [
                 "src/hooks/*"
             ],
-            "@/types/*": [
+            "@contexts/*": [
+                "src/contexts/*"
+            ],
+            "@stores/*": [
+                "src/stores/*"
+            ],
+            "@utils/*": [
+                "src/utils/*"
+            ],
+            "@types/*": [
                 "src/types/*"
-            ],
-            "@/services/*": [
-                "src/services/*"
-            ],
-            "@/components/*": [
-                "src/components/*"
             ]
         }
     },
     "include": [
-        "src/**/*.ts",
-        "src/**/*.tsx"
+        "src"
     ],
-    "exclude": [
-        "node_modules",
-        "dist"
+    "references": [
+        {
+            "path": "./tsconfig.node.json"
+        }
     ]
 }
