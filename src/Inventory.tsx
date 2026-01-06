@@ -9,93 +9,19 @@ import { useToast } from './contexts/ToastContext'
 import ModalScrollLock from './components/ModalScrollLock'
 import { useAppStore, useIngredients, useSuppliers, useStockMovements } from './stores/useAppStore'
 import { Supplier, ID, NewIngredient, IngredientUpdate } from './types'
-import { ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal, StockMovementModal, CategoryManagementModal, InventoryTable, InventoryDashboard, InventoryFilters, InventoryHeader, useNewItemForm } from './inventoryModules'
+import {
+    ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal,
+    StockMovementModal, CategoryManagementModal, InventoryTable, InventoryDashboard,
+    InventoryFilters, InventoryHeader, useNewItemForm,
+    StockStatus, InventoryItem, CategoryByValue, GroupedItems, TotalsType,
+    TAX_RATE, DEFAULT_CATEGORIES, DEFAULT_SUBCATEGORIES
+} from './inventoryModules'
 import { getStockStatus as getStockStatusService, getTotalQuantity as getTotalQuantityService, getCurrentStock } from './services/stockService'
-
-// ═══ LOCAL TYPE DEFINITIONS ═══
-type StockStatus = 'noLimit' | 'critical' | 'warning' | 'excess' | 'ok' | 'low' | 'high'
-
-interface InventoryItem {
-    id: number
-    name: string
-    packageQuantity: number
-    packageCount: number
-    unit: string
-    pricePerUnit: number
-    category: string
-    subcategory?: string | null
-    purchaseDate?: string
-    supplierId?: ID | null
-    supplierName?: string
-    minStock?: number
-    maxStock?: number
-    criticalStock?: number
-    enableAutoQuotation?: boolean
-    leadTimeDays?: number
-    shelfLifeDays?: number | null
-    barcode?: string | null
-    expiryDate?: string | null
-    createdAt?: string
-}
-
-interface NewItemState {
-    name: string
-    packageQuantity: string
-    packageCount: string
-    unit: string
-    pricePerUnit: string
-    category: string
-    subcategory: string
-    purchaseDate: string
-    supplierId: ID | null
-    supplierName: string
-    minStock: string
-    maxStock: string
-    enableAutoQuotation: boolean
-    leadTimeDays: number
-    shelfLifeDays: string
-    barcode: string
-}
-
-interface CategoryByValue {
-    [key: string]: number
-}
-
-interface GroupedItems {
-    [key: string]: InventoryItem[]
-}
-
-interface TotalsType {
-    totalValue: number
-    itemCount: number
-    byCategory: CategoryByValue
-    taxImpact: number
-    grandTotal: number
-}
-
-interface ColorScheme {
-    bg: string
-    text: string
-    shadow: string
-    pulse: string
-}
-
-
-// Tax configuration (12% default rate)
-const TAX_RATE = 0.12
-
 
 /**
  * Inventory - Premium inventory management with dual quantity tracking
  * Package size × Package count = Total quantity
  */
-
-// Note: All data persisted via Zustand store
-
-const defaultCategories = ['Ingredientes', 'Embalagens', 'Equipamentos', 'Limpeza']
-
-// Default Subcategories for Ingredientes
-const defaultIngredientSubcategories = ['None', 'Embutidos', 'Laticínios', 'Farináceos', 'Temperos', 'Vegetais', 'Produtos de Limpeza', 'Outros Ingredientes']
 
 export default function Inventory() {
     // Global Currency from Context
@@ -159,7 +85,7 @@ export default function Inventory() {
         }
     }
 
-    const [categories, setCategories] = useState(defaultCategories)
+    const [categories, setCategories] = useState(DEFAULT_CATEGORIES)
 
     // Tax rate constant
     const taxRate = TAX_RATE
@@ -176,7 +102,7 @@ export default function Inventory() {
     }, [toast])
 
     // Subcategories from store constant
-    const [subcategories, setSubcategories] = useState(defaultIngredientSubcategories)
+    const [subcategories, setSubcategories] = useState(DEFAULT_SUBCATEGORIES)
 
     // Category/Subcategory management modal state
     const [isManagingCategories, setIsManagingCategories] = useState(false)

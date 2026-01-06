@@ -23,3 +23,7 @@ export { useStockCalculations } from './hooks/useStockCalculations'
 export { useInventoryFilters } from './hooks/useInventoryFilters'
 export { useNewItemForm } from './hooks/useNewItemForm'
 export type { NewItemState } from './hooks/useNewItemForm'
+
+// Types & Constants
+export type { StockStatus, InventoryItem, CategoryByValue, GroupedItems, TotalsType, ColorScheme } from './types'
+export { TAX_RATE, DEFAULT_CATEGORIES, DEFAULT_SUBCATEGORIES } from './types'
