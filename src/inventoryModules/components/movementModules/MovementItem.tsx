@@ -17,7 +17,7 @@ export const MovementItem: React.FC<MovementItemProps> = ({ movement: m, onRemov
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 md:items-center group hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-4 rounded-2xl md:rounded-[1.5rem] transition-all cursor-pointer border ${t.isOut ? 'border-rose-200/60 dark:border-rose-500/20 bg-rose-50/30 dark:bg-rose-500/5' : 'border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-500/5'}`}>
             {/* Item Info */}
             <div className="md:col-span-5 flex items-start md:items-center gap-4 min-w-0">
-                <div className={`mt-1.5 md:mt-0 w-2 h-2 rounded-full shrink-0 ${t.isOut ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                <div className={`shrink-0 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${t.isOut ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>{t.label}</div>
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
                         <p className="text-sm md:text-base font-semibold text-zinc-900 dark:text-white truncate">{m.itemName}</p>

@@ -5,7 +5,7 @@
  */
 
 // Components
-export { ExpiryMonitoringSection } from './components/ExpiryMonitoringSection'
+
 export { MovementRegistry } from './components/MovementRegistry'
 export { StockLevelsSection } from './components/StockLevelsSection'
 export { ItemConfigModal } from './components/ItemConfigModal'
@@ -18,7 +18,7 @@ export { InventoryHeader } from './components/InventoryHeader'
 export type { StockMovement } from './components/MovementRegistry'
 
 // Hooks - Existing
-export { useExpiryMonitoring } from './hooks/useExpiryMonitoring'
+
 export { useStockCalculations } from './hooks/useStockCalculations'
 export { useInventoryFilters } from './hooks/useInventoryFilters'
 export { useNewItemForm } from './hooks/useNewItemForm'

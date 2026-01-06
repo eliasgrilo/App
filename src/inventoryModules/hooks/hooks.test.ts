@@ -7,7 +7,6 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useInventoryFilters } from './useInventoryFilters'
-import { useExpiryMonitoring } from './useExpiryMonitoring'
 
 // ═══════════════════════════════════════════════════════════════════
 // TEST DATA
@@ -20,7 +19,6 @@ const createItem = (overrides: Partial<{
     packageQuantity: number
     packageCount: number
     pricePerUnit: number
-    expiryDate: string | null
 }> = {}) => ({
     id: 1,
     name: 'Test Item',
@@ -28,7 +26,6 @@ const createItem = (overrides: Partial<{
     packageQuantity: 25,
     packageCount: 4,
     pricePerUnit: 10,
-    expiryDate: null as string | null,
     ...overrides,
 })
 
@@ -105,71 +102,5 @@ describe('useInventoryFilters', () => {
 
         expect(result.current.filters.sortDirection).toBe('desc')
         expect(result.current.filteredItems[0]!.name).toBe('Farinha')
-    })
-})
-
-// ═══════════════════════════════════════════════════════════════════
-// useExpiryMonitoring
-// ═══════════════════════════════════════════════════════════════════
-
-describe('useExpiryMonitoring', () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 30)
-
-    const nearDate = new Date()
-    nearDate.setDate(nearDate.getDate() + 2)
-
-    const expiredDate = new Date()
-    expiredDate.setDate(expiredDate.getDate() - 5)
-
-    const itemsWithExpiry = [
-        createItem({ id: 1, name: 'OK Item', expiryDate: futureDate.toISOString() }),
-        createItem({ id: 2, name: 'Critical Item', expiryDate: nearDate.toISOString() }),
-        createItem({ id: 3, name: 'Expired Item', expiryDate: expiredDate.toISOString() }),
-        createItem({ id: 4, name: 'No Expiry Item', expiryDate: null }),
-    ]
-
-    it('separates items with and without expiry dates', () => {
-        const { result } = renderHook(() => useExpiryMonitoring(itemsWithExpiry))
-
-        expect(result.current.itemsWithExpiry).toHaveLength(3)
-        expect(result.current.itemsWithoutExpiry).toHaveLength(1)
-    })
-
-    it('sorts by urgency (most urgent first)', () => {
-        const { result } = renderHook(() => useExpiryMonitoring(itemsWithExpiry))
-
-        expect(result.current.itemsWithExpiry[0]!.item.name).toBe('Expired Item')
-        expect(result.current.itemsWithExpiry[1]!.item.name).toBe('Critical Item')
-        expect(result.current.itemsWithExpiry[2]!.item.name).toBe('OK Item')
-    })
-
-    it('identifies most urgent item', () => {
-        const { result } = renderHook(() => useExpiryMonitoring(itemsWithExpiry))
-
-        expect(result.current.mostUrgent?.item.name).toBe('Expired Item')
-        expect(result.current.mostUrgent?.expiryData.status).toBe('expired')
-    })
-
-    it('calculates stats correctly', () => {
-        const { result } = renderHook(() => useExpiryMonitoring(itemsWithExpiry))
-
-        expect(result.current.stats.expiredCount).toBe(1)
-        expect(result.current.stats.criticalCount).toBe(1)
-        expect(result.current.stats.okCount).toBe(1)
-        expect(result.current.stats.noExpiryCount).toBe(1)
-        expect(result.current.stats.totalMonitored).toBe(3)
-    })
-
-    it('returns null mostUrgent when no items have expiry', () => {
-        const noExpiryItems = [
-            createItem({ id: 1, expiryDate: null }),
-            createItem({ id: 2, expiryDate: null }),
-        ]
-
-        const { result } = renderHook(() => useExpiryMonitoring(noExpiryItems))
-
-        expect(result.current.mostUrgent).toBeNull()
-        expect(result.current.itemsWithExpiry).toHaveLength(0)
     })
 })

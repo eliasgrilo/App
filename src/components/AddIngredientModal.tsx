@@ -67,8 +67,7 @@ export default function AddIngredientModal({ isOpen, onClose, onAdd, newItem, se
                             </Section>
                             <Section icon={Icons.grid} iconKey="storage" title="Controle de Estoque" delay={2}>
                                 <SegmentedControl value={newItem.storageLocation || 'prateleira'} options={STORAGE_LOCATIONS} onChange={loc => setNewItem((p: any) => ({ ...p, storageLocation: loc }))} />
-                                <Row label="Estoque Mínimo"><SmartInput value={newItem.minStock || ''} onChange={e => setNewItem((p: any) => ({ ...p, minStock: e.target.value }))} placeholder="0" inputMode="numeric" format="integer" suffix={newItem.unit || 'kg'} width="w-14" /></Row>
-                                <Row label="Validade" last><SmartInput value={newItem.shelfLifeDays || ''} onChange={e => setNewItem((p: any) => ({ ...p, shelfLifeDays: e.target.value }))} placeholder="—" inputMode="numeric" format="integer" suffix="dias" width="w-12" /></Row>
+                                <Row label="Estoque Mínimo" last><SmartInput value={newItem.minStock || ''} onChange={e => setNewItem((p: any) => ({ ...p, minStock: e.target.value }))} placeholder="0" inputMode="numeric" format="integer" suffix={newItem.unit || 'kg'} width="w-14" /></Row>
                             </Section>
                             <ExpandableSection icon={Icons.building} iconKey="supplier" title="Fornecedor" delay={3}>
                                 <SupplierSearch suppliers={suppliers} selected={newItem.supplierName} onSelect={s => setNewItem((p: any) => ({ ...p, supplierId: s.id, supplierName: s.name }))} onClear={() => setNewItem((p: any) => ({ ...p, supplierId: null, supplierName: '' }))} />

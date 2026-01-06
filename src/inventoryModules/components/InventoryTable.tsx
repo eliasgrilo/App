@@ -7,7 +7,7 @@ import React, { useState } from 'react'
 import { ID } from '../../types'
 import { InventoryTableProps, DesktopRow, MobileCard } from './inventoryTableModules'
 
-export function InventoryTable({ groupedItems, totals, taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, onAddItem }: InventoryTableProps): React.ReactElement {
+export function InventoryTable({ groupedItems, totals, taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, onAddItem, hasActiveFilter }: InventoryTableProps): React.ReactElement {
     const [editingId, setEditingId] = useState<ID | null>(null)
     const rowProps = { taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId }
 
@@ -52,8 +52,8 @@ export function InventoryTable({ groupedItems, totals, taxRate, subcategories, f
                 </div>
             )}
 
-            {/* Empty State */}
-            {Object.keys(groupedItems).length === 0 && (
+            {/* Empty State - Only show when no filter is active (real empty stock) */}
+            {Object.keys(groupedItems).length === 0 && !hasActiveFilter && (
                 <div className="text-center py-20 rounded-[2.5rem] bg-white dark:bg-zinc-950 border border-zinc-200/50 dark:border-white/10 shadow-xl overflow-hidden relative">
                     <div className="absolute inset-0 bg-zinc-50/50 dark:bg-white/[0.01]" />
                     <div className="relative z-10">
