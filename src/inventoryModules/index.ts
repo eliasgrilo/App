@@ -11,6 +11,7 @@ export { StockLevelsSection } from './components/StockLevelsSection'
 export { ItemConfigModal } from './components/ItemConfigModal'
 export { StockMovementModal } from './components/StockMovementModal'
 export { CategoryManagementModal } from './components/CategoryManagementModal'
+export { InventoryTable } from './components/InventoryTable'
 export type { StockMovement } from './components/MovementRegistry'
 
 // Hooks
