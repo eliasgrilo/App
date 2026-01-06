@@ -9,7 +9,7 @@ import { useToast } from './contexts/ToastContext'
 import ModalScrollLock from './components/ModalScrollLock'
 import { useAppStore, useIngredients, useSuppliers, useStockMovements } from './stores/useAppStore'
 import { Supplier, ID, NewIngredient, IngredientUpdate } from './types'
-import { ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal, StockMovementModal } from './inventoryModules'
+import { ExpiryMonitoringSection, StockLevelsSection, MovementRegistry, ItemConfigModal, StockMovementModal, CategoryManagementModal } from './inventoryModules'
 
 // ═══ LOCAL TYPE DEFINITIONS ═══
 type StockStatus = 'noLimit' | 'critical' | 'warning' | 'excess' | 'ok' | 'low' | 'high'
@@ -180,18 +180,8 @@ export default function Inventory() {
     const getStock = (i: InventoryItem) => (i.packageQuantity || 0) * (i.packageCount || 1)
     const addStockMovement = useAppStore(s => s.addStockMovement)
 
-    // Movement modal states
+    // Movement modal state
     const [movementModalOpen, setMovementModalOpen] = useState(false)
-    const [movementItemSearch, setMovementItemSearch] = useState('')
-    const [showMovementItemResults, setShowMovementItemResults] = useState(false)
-    const [movementForm, setMovementForm] = useState({
-        type: 'entrada' as 'entrada' | 'saida',
-        itemId: 0,
-        qty: '',
-        unit: 'kg' as UnitType,
-        reasonLabel: 'Sobra de Produção',
-        reasonNote: ''
-    })
 
     const removeMovement = (m: { id: number | string; itemName: string }) => modal.confirm({
         title: 'Excluir Movimentação',
@@ -242,8 +232,6 @@ export default function Inventory() {
 
     // Category/Subcategory management modal state
     const [isManagingCategories, setIsManagingCategories] = useState(false)
-    const [newCategoryName, setNewCategoryName] = useState('')
-    const [newSubcategoryName, setNewSubcategoryName] = useState('')
 
     // Stock Management state
     const [stockFilter, setStockFilter] = useState('alerts') // 'all' | 'noLimits' | 'alerts' | 'ok'
@@ -1158,249 +1146,43 @@ export default function Inventory() {
                 getTotalQuantity={getTotalQuantity}
             />
 
-            {/* Category Management Modal — Premium Responsive Design */}
-            {
-                createPortal(
-                    <AnimatePresence>
-                        {isManagingCategories && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 z-[20000] flex items-end md:items-center justify-center"
-                            >
-                                <ModalScrollLock />
-                                {/* Backdrop */}
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-xl"
-                                    onClick={() => setIsManagingCategories(false)}
-                                />
 
-                                {/* Modal Content */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: 100, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 100, scale: 0.95 }}
-                                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                                    className="relative w-full md:max-w-lg md:mx-4 bg-white dark:bg-zinc-900 rounded-t-[2rem] md:rounded-[2rem] shadow-2xl max-h-[85vh] md:max-h-[80vh] flex flex-col overflow-hidden"
-                                    style={{
-                                        boxShadow: '0 -8px 40px rgba(0,0,0,0.15), 0 32px 80px rgba(0,0,0,0.25)',
-                                        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
-                                    }}
-                                >
-                                    {/* Drag Handle (Mobile only) */}
-                                    <div className="md:hidden w-full flex justify-center pt-3 pb-2">
-                                        <div className="w-12 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></div>
-                                    </div>
-
-                                    {/* Header - Fixed */}
-                                    <div className="flex items-center justify-between px-5 md:px-6 py-4 md:pt-6 border-b border-zinc-100/80 dark:border-zinc-800 flex-shrink-0">
-                                        <h3 className="text-lg md:text-xl font-bold text-zinc-900 dark:text-white tracking-tight">Gerenciar Categorias</h3>
-                                        <button
-                                            onClick={() => setIsManagingCategories(false)}
-                                            className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors touch-manipulation"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                            </svg>
-                                        </button>
-                                    </div>
-
-                                    {/* Scrollable Content */}
-                                    <div className="flex-1 overflow-y-auto overscroll-contain px-5 md:px-6 py-4 md:py-6 space-y-6">
-                                        {/* Categories Section */}
-                                        <div className="space-y-3">
-                                            <h4 className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest">Categorias Principais</h4>
-                                            <div className="space-y-2">
-                                                {categories.map((cat, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between py-3 md:py-2.5 px-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30">
-                                                        <span className="font-medium text-indigo-700 dark:text-indigo-300 text-sm md:text-base">{cat}</span>
-                                                        <button
-                                                            onClick={() => {
-                                                                modal.confirm({
-                                                                    title: 'Excluir Categoria',
-                                                                    message: `Excluir categoria "${cat}"? Itens desta categoria serão movidos para "Outros".`,
-                                                                    isDangerous: true,
-                                                                    onConfirm: () => {
-                                                                        setCategories(prev => prev.filter(c => c !== cat))
-                                                                        setItems(prev => prev.map(item => item.category === cat ? { ...item, category: 'Outros' } : item))
-                                                                        showToast('Categoria removida', 'success')
-                                                                    }
-                                                                })
-                                                            }}
-                                                            className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-xl text-indigo-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all touch-manipulation"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Add New Category */}
-                                        <div className="pt-4 border-t border-indigo-100 dark:border-indigo-800/30">
-                                            <h4 className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest mb-3">Adicionar Nova Categoria</h4>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    className="flex-1 px-4 py-3 md:py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 text-zinc-900 dark:text-white font-medium text-base md:text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-indigo-400"
-                                                    placeholder="Nome da categoria"
-                                                    value={newCategoryName}
-                                                    onChange={(e) => setNewCategoryName(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' && newCategoryName.trim()) {
-                                                            if (!categories.includes(newCategoryName.trim())) {
-                                                                setCategories(prev => [...prev, newCategoryName.trim()])
-                                                                setNewCategoryName('')
-                                                            }
-                                                        }
-                                                    }}
-                                                />
-                                                <button
-                                                    onClick={() => {
-                                                        if (newCategoryName.trim() && !categories.includes(newCategoryName.trim())) {
-                                                            setCategories(prev => [...prev, newCategoryName.trim()])
-                                                            setNewCategoryName('')
-                                                        }
-                                                    }}
-                                                    disabled={!newCategoryName.trim()}
-                                                    className="w-12 h-12 md:w-11 md:h-11 flex items-center justify-center bg-indigo-500 text-white rounded-xl font-bold hover:bg-indigo-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Reset Categories */}
-                                        <button
-                                            onClick={() => {
-                                                modal.confirm({
-                                                    title: 'Restaurar Categorias',
-                                                    message: 'Deseja restaurar as categorias padrão? Categorias personalizadas serão mantidas se houverem itens nelas, mas a lista principal será resetada.',
-                                                    onConfirm: () => {
-                                                        setCategories(defaultCategories)
-                                                        showToast('Categorias restauradas', 'success')
-                                                    }
-                                                })
-                                            }}
-                                            className="w-full py-3 text-indigo-500 dark:text-indigo-400 rounded-xl text-xs font-bold uppercase tracking-widest hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all touch-manipulation"
-                                        >
-                                            Restaurar Categorias Padrão
-                                        </button>
-
-                                        {/* Divider */}
-                                        <div className="border-t border-zinc-200/80 dark:border-zinc-700" />
-
-                                        {/* Subcategories Section */}
-                                        <div className="space-y-3">
-                                            <h4 className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest">Subcategorias de Ingredientes</h4>
-                                            <div className="space-y-2">
-                                                {subcategories.filter(sub => sub !== 'None').map((sub, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between py-3 md:py-2.5 px-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700">
-                                                        <span className="font-medium text-zinc-700 dark:text-zinc-300 text-sm md:text-base">{sub}</span>
-                                                        <button
-                                                            onClick={() => {
-                                                                modal.confirm({
-                                                                    title: 'Excluir Subcategoria',
-                                                                    message: `Deseja excluir a subcategoria "${sub}"?`,
-                                                                    isDangerous: true,
-                                                                    onConfirm: () => {
-                                                                        setSubcategories(prev => prev.filter(s => s !== sub))
-                                                                        showToast('Subcategoria removida', 'success')
-                                                                    }
-                                                                })
-                                                            }}
-                                                            className="w-10 h-10 md:w-9 md:h-9 flex items-center justify-center rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all touch-manipulation"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Add New Subcategory */}
-                                        <div className="pt-4 border-t border-zinc-200/80 dark:border-zinc-700">
-                                            <h4 className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest mb-3">Adicionar Nova Subcategoria</h4>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    className="flex-1 px-4 py-3 md:py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700 text-zinc-900 dark:text-white font-medium text-base md:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder:text-zinc-400"
-                                                    placeholder="Nome da subcategoria"
-                                                    value={newSubcategoryName}
-                                                    onChange={(e) => setNewSubcategoryName(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' && newSubcategoryName.trim()) {
-                                                            if (!subcategories.includes(newSubcategoryName.trim())) {
-                                                                setSubcategories(prev => [...prev, newSubcategoryName.trim()])
-                                                                setNewSubcategoryName('')
-                                                            }
-                                                        }
-                                                    }}
-                                                />
-                                                <button
-                                                    onClick={() => {
-                                                        if (newSubcategoryName.trim() && !subcategories.includes(newSubcategoryName.trim())) {
-                                                            setSubcategories(prev => [...prev, newSubcategoryName.trim()])
-                                                            setNewSubcategoryName('')
-                                                        }
-                                                    }}
-                                                    disabled={!newSubcategoryName.trim()}
-                                                    className="w-12 h-12 md:w-11 md:h-11 flex items-center justify-center bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Reset Subcategories */}
-                                        <button
-                                            onClick={() => {
-                                                modal.confirm({
-                                                    title: 'Restaurar Subcategorias',
-                                                    message: 'Restaurar subcategorias padrão? Isso removerá todas as subcategorias personalizadas.',
-                                                    isDangerous: true,
-                                                    onConfirm: () => {
-                                                        setSubcategories(defaultIngredientSubcategories)
-                                                        showToast('Subcategorias restauradas', 'success')
-                                                    }
-                                                })
-                                            }}
-                                            className="w-full py-3 text-zinc-500 dark:text-zinc-400 rounded-xl text-xs font-bold uppercase tracking-widest hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all touch-manipulation"
-                                        >
-                                            Restaurar Subcategorias Padrão
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>,
-                    document.body
-                )
-            }
-
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {/* Category Management Modal */}
+            {/* ════════════════════════════════════════════════════════════════ */}
+            <CategoryManagementModal
+                isOpen={isManagingCategories}
+                onClose={() => setIsManagingCategories(false)}
+                categories={categories}
+                subcategories={{}}
+                onAddCategory={(name) => {
+                    if (!categories.includes(name)) {
+                        setCategories(prev => [...prev, name])
+                        showToast('Categoria adicionada', 'success')
+                    }
+                }}
+                onRemoveCategory={(cat) => {
+                    modal.confirm({
+                        title: 'Excluir Categoria',
+                        message: `Excluir categoria "${cat}"? Itens desta categoria serão movidos para "Outros".`,
+                        isDangerous: true,
+                        onConfirm: () => {
+                            setCategories(prev => prev.filter(c => c !== cat))
+                            setItems(prev => prev.map(item => item.category === cat ? { ...item, category: 'Outros' } : item))
+                            showToast('Categoria removida', 'success')
+                        }
+                    })
+                }}
+                onAddSubcategory={() => { }}
+                onRemoveSubcategory={() => { }}
+            />
 
             {/* ════════════════════════════════════════════════════════════════ */}
             {/* Stock Movement Modal */}
             {/* ════════════════════════════════════════════════════════════════ */}
             <StockMovementModal
                 isOpen={movementModalOpen}
-                onClose={() => {
-                    setMovementModalOpen(false)
-                    setMovementForm({ type: 'entrada', itemId: 0, qty: '', unit: 'kg', reasonLabel: 'Sobra de Produção', reasonNote: '' })
-                    setMovementItemSearch('')
-                }}
+                onClose={() => setMovementModalOpen(false)}
                 items={items as any}
                 onSaveMovement={(data) => {
                     addStockMovement(data)
