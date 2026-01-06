@@ -9,6 +9,7 @@ import SettingsPanel from './components/SettingsPanel'
 import CommandPalette, { useCommandPalette } from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
 import { GlobalUIComponents } from './stores'
+import { useStockAlerts } from './hooks/useStockAlerts'
 import {
   AppHeader,
   AmbientBackground,
