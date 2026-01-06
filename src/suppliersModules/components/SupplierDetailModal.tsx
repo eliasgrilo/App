@@ -101,7 +101,7 @@ export function SupplierDetailModal({ supplier, onClose, onEdit, onDelete, handl
                                     {(supplier.documents ?? []).map(doc => {
                                         const category = DOCUMENT_CATEGORIES.find(c => c.id === doc.category)
                                         return (
-                                            <div key={doc.id} onClick={() => downloadDocument(doc)} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100/80 dark:border-zinc-700 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all touch-manipulation active:scale-[0.98]">
+                                            <button type="button" key={doc.id} onClick={() => downloadDocument(doc)} className="w-full flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100/80 dark:border-zinc-700 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all touch-manipulation active:scale-[0.98] text-left">
                                                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/30 dark:to-indigo-900/30 flex items-center justify-center text-xl shrink-0">{getFileIcon(doc.type)}</div>
                                                 <div className="flex-1 min-w-0">
                                                     <h5 className="text-sm font-medium text-zinc-900 dark:text-white truncate mb-0.5">{doc.name}</h5>
@@ -111,7 +111,7 @@ export function SupplierDetailModal({ supplier, onClose, onEdit, onDelete, handl
                                                     </div>
                                                 </div>
                                                 <svg className="w-5 h-5 text-zinc-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                            </div>
+                                            </button>
                                         )
                                     })}
                                 </div>

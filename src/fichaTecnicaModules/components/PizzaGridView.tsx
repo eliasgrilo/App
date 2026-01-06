@@ -47,9 +47,12 @@ export function PizzaGridView({
             {pizzas.map((pizza) => {
                 const totalCost = calculateTotals(pizza.ingredients)
                 return (
-                    <div
+                    <article
                         key={pizza.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedPizzaId(pizza.id)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPizzaId(pizza.id) } }}
                         className="group relative bg-white dark:bg-zinc-950 rounded-[2rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 transition-all cursor-pointer active:scale-[0.98] shadow-xl hover:shadow-2xl overflow-hidden"
                     >
                         {/* Subtle Gradient on Hover */}
@@ -101,7 +104,7 @@ export function PizzaGridView({
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </article>
                 )
             })}
 

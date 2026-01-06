@@ -10,10 +10,10 @@ interface ItemSearchProps { items: InventoryItem[]; selectedItem: InventoryItem 
 
 export const ItemSearch: React.FC<ItemSearchProps> = ({ selectedItem, itemSearch, showResults, filteredItems, setItemSearch, setShowResults, setForm, getStock }) => (
     <div className="relative">
-        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Item</label>
+        <label htmlFor="movement-item-search" className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Item</label>
         <div className="relative">
             {selectedItem ? <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> : <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
-            <input type="text" value={selectedItem ? selectedItem.name : itemSearch} onChange={e => { setItemSearch(e.target.value); setForm(f => ({ ...f, itemId: 0 })); setShowResults(true) }} onFocus={() => setShowResults(true)} placeholder="Buscar ingrediente..."
+            <input id="movement-item-search" type="text" value={selectedItem ? selectedItem.name : itemSearch} onChange={e => { setItemSearch(e.target.value); setForm(f => ({ ...f, itemId: 0 })); setShowResults(true) }} onFocus={() => setShowResults(true)} placeholder="Buscar ingrediente..."
                 className={`w-full h-14 pl-12 pr-12 rounded-2xl text-[17px] font-medium placeholder:text-zinc-400 outline-none transition-all ${selectedItem ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'}`} />
             {selectedItem && <button type="button" onClick={() => { setForm(f => ({ ...f, itemId: 0 })); setItemSearch(''); setShowResults(true) }} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full bg-zinc-300 dark:bg-zinc-600"><svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>}
         </div>

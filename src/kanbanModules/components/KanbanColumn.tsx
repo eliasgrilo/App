@@ -65,12 +65,13 @@ export const KanbanColumn = React.memo(({
                             onKeyDown={e => { if (e.key === 'Enter') renameColumn(col.id); if (e.key === 'Escape') setRenamingColId(null) }}
                         />
                     ) : (
-                        <h3
+                        <button
+                            type="button"
                             onClick={() => { setRenamingColId(col.id); setRenameTitle(col.title) }}
-                            className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors truncate"
+                            className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors truncate bg-transparent border-none p-0 text-left w-full"
                         >
                             {col.title}
-                        </h3>
+                        </button>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
