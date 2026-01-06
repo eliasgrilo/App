@@ -8,6 +8,7 @@
 
 export { MovementRegistry } from './components/MovementRegistry'
 export { StockLevelsSection } from './components/StockLevelsSection'
+export { ExpirationSection } from './components/ExpirationSection'
 export { ItemConfigModal } from './components/ItemConfigModal'
 export { StockMovementModal } from './components/StockMovementModal'
 export { CategoryManagementModal } from './components/CategoryManagementModal'

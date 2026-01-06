@@ -67,7 +67,8 @@ export default function AddIngredientModal({ isOpen, onClose, onAdd, newItem, se
                             </Section>
                             <Section icon={Icons.grid} iconKey="storage" title="Controle de Estoque" delay={2}>
                                 <SegmentedControl value={newItem.storageLocation || 'prateleira'} options={STORAGE_LOCATIONS} onChange={loc => setNewItem((p: any) => ({ ...p, storageLocation: loc }))} />
-                                <Row label="Estoque Mínimo" last><SmartInput value={newItem.minStock || ''} onChange={e => setNewItem((p: any) => ({ ...p, minStock: e.target.value }))} placeholder="0" inputMode="numeric" format="integer" suffix={newItem.unit || 'kg'} width="w-14" /></Row>
+                                <Row label="Estoque Mínimo"><SmartInput value={newItem.minStock || ''} onChange={e => setNewItem((p: any) => ({ ...p, minStock: e.target.value }))} placeholder="0" inputMode="numeric" format="integer" suffix={newItem.unit || 'kg'} width="w-14" /></Row>
+                                <Row label="Data de Validade" last><input type="date" value={newItem.expirationDate || ''} onChange={e => setNewItem((p: any) => ({ ...p, expirationDate: e.target.value }))} className="w-[140px] px-3 py-2 text-[15px] font-medium text-[#1d1d1f] dark:text-white bg-transparent text-right focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100" /></Row>
                             </Section>
                             <ExpandableSection icon={Icons.building} iconKey="supplier" title="Fornecedor" delay={3}>
                                 <SupplierSearch suppliers={suppliers} selected={newItem.supplierName} onSelect={s => setNewItem((p: any) => ({ ...p, supplierId: s.id, supplierName: s.name }))} onClear={() => setNewItem((p: any) => ({ ...p, supplierId: null, supplierName: '' }))} />

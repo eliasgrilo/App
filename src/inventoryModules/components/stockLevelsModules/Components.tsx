@@ -1,40 +1,194 @@
 // ═══════════════════════════════════════════════════════════════════
-// STOCK LEVELS MODULES — Components
+// STOCK LEVELS MODULES — Components (True Apple Vision Pro)
+// Ultra-refined glassmorphism, glowing indicators, material depth
 // ═══════════════════════════════════════════════════════════════════
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { InventoryItem, StockStatus, colorStyles, statusColors } from './types'
+import { InventoryItem, StockStatus, statusColors, statusLabels } from './types'
 
-interface StatusTileProps { tile: { id: string; label: string; subtitle: string; count: number; color: string; filter: string }; isSelected: boolean; onClick: () => void }
+interface StatusTileProps {
+    tile: { id: string; label: string; count: number; color: string; filter: string }
+    isSelected: boolean
+    onClick: () => void
+    totalItems?: number
+}
 
-export const StatusTile: React.FC<StatusTileProps> = ({ tile, isSelected, onClick }) => {
-    const styles = colorStyles[tile.color as keyof typeof colorStyles]
+// Apple-style category card colors
+const tileColors = {
+    red: {
+        bg: 'bg-red-500/80',
+        text: 'text-red-500',
+        shadow: 'shadow-[0_0_8px_rgba(255,59,48,0.4)]',
+        pulse: 'bg-red-500',
+        border: 'border-red-200/60',
+        selectedBorder: 'border-red-400/60'
+    },
+    orange: {
+        bg: 'bg-orange-500/80',
+        text: 'text-orange-500',
+        shadow: 'shadow-[0_0_8px_rgba(255,159,10,0.4)]',
+        pulse: 'bg-orange-500',
+        border: 'border-orange-200/60',
+        selectedBorder: 'border-orange-400/60'
+    },
+    green: {
+        bg: 'bg-emerald-500/80',
+        text: 'text-emerald-500',
+        shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]',
+        pulse: 'bg-emerald-500',
+        border: 'border-emerald-200/60',
+        selectedBorder: 'border-emerald-400/60'
+    },
+    gray: {
+        bg: 'bg-zinc-500/80',
+        text: 'text-zinc-500',
+        shadow: 'shadow-[0_0_8px_rgba(113,113,122,0.4)]',
+        pulse: 'bg-zinc-500',
+        border: 'border-zinc-200/60',
+        selectedBorder: 'border-zinc-400/60'
+    }
+}
+
+export const StatusTile: React.FC<StatusTileProps> = ({ tile, isSelected, onClick, totalItems = 0 }) => {
+    const colors = tileColors[tile.color as keyof typeof tileColors]
+    const allocation = totalItems > 0 ? Math.round((tile.count / totalItems) * 100) : 0
+
     return (
-        <motion.button onClick={onClick} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="relative p-4 rounded-2xl text-left transition-all duration-[250ms]" style={{ background: styles.bg, border: `1px solid ${styles.border}`, boxShadow: isSelected ? '0 0 0 2px rgba(0, 122, 255, 0.3)' : '0 1px 3px rgba(0,0,0,0.04)' }}>
-            {tile.id === 'critical' && tile.count > 0 && <span className="absolute top-3 right-3 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: styles.color }} /><span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: styles.color }} /></span>}
-            <span className="block text-3xl font-bold tabular-nums leading-none" style={{ color: styles.color }}>{tile.count}</span>
-            <span className="block mt-1.5 text-xs font-semibold" style={{ color: styles.color }}>{tile.label}</span>
-            <span className="block mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{tile.subtitle}</span>
+        <motion.button
+            onClick={onClick}
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98 }}
+            className={`relative w-full text-left bg-white/80 dark:bg-zinc-900/60 backdrop-blur-3xl rounded-3xl p-5 border ${isSelected ? colors.selectedBorder : 'border-zinc-200/50 dark:border-white/5'} flex flex-col justify-between group shadow-md hover:shadow-lg transition-all duration-300`}
+        >
+            {/* Header with dot and label */}
+            <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${colors.pulse} ${colors.shadow}`} />
+                    <h3 className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{tile.label}</h3>
+                    {/* Pulse indicator for critical */}
+                    {tile.id === 'critical' && tile.count > 0 && (
+                        <span className="ml-auto flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full opacity-50 bg-red-500" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                        </span>
+                    )}
+                </div>
+
+                {/* Count */}
+                <motion.div
+                    className={`text-2xl md:text-3xl font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums tracking-tight`}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                >
+                    {tile.count}
+                </motion.div>
+
+                {/* Subtitle */}
+                <div className="text-[9px] font-medium text-zinc-400 tabular-nums">
+                    {tile.count === 1 ? 'item' : 'itens'}
+                </div>
+            </div>
+
+            {/* Status bar - always full with status color */}
+            <div className="mt-4">
+                <div className="w-full h-1 bg-zinc-100 dark:bg-white/5 rounded-full overflow-hidden">
+                    <motion.div
+                        className={`h-full w-full ${colors.bg}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: '100%' }}
+                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    />
+                </div>
+            </div>
         </motion.button>
     )
 }
 
+
 interface StockItemRowProps { item: InventoryItem; status: StockStatus; total: number; onClick: () => void }
 
 export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total, onClick }) => {
-    const min = Number(item.minStock) || 0; const max = Number(item.maxStock) || 0
-    let progress = 0; if (max > 0) progress = Math.min((total / max) * 100, 100); else if (min > 0) progress = Math.min((total / (min * 2)) * 100, 100)
+    const min = Number(item.minStock) || 0
+    const max = Number(item.maxStock) || 0
+    let progress = 0
+    if (max > 0) progress = Math.min((total / max) * 100, 100)
+    else if (min > 0) progress = Math.min((total / (min * 2)) * 100, 100)
+
     const color = statusColors[status] || statusColors.noLimit
+    const label = statusLabels[status] || 'Configurar'
+    const hasLimits = min > 0 || max > 0
+
     return (
-        <motion.div layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} onClick={onClick} whileHover={{ backgroundColor: 'rgba(0,0,0,0.02)' }} whileTap={{ scale: 0.995 }} className="cursor-pointer p-3 rounded-xl transition-colors border border-transparent hover:border-zinc-200/80">
-            <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium text-zinc-900 dark:text-white truncate">{item.name}</span><span className="text-sm font-semibold tabular-nums flex-shrink-0" style={{ color }}>{total} {item.unit}</span></div>
-                    {(min > 0 || max > 0) && <div className="mt-2 h-1 bg-zinc-100 dark:bg-zinc-700 rounded-full overflow-hidden"><motion.div className="h-full rounded-full" style={{ backgroundColor: color }} initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }} /></div>}
+        <motion.div
+            onClick={onClick}
+            whileHover={{ scale: 1.003 }}
+            whileTap={{ scale: 0.997 }}
+            className="group cursor-pointer relative overflow-hidden rounded-xl transition-all duration-200"
+            style={{
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.65) 100%)',
+                boxShadow: '0 0 0 1px rgba(0,0,0,0.02), 0 2px 8px -2px rgba(0,0,0,0.03)'
+            }}
+        >
+            {/* Hover glow */}
+            <motion.div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                style={{ background: `radial-gradient(ellipse at 50% 100%, ${color}08 0%, transparent 70%)` }}
+            />
+
+            <div className="relative z-10 p-3.5 flex items-center gap-4">
+                {/* Status indicator */}
+                <div className="flex-shrink-0">
+                    <div
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: color, boxShadow: `0 0 6px 1px ${color}25` }}
+                    />
                 </div>
-                <svg className="w-4 h-4 text-zinc-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-[13px] font-semibold text-zinc-800 truncate">{item.name}</span>
+                        <div className="flex items-baseline gap-1 flex-shrink-0">
+                            <span className="text-[15px] font-bold tabular-nums" style={{ color }}>{total.toFixed(1)}</span>
+                            <span className="text-[10px] font-medium text-zinc-400">{item.unit}</span>
+                        </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    {hasLimits && (
+                        <div className="mt-2 relative">
+                            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.03)' }}>
+                                <motion.div
+                                    className="h-full rounded-full"
+                                    style={{
+                                        background: `linear-gradient(90deg, ${color} 0%, ${color}CC 100%)`,
+                                        boxShadow: `0 0 10px 1px ${color}40`
+                                    }}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${progress}%` }}
+                                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                                />
+                            </div>
+
+                            {/* Labels */}
+                            <div className="flex justify-between mt-1.5">
+                                <span className="text-[9px] text-zinc-400 tabular-nums">{min > 0 ? `Min ${min}` : ''}</span>
+                                <span className="text-[9px] font-medium" style={{ color }}>{label}</span>
+                                <span className="text-[9px] text-zinc-400 tabular-nums">{max > 0 ? `Max ${max}` : ''}</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Arrow */}
+                <motion.svg
+                    className="w-4 h-4 text-zinc-200 flex-shrink-0 transition-all group-hover:text-zinc-400 group-hover:translate-x-0.5"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </motion.svg>
             </div>
         </motion.div>
     )
