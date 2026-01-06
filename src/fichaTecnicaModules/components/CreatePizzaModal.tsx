@@ -2,15 +2,15 @@
  * CreatePizzaModal — Modal for creating new pizza recipes
  */
 
-import React, { Dispatch, SetStateAction } from 'react'
+import React from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { useScrollLock } from '../../hooks/useScrollLock'
 
 interface CreatePizzaModalProps {
     newPizzaName: string
-    setNewPizzaName: Dispatch<SetStateAction<string>>
-    setIsCreatingPizza: Dispatch<SetStateAction<boolean>>
+    setNewPizzaName: (v: string) => void
+    setIsCreatingPizza: (v: boolean) => void
     handleCreatePizza: () => void
 }
 

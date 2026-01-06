@@ -53,6 +53,21 @@ export interface ViewingDocument {
     originRect: DOMRect
 }
 
+export interface DocumentCategory {
+    id: string
+    label: string
+    icon: string
+}
+
+// Document categories
+export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
+    { id: 'cotacao', label: 'Cotação', icon: '💰' },
+    { id: 'catalogo', label: 'Catálogo', icon: '📚' },
+    { id: 'contrato', label: 'Contrato', icon: '📋' },
+    { id: 'tecnico', label: 'Técnico', icon: '⚙️' },
+    { id: 'outros', label: 'Outros', icon: '📄' }
+]
+
 // Default form data
 export const DEFAULT_FORM_DATA: SupplierFormData = {
     name: '',

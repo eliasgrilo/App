@@ -2,8 +2,11 @@
  * Recipe utilities
  */
 
-// Image compression placeholder
-export const compressImage = async (file: File): Promise<File> => file
+// Image compression - handles both File and base64 string
+export const compressImage = async (file: File | string): Promise<string> => {
+    if (typeof file === 'string') return file
+    return URL.createObjectURL(file)
+}
 
 // Get category name (handles both string and object format)
 export const getCategoryName = (cat: any) => {

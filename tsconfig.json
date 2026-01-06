@@ -44,9 +44,6 @@
             "@hooks/*": [
                 "src/hooks/*"
             ],
-            "@contexts/*": [
-                "src/contexts/*"
-            ],
             "@stores/*": [
                 "src/stores/*"
             ],

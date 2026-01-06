@@ -1,0 +1,27 @@
+// ═══════════════════════════════════════════════════════════════════
+// ITEM CONFIG MODULES — Components
+// ═══════════════════════════════════════════════════════════════════
+
+import React from 'react'
+import { motion } from 'framer-motion'
+import { InventoryItem, getGradient, getShadow, StockStatus } from './types'
+
+interface ItemBadgeProps { item: InventoryItem; total: number; status: StockStatus }
+
+export const ItemBadge: React.FC<ItemBadgeProps> = ({ item, total, status }) => (
+    <div className="text-center mb-6">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="inline-flex w-[72px] h-[72px] rounded-[22px] items-center justify-center text-3xl font-bold text-white mb-4" style={{ background: getGradient(status), boxShadow: getShadow(status) }}>{total}</motion.div>
+        <h4 className="text-xl font-bold text-zinc-900 dark:text-white">{item.name}</h4>
+        <p className="text-sm text-zinc-400 mt-1">Estoque atual: <span className="font-semibold text-zinc-700 dark:text-zinc-300">{total} {item.unit}</span></p>
+    </div>
+)
+
+interface LimitInputsProps { item: InventoryItem; onChange: (field: keyof InventoryItem, value: string) => void }
+
+export const LimitInputs: React.FC<LimitInputsProps> = ({ item, onChange }) => (
+    <div className="grid grid-cols-3 gap-3 mb-6">
+        <div><label className="block text-[10px] font-bold text-red-400 uppercase tracking-[0.15em] mb-2 ml-1">Crítico</label><input type="number" step="0.01" className="w-full px-3 py-[14px] rounded-2xl text-zinc-900 dark:text-white text-center text-xl font-bold focus:outline-none" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.2)' }} placeholder="0" value={item.criticalStock || ''} onChange={e => onChange('criticalStock', e.target.value)} /><p className="text-[10px] text-red-500/80 text-center mt-1.5 font-semibold">{item.unit}</p></div>
+        <div><label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2 ml-1">Mínimo</label><input type="number" step="0.01" className="w-full px-4 py-[18px] rounded-2xl text-zinc-900 dark:text-white text-center text-2xl font-bold focus:outline-none" style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)' }} placeholder="0" value={item.minStock || ''} onChange={e => onChange('minStock', e.target.value)} /><p className="text-[10px] text-amber-500/80 text-center mt-1.5 font-semibold">{item.unit}</p></div>
+        <div><label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-[0.15em] mb-2 ml-1">Máximo</label><input type="number" step="0.01" className="w-full px-4 py-[18px] rounded-2xl text-zinc-900 dark:text-white text-center text-2xl font-bold focus:outline-none" style={{ background: 'rgba(0,122,255,0.08)', border: '1px solid rgba(0,122,255,0.2)' }} placeholder="0" value={item.maxStock || ''} onChange={e => onChange('maxStock', e.target.value)} /><p className="text-[10px] text-blue-500/80 text-center mt-1.5 font-semibold">{item.unit}</p></div>
+    </div>
+)
