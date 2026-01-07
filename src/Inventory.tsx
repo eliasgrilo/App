@@ -57,11 +57,24 @@ export default function Inventory() {
 
     const filteredItems = useMemo((): InventoryItem[] => {
         let filtered = items
-        if (uiState.searchQuery.trim()) {
+        const hasSearch = uiState.searchQuery.trim().length > 0
+
+        if (hasSearch) {
+            // Quando há busca, buscar em TODOS os itens (ignora filtro de subcategoria)
             const query = uiState.searchQuery.toLowerCase().trim()
-            filtered = filtered.filter(item => item.name.toLowerCase().includes(query) || item.subcategory?.toLowerCase().includes(query))
+            filtered = filtered.filter(item =>
+                item.name.toLowerCase().includes(query) ||
+                item.subcategory?.toLowerCase().includes(query) ||
+                item.category?.toLowerCase().includes(query)
+            )
+        } else if (uiState.activeSubcategoryFilter) {
+            // Sem busca, aplica filtro de subcategoria
+            if (uiState.activeSubcategoryFilter === 'None') {
+                filtered = filtered.filter(item => !item.subcategory || item.subcategory === 'None')
+            } else {
+                filtered = filtered.filter(item => item.subcategory === uiState.activeSubcategoryFilter)
+            }
         }
-        if (uiState.activeSubcategoryFilter) filtered = filtered.filter(item => item.subcategory === uiState.activeSubcategoryFilter)
         return filtered
     }, [items, uiState.searchQuery, uiState.activeSubcategoryFilter])
 
@@ -139,7 +152,7 @@ export default function Inventory() {
             <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={allSubcategories} formatCurrency={formatCurrency}
                 getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal}
                 handleUpdateItem={handlers.handleUpdateItem} handleDeleteItem={handlers.handleDeleteItem} onAddItem={() => uiState.setIsAddingItem(true)}
-                hasActiveFilter={uiState.activeSubcategoryFilter === 'None'} onSelectIngredient={setSelectedIngredient} />
+                hasActiveFilter={!!uiState.activeSubcategoryFilter || !!uiState.searchQuery.trim()} onSelectIngredient={setSelectedIngredient} />
             <StockLevelsSection items={items} getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} onConfigureItem={item => uiState.setConfiguringItem(item)} />
             <ExpirationLevelsSection items={items as any} getTotalQuantity={getTotalQuantity as any} onConfigureItem={item => setExpirationEditItem(item as any)} />
             <MovementRegistry movements={movements as any} onRemoveMovement={m => handlers.removeMovement({ id: m.id, itemName: m.itemName })} onAddMovement={() => uiState.setMovementModalOpen(true)} />
