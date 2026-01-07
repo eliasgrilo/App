@@ -5,7 +5,7 @@
 import React from 'react'
 import { RowProps, unitOptions } from './types'
 
-export const DesktopRow: React.FC<RowProps> = ({ item, isEditing, taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId }) => {
+export const DesktopRow: React.FC<RowProps> = ({ item, isEditing, taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId, onSelectIngredient }) => {
     if (isEditing) {
         return (
             <div className="grid grid-cols-12 gap-6 px-8 py-5 items-center hover:bg-zinc-50/80 dark:hover:bg-white/[0.02] transition-colors duration-300 group">
@@ -33,7 +33,7 @@ export const DesktopRow: React.FC<RowProps> = ({ item, isEditing, taxRate, subca
 
     const status = getStockStatus(item)
     return (
-        <div className="grid grid-cols-12 gap-6 px-8 py-5 items-center hover:bg-zinc-50/80 dark:hover:bg-white/[0.02] transition-colors duration-300 group">
+        <div onClick={() => onSelectIngredient?.(item)} className="grid grid-cols-12 gap-6 px-8 py-5 items-center hover:bg-zinc-50/80 dark:hover:bg-white/[0.02] transition-colors duration-300 group cursor-pointer">
             <div className="col-span-3 flex items-center gap-2">
                 {status === 'low' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]" title="Estoque baixo" />}
                 {status === 'warning' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]" title="Próximo do mínimo" />}
@@ -46,7 +46,7 @@ export const DesktopRow: React.FC<RowProps> = ({ item, isEditing, taxRate, subca
             <div className="col-span-2 text-right"><span className="text-sm text-zinc-600 dark:text-zinc-400">{formatCurrency(item.pricePerUnit)}</span></div>
             <div className="col-span-2 flex items-center justify-end gap-2">
                 <span className="text-sm font-semibold text-zinc-900 dark:text-white">{formatCurrency(getItemTotal(item) * (1 + taxRate))}</span>
-                <button onClick={() => setEditingId(item.id)} className="p-2 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all opacity-0 group-hover:opacity-100"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                <button onClick={(e) => { e.stopPropagation(); setEditingId(item.id) }} className="p-2 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all opacity-0 group-hover:opacity-100"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
             </div>
         </div>
     )

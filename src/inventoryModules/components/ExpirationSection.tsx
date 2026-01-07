@@ -229,21 +229,13 @@ export function ExpirationSection({ items, getTotalQuantity, onConfigureItem }: 
                         {/* Items List */}
                         <div className="px-7 pb-7">
                             <AnimatePresence mode="popLayout">
-                                {filteredItems.length > 0 ? (
+                                {filteredItems.length > 0 && (
                                     <motion.div className="space-y-2" layout>
                                         {filteredItems.map((item, i) => (
                                             <motion.div key={item.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: i * 0.02, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}>
                                                 <ExpirationItemRow item={item} status={getExpirationStatus(item)} total={getTotalQuantity(item)} unit={item.unit} onClick={() => onConfigureItem(item)} />
                                             </motion.div>
                                         ))}
-                                    </motion.div>
-                                ) : (
-                                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-20">
-                                        <div className="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center mb-5" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.04) 100%)', boxShadow: '0 0 0 1px rgba(0,0,0,0.03) inset' }}>
-                                            <svg className="w-9 h-9 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                        </div>
-                                        <p className="text-[15px] font-medium text-zinc-400">Nenhum item</p>
-                                        <p className="text-[13px] text-zinc-300 mt-1">Tente ajustar os filtros</p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

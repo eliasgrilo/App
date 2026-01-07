@@ -6,7 +6,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { RowProps, unitOptions } from './types'
 
-export const MobileCard: React.FC<RowProps> = ({ item, isEditing, taxRate, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId }) => {
+export const MobileCard: React.FC<RowProps> = ({ item, isEditing, taxRate, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId, onSelectIngredient }) => {
     const stockStatus = getStockStatus(item)
     const stockBorderClass = stockStatus === 'low' ? 'border-l-4 border-l-rose-500' : stockStatus === 'warning' ? 'border-l-4 border-l-amber-500' : stockStatus === 'high' ? 'border-l-4 border-l-blue-500' : ''
     const itemId = `inv-${item.id}`
@@ -41,14 +41,14 @@ export const MobileCard: React.FC<RowProps> = ({ item, isEditing, taxRate, forma
     }
 
     return (
-        <motion.div layout className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${stockBorderClass} border-zinc-200/60 dark:border-white/5 shadow-sm`}>
-            <button type="button" className="flex items-center justify-between w-full text-left bg-transparent border-none p-0 cursor-pointer" onClick={() => setEditingId(item.id)}>
+        <motion.div layout className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${stockBorderClass} border-zinc-200/60 dark:border-white/5 shadow-sm cursor-pointer`} onClick={() => onSelectIngredient?.(item)}>
+            <div className="flex items-center justify-between w-full">
                 <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-zinc-900 dark:text-white truncate">{item.name}</h4>
                     <div className="flex items-center gap-2 mt-1"><span className="text-xs text-zinc-500">{item.packageQuantity} {item.unit} × {item.packageCount}</span><span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">= {getTotalQuantity(item)} {item.unit}</span></div>
                 </div>
                 <div className="text-right ml-3"><span className="text-sm font-bold text-zinc-900 dark:text-white">{formatCurrency(getItemTotal(item) * (1 + taxRate))}</span><p className="text-[10px] text-zinc-400">{formatCurrency(item.pricePerUnit)}/{item.unit}</p></div>
-            </button>
+            </div>
         </motion.div>
     )
 }

@@ -146,7 +146,7 @@ export function StockLevelsSection({ items, getStockStatus, getTotalQuantity, on
                         {/* Items List - Compact */}
                         <div className="px-7 pb-7">
                             <AnimatePresence mode="popLayout">
-                                {filteredItems.length > 0 ? (
+                                {filteredItems.length > 0 && (
                                     <motion.div className="space-y-2" layout>
                                         {filteredItems.map((item, i) => (
                                             <motion.div
@@ -165,26 +165,6 @@ export function StockLevelsSection({ items, getStockStatus, getTotalQuantity, on
                                                 />
                                             </motion.div>
                                         ))}
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="text-center py-20"
-                                    >
-                                        <div
-                                            className="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center mb-5"
-                                            style={{
-                                                background: 'linear-gradient(135deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.04) 100%)',
-                                                boxShadow: '0 0 0 1px rgba(0,0,0,0.03) inset'
-                                            }}
-                                        >
-                                            <svg className="w-9 h-9 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-[15px] font-medium text-zinc-400">Nenhum item</p>
-                                        <p className="text-[13px] text-zinc-300 mt-1">Tente ajustar os filtros</p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

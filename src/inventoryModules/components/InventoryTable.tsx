@@ -7,9 +7,9 @@ import React, { useState } from 'react'
 import { ID } from '../../types'
 import { InventoryTableProps, DesktopRow, MobileCard } from './inventoryTableModules'
 
-export function InventoryTable({ groupedItems, totals, taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, onAddItem, hasActiveFilter }: InventoryTableProps): React.ReactElement {
+export function InventoryTable({ groupedItems, totals, taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, onAddItem, hasActiveFilter, onSelectIngredient }: InventoryTableProps): React.ReactElement {
     const [editingId, setEditingId] = useState<ID | null>(null)
-    const rowProps = { taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId }
+    const rowProps = { taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId, onSelectIngredient }
 
     return (
         <>

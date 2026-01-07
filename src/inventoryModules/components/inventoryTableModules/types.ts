@@ -18,7 +18,7 @@ export interface InventoryTableProps {
     formatCurrency: (value: number) => string; getStockStatus: (item: InventoryItem) => StockStatus
     getTotalQuantity: (item: InventoryItem) => number; getItemTotal: (item: InventoryItem) => number
     handleUpdateItem: (id: number | ID, field: string, value: string | number) => void; handleDeleteItem: (id: number | ID) => void; onAddItem: () => void
-    hasActiveFilter?: boolean
+    hasActiveFilter?: boolean; onSelectIngredient?: (item: InventoryItem) => void
 }
 
 export interface RowProps {
@@ -26,7 +26,7 @@ export interface RowProps {
     formatCurrency: (value: number) => string; getStockStatus: (item: InventoryItem) => StockStatus
     getTotalQuantity: (item: InventoryItem) => number; getItemTotal: (item: InventoryItem) => number
     handleUpdateItem: (id: number | ID, field: string, value: string | number) => void; handleDeleteItem: (id: number | ID) => void
-    setEditingId: (id: ID | null) => void
+    setEditingId: (id: ID | null) => void; onSelectIngredient?: (item: InventoryItem) => void
 }
 
 export const unitOptions = ['kg', 'g', 'L', 'ml', 'un', 'cx']

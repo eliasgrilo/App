@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import AddIngredientModal from './components/AddIngredientModal'
 import { useCurrency } from './stores/useCurrencyStore'
 import { useModal, useToast } from './stores/useUIStore'
@@ -8,7 +8,8 @@ import {
     StockLevelsSection, ExpirationSection, MovementRegistry, ItemConfigModal,
     StockMovementModal, CategoryManagementModal, InventoryTable, InventoryDashboard,
     InventoryFilters, InventoryHeader, useNewItemForm, InventoryItem, TAX_RATE, getStock,
-    useInventoryState, useInventoryHandlers, useInventoryTotals, useAutoQuotation
+    useInventoryState, useInventoryHandlers, useInventoryTotals, useAutoQuotation,
+    IngredientDetailModal
 } from './inventoryModules'
 
 /**
@@ -45,6 +46,7 @@ export default function Inventory() {
     })
 
     useAutoQuotation(items)
+    const [selectedIngredient, setSelectedIngredient] = useState<InventoryItem | null>(null)
 
     const filteredItems = useMemo((): InventoryItem[] => {
         let filtered = items
@@ -94,7 +96,7 @@ export default function Inventory() {
             <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={uiState.subcategories} formatCurrency={formatCurrency}
                 getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal}
                 handleUpdateItem={handlers.handleUpdateItem} handleDeleteItem={handlers.handleDeleteItem} onAddItem={() => uiState.setIsAddingItem(true)}
-                hasActiveFilter={uiState.activeSubcategoryFilter === 'None'} />
+                hasActiveFilter={uiState.activeSubcategoryFilter === 'None'} onSelectIngredient={setSelectedIngredient} />
             <MovementRegistry movements={movements as any} onRemoveMovement={m => handlers.removeMovement({ id: m.id, itemName: m.itemName })} onAddMovement={() => uiState.setMovementModalOpen(true)} />
             <StockLevelsSection items={items} getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} onConfigureItem={item => uiState.setConfiguringItem(item)} />
             <ExpirationSection items={items as any} getTotalQuantity={getTotalQuantity as any} onConfigureItem={item => uiState.setConfiguringItem(item as any)} />
@@ -104,6 +106,7 @@ export default function Inventory() {
                 onAddCategory={handleAddCategory} onRemoveCategory={handleRemoveCategory} onAddSubcategory={() => { }} onRemoveSubcategory={() => { }} />
             <StockMovementModal isOpen={uiState.movementModalOpen} onClose={() => uiState.setMovementModalOpen(false)} items={items as any}
                 onSaveMovement={handleSaveMovement} getStock={getStock as any} />
+            <IngredientDetailModal ingredient={selectedIngredient} onClose={() => setSelectedIngredient(null)} formatCurrency={formatCurrency} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal} />
         </div>
     )
 }
