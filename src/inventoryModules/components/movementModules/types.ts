@@ -2,7 +2,7 @@
 // MOVEMENT REGISTRY MODULES — Types & Constants
 // ═══════════════════════════════════════════════════════════════════
 
-export interface StockMovement { id: number | string; itemId: number; itemName: string; type: string; quantity: number; unit?: string; previousStock?: number; newStock?: number; costAtTime?: number; reason?: string; timestamp: string; isManual?: boolean }
+export interface StockMovement { id: number | string; itemId: number; itemName: string; type: string; quantity: number; unit?: string; previousStock?: number; newStock?: number; costAtTime?: number; reason?: string; notes?: string; timestamp: string; isManual?: boolean }
 export interface MovementRegistryProps { movements: StockMovement[]; onRemoveMovement: (movement: StockMovement) => void; onAddMovement: () => void }
 export type Period = 'all' | 'today' | '7d' | '30d'
 export const MOVEMENT_TYPES = {

@@ -85,17 +85,34 @@ export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }:
                         </button>
                     </div>
                 </div>
+                {/* Column Headers - Apple Style */}
+                <div className="hidden md:grid grid-cols-12 gap-6 px-10 py-2.5 border-b border-zinc-100 dark:border-white/5">
+                    <div className="col-span-5 pl-4">
+                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Identity & Description</span>
+                    </div>
+                    <div className="col-span-2 flex justify-center">
+                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Stock Level</span>
+                    </div>
+                    <div className="col-span-2 flex justify-end">
+                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Unit Price</span>
+                    </div>
+                    <div className="col-span-2 flex justify-end">
+                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Total Value</span>
+                    </div>
+                    <div className="col-span-1 flex justify-end pr-1">
+                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Date</span>
+                    </div>
+                </div>
                 {/* Movement List */}
-                <div className="px-6 md:px-10 pb-6 md:pb-10">
-                    {Object.keys(grouped).length === 0 ? (
+                <div className="px-4 md:px-6 pb-6 md:pb-8 pt-2">
+                    {filteredMovements.length === 0 ? (
                         <div className="text-center py-12"><div className="w-12 h-12 mx-auto rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3"><svg className="w-6 h-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></div><p className="text-sm font-medium text-zinc-900 dark:text-white">Nenhuma movimentação</p><p className="text-xs text-zinc-500 mt-1">Movimentações aparecerão aqui</p></div>
                     ) : (
-                        <AnimatePresence>{Object.entries(grouped).map(([date, list]) => (
-                            <div key={date} className="mb-6 last:mb-0">
-                                <div className="flex items-center gap-3 mb-4"><span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{date}</span><div className="flex-1 h-px bg-zinc-100 dark:bg-zinc-800" /></div>
-                                <div className="space-y-3">{list.map(m => <MovementItem key={m.id} movement={m} onRemove={onRemoveMovement} />)}</div>
+                        <AnimatePresence>
+                            <div className="space-y-1">
+                                {filteredMovements.map(m => <MovementItem key={m.id} movement={m} onRemove={onRemoveMovement} />)}
                             </div>
-                        ))}</AnimatePresence>
+                        </AnimatePresence>
                     )}
                 </div>
             </motion.div>

@@ -122,6 +122,7 @@ type AppStore = AppStoreState & AppStoreActions
 
 // ═══ DEMO STOCK MOVEMENTS ═══
 const DEMO_MOVEMENTS: StockMovement[] = [
+    // Farinha - Multiple purchases with price variation
     {
         id: 'demo_entrada_1',
         itemId: 1,
@@ -131,10 +132,66 @@ const DEMO_MOVEMENTS: StockMovement[] = [
         unit: 'kg',
         previousStock: 25,
         newStock: 75,
-        costAtTime: 175.00,
+        costAtTime: 175.00, // R$3.50/kg
         reason: 'Compra Fornecedor Moinho',
+        notes: 'nNF: 000012847',
         timestamp: new Date().toISOString()
     },
+    {
+        id: 'demo_entrada_farinha_2',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 40,
+        unit: 'kg',
+        previousStock: 10,
+        newStock: 50,
+        costAtTime: 132.00, // R$3.30/kg
+        reason: 'Compra Fornecedor Moinho',
+        notes: 'nNF: 000012691',
+        timestamp: new Date(Date.now() - 86400000 * 7).toISOString() // 7 days ago
+    },
+    {
+        id: 'demo_entrada_farinha_3',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 60,
+        unit: 'kg',
+        previousStock: 5,
+        newStock: 65,
+        costAtTime: 186.00, // R$3.10/kg
+        reason: 'Compra Atacadão',
+        notes: 'nNF: 000045123',
+        timestamp: new Date(Date.now() - 86400000 * 14).toISOString() // 14 days ago
+    },
+    {
+        id: 'demo_entrada_farinha_4',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 50,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 50,
+        costAtTime: 150.00, // R$3.00/kg
+        reason: 'Compra Fornecedor Moinho',
+        timestamp: new Date(Date.now() - 86400000 * 21).toISOString() // 21 days ago
+    },
+    {
+        id: 'demo_entrada_farinha_5',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 45,
+        unit: 'kg',
+        previousStock: 8,
+        newStock: 53,
+        costAtTime: 126.00, // R$2.80/kg
+        reason: 'Promoção Atacadista',
+        timestamp: new Date(Date.now() - 86400000 * 30).toISOString() // 30 days ago
+    },
+    // Mussarela di Bufala - Multiple purchases
     {
         id: 'demo_manual_entrada_1',
         itemId: 3,
