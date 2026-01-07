@@ -75,6 +75,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Importadora Italia',
         supplierId: 2,
         notes: 'Primeira prensagem a frio',
+        expiryDate: '2026-02-10T00:00:00Z',
         createdAt: '2025-12-05T14:00:00Z',
         updatedAt: '2025-12-25T10:00:00Z'
     },
@@ -91,6 +92,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Embutidos Gourmet',
         supplierId: 4,
         notes: 'Cura natural 60 dias',
+        expiryDate: '2026-01-15T00:00:00Z',
         createdAt: '2025-12-12T11:00:00Z',
         updatedAt: '2025-12-29T09:00:00Z'
     },
@@ -124,6 +126,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Importadora Italia',
         supplierId: 2,
         notes: 'DOP certificado, maturação 24 meses',
+        expiryDate: '2026-06-01T00:00:00Z',
         createdAt: '2025-12-08T13:00:00Z',
         updatedAt: '2025-12-26T15:00:00Z'
     },
@@ -140,6 +143,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Moinho Globo',
         supplierId: 1,
         notes: 'Instantâneo - ESTOQUE CRÍTICO',
+        expiryDate: '2026-01-12T00:00:00Z',
         createdAt: '2025-12-14T10:00:00Z',
         updatedAt: '2025-12-28T12:00:00Z'
     },
@@ -172,6 +176,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Importadora Italia',
         supplierId: 2,
         notes: 'DOP, maturação 18 meses',
+        expiryDate: '2026-01-20T00:00:00Z',
         createdAt: '2025-12-11T11:00:00Z',
         updatedAt: '2025-12-29T10:00:00Z'
     },
@@ -221,6 +226,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Laticínios Premium',
         supplierId: 3,
         notes: 'Dolce',
+        expiryDate: '2026-01-25T00:00:00Z',
         createdAt: '2025-12-16T12:00:00Z',
         updatedAt: '2025-12-30T09:00:00Z'
     },
@@ -237,6 +243,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Horta Orgânica',
         supplierId: 5,
         notes: 'Orgânica',
+        expiryDate: '2026-01-09T00:00:00Z',
         createdAt: '2025-12-21T09:00:00Z',
         updatedAt: '2025-12-31T10:00:00Z'
     },
@@ -253,6 +260,7 @@ export const MOCK_INVENTORY = [
         supplier: 'Embutidos Gourmet',
         supplierId: 4,
         notes: 'Defumada naturalmente',
+        expiryDate: '2026-02-05T00:00:00Z',
         createdAt: '2025-12-13T14:00:00Z',
         updatedAt: '2025-12-28T16:00:00Z'
     },

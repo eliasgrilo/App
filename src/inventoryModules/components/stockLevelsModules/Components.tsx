@@ -125,9 +125,8 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
             onClick={onClick}
             whileHover={{ scale: 1.003 }}
             whileTap={{ scale: 0.997 }}
-            className="group cursor-pointer relative overflow-hidden rounded-xl transition-all duration-200"
+            className="group cursor-pointer relative overflow-hidden rounded-xl transition-all duration-200 bg-white/85 dark:bg-zinc-800/60"
             style={{
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.65) 100%)',
                 boxShadow: '0 0 0 1px rgba(0,0,0,0.02), 0 2px 8px -2px rgba(0,0,0,0.03)'
             }}
         >
@@ -149,7 +148,7 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-[13px] font-semibold text-zinc-800 truncate">{item.name}</span>
+                        <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 truncate">{item.name}</span>
                         <div className="flex items-baseline gap-1 flex-shrink-0">
                             <span className="text-[15px] font-bold tabular-nums" style={{ color }}>{total.toFixed(1)}</span>
                             <span className="text-[10px] font-medium text-zinc-400">{item.unit}</span>
@@ -159,7 +158,7 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
                     {/* Progress bar */}
                     {hasLimits && (
                         <div className="mt-2 relative">
-                            <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.03)' }}>
+                            <div className="h-1 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-700">
                                 <motion.div
                                     className="h-full rounded-full"
                                     style={{
@@ -184,7 +183,7 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
 
                 {/* Arrow */}
                 <motion.svg
-                    className="w-4 h-4 text-zinc-200 flex-shrink-0 transition-all group-hover:text-zinc-400 group-hover:translate-x-0.5"
+                    className="w-4 h-4 text-zinc-200 dark:text-zinc-600 flex-shrink-0 transition-all group-hover:text-zinc-400 group-hover:translate-x-0.5"
                     fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                 >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

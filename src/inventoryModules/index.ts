@@ -9,6 +9,7 @@
 export { MovementRegistry } from './components/MovementRegistry'
 export { StockLevelsSection } from './components/StockLevelsSection'
 export { ExpirationSection } from './components/ExpirationSection'
+export { ExpirationLevelsSection } from './components/ExpirationLevelsSection'
 export { ItemConfigModal } from './components/ItemConfigModal'
 export { IngredientDetailModal } from './components/IngredientDetailModal'
 export { StockMovementModal } from './components/StockMovementModal'

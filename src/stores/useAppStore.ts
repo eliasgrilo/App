@@ -52,6 +52,7 @@ export interface StockMovement {
     notes?: string
     timestamp: string
     createdBy?: string
+    isManual?: boolean         // True if manually added via button
 }
 
 // ═══ STATE INTERFACE ═══
@@ -135,6 +136,20 @@ const DEMO_MOVEMENTS: StockMovement[] = [
         timestamp: new Date().toISOString()
     },
     {
+        id: 'demo_manual_entrada_1',
+        itemId: 3,
+        itemName: 'Mussarela di Bufala',
+        type: 'entrada',
+        quantity: 8,
+        unit: 'kg',
+        previousStock: 5,
+        newStock: 13,
+        costAtTime: 1000.00,
+        reason: 'Ajuste manual - estoque encontrado',
+        timestamp: new Date(Date.now() - 600000).toISOString(), // 10min ago
+        isManual: true
+    },
+    {
         id: 'demo_saida_1',
         itemId: 2,
         itemName: 'Mussarela',
@@ -148,6 +163,20 @@ const DEMO_MOVEMENTS: StockMovement[] = [
         timestamp: new Date(Date.now() - 3600000).toISOString() // 1h ago
     },
     {
+        id: 'demo_manual_saida_1',
+        itemId: 4,
+        itemName: 'Azeite Extra Virgem',
+        type: 'saida',
+        quantity: 2,
+        unit: 'L',
+        previousStock: 15,
+        newStock: 13,
+        costAtTime: 378.00,
+        reason: 'Correção de contagem',
+        timestamp: new Date(Date.now() - 1200000).toISOString(), // 20min ago
+        isManual: true
+    },
+    {
         id: 'demo_producao_1',
         itemId: 1,
         itemName: 'Farinha de Trigo T55',
@@ -159,6 +188,20 @@ const DEMO_MOVEMENTS: StockMovement[] = [
         costAtTime: 35.00,
         reason: 'Produção 50 pizzas',
         timestamp: new Date(Date.now() - 7200000).toISOString() // 2h ago
+    },
+    {
+        id: 'demo_manual_entrada_2',
+        itemId: 6,
+        itemName: 'Manjericão Fresco',
+        type: 'entrada',
+        quantity: 12,
+        unit: 'un',
+        previousStock: 24,
+        newStock: 36,
+        costAtTime: 102.00,
+        reason: 'Recontagem manual',
+        timestamp: new Date(Date.now() - 900000).toISOString(), // 15min ago
+        isManual: true
     },
     {
         id: 'demo_perda_1',

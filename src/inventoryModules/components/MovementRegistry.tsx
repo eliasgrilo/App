@@ -10,15 +10,19 @@ import { StockMovement, MovementRegistryProps, Period, MovementItem } from './mo
 export type { StockMovement }
 
 export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }: MovementRegistryProps): React.ReactElement {
-    const [search, setSearch] = useState(''); const [period, setPeriod] = useState<Period>('all'); const [typeFilter, setTypeFilter] = useState<'all' | 'entrada' | 'saida'>('all')
+    const [search, setSearch] = useState(''); const [period, setPeriod] = useState<Period>('today'); const [typeFilter, setTypeFilter] = useState<'all' | 'entrada' | 'saida' | 'manual'>('all')
 
     const filteredMovements = useMemo(() => {
         const now = new Date()
         return movements.filter(m => {
             if (search && !m.itemName.toLowerCase().includes(search.toLowerCase())) return false
             if (typeFilter !== 'all') {
-                const mType = m.type?.toLowerCase() === 'in' || m.type?.toLowerCase() === 'entrada' ? 'entrada' : 'saida'
-                if (mType !== typeFilter) return false
+                if (typeFilter === 'manual') {
+                    if (!m.isManual) return false
+                } else {
+                    const mType = m.type?.toLowerCase() === 'in' || m.type?.toLowerCase() === 'entrada' ? 'entrada' : 'saida'
+                    if (mType !== typeFilter) return false
+                }
             }
             if (period !== 'all') {
                 const diff = (now.getTime() - new Date(m.timestamp).getTime()) / (1000 * 60 * 60 * 24)
@@ -52,7 +56,7 @@ export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }:
                         </div>
                         {/* Period Pills */}
                         <div className="inline-flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl">
-                            {(['all', 'today', '7d', '30d'] as const).map(p => (
+                            {(['today', '7d', '30d', 'all'] as const).map(p => (
                                 <motion.button key={p} onClick={() => setPeriod(p)} whileTap={{ scale: 0.97 }}
                                     className={`relative px-4 py-2 rounded-xl text-[13px] font-medium transition-colors ${period === p ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700'}`}>
                                     {period === p && (
@@ -63,13 +67,13 @@ export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }:
                                 </motion.button>
                             ))}
                         </div>
-                        {/* Type Select */}
-                        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as 'all' | 'entrada' | 'saida')}
+                        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as 'all' | 'entrada' | 'saida' | 'manual')}
                             className="h-11 px-4 pr-10 bg-zinc-100 dark:bg-zinc-800 rounded-2xl text-[13px] font-medium text-zinc-700 dark:text-zinc-200 cursor-pointer outline-none appearance-none"
                             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}>
                             <option value="all">Todos os tipos</option>
                             <option value="entrada">Entrada</option>
                             <option value="saida">Saída</option>
+                            <option value="manual">Manual</option>
                         </select>
                         {/* Settings Button */}
                         <button onClick={onAddMovement}

@@ -12,12 +12,32 @@ export const MovementItem: React.FC<MovementItemProps> = ({ movement: m, onRemov
     const rawType = (m.type || '').toLowerCase().trim()
     const isEntrada = rawType === 'entrada' || rawType === 'in' || rawType === 'compra' || rawType === 'recebimento' || rawType.includes('entrada')
     const t = MOVEMENT_TYPES[isEntrada ? 'entrada' : 'saida']!
+    const isManual = m.isManual === true
+
+    // Colors: Orange for manual, Green for entrada, Rose for saida
+    const colors = isManual
+        ? { bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-200/60 dark:border-amber-500/20', bgCard: 'bg-amber-50/30 dark:bg-amber-500/5', text: 'text-amber-600 dark:text-amber-400', pillBorder: 'border-amber-200 dark:border-amber-500/20' }
+        : t.isOut
+            ? { bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'border-rose-200/60 dark:border-rose-500/20', bgCard: 'bg-rose-50/30 dark:bg-rose-500/5', text: 'text-rose-600 dark:text-rose-400', pillBorder: 'border-rose-200 dark:border-rose-500/20' }
+            : { bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200/60 dark:border-emerald-500/20', bgCard: 'bg-emerald-50/30 dark:bg-emerald-500/5', text: 'text-emerald-600 dark:text-emerald-400', pillBorder: 'border-emerald-200 dark:border-emerald-500/20' }
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 md:items-center group hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-4 rounded-2xl md:rounded-[1.5rem] transition-all cursor-pointer border ${t.isOut ? 'border-rose-200/60 dark:border-rose-500/20 bg-rose-50/30 dark:bg-rose-500/5' : 'border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-500/5'}`}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 md:items-center group hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-4 rounded-2xl md:rounded-[1.5rem] transition-all cursor-pointer border ${colors.border} ${colors.bgCard}`}>
             {/* Item Info */}
             <div className="md:col-span-5 flex items-start md:items-center gap-4 min-w-0">
-                <div className={`shrink-0 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${t.isOut ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400' : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>{t.label}</div>
+                {isManual ? (
+                    // Manual: Orange outer pill with green/red inner pill
+                    <div className="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                        <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${t.isOut ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>
+                            {t.label}
+                        </span>
+                    </div>
+                ) : (
+                    // Normal: Single colored pill
+                    <div className={`shrink-0 px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${colors.bg} ${colors.text}`}>
+                        {t.label}
+                    </div>
+                )}
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
                         <p className="text-sm md:text-base font-semibold text-zinc-900 dark:text-white truncate">{m.itemName}</p>
@@ -31,14 +51,14 @@ export const MovementItem: React.FC<MovementItemProps> = ({ movement: m, onRemov
             </div>
             {/* Quantity Pill */}
             <div className="md:col-span-2 flex md:justify-center items-center">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full border text-[11px] font-semibold uppercase tracking-tighter tabular-nums ${t.isOut ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400'}`}>{t.isOut ? '−' : '+'}{m.quantity} {m.unit?.toUpperCase()}</span>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full border text-[11px] font-semibold uppercase tracking-tighter tabular-nums ${colors.bg} ${colors.pillBorder} ${colors.text}`}>{t.isOut ? '−' : '+'}{m.quantity} {m.unit?.toUpperCase()}</span>
             </div>
             {/* Stock Level */}
             <div className="hidden md:flex md:col-span-2 justify-end items-center"><span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[11px] font-semibold tabular-nums bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300">{m.newStock ?? 0} {m.unit}</span></div>
             {/* Total Value */}
             <div className="hidden md:flex md:col-span-2 justify-end items-center gap-2">
                 <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter md:opacity-0 group-hover:opacity-100 transition-opacity">TOTAL</span>
-                <span className={`text-base md:text-lg font-bold tracking-tight tabular-nums ${t.isOut ? 'text-rose-600 dark:text-rose-400' : 'text-violet-600 dark:text-violet-400'}`}>{t.isOut ? '−' : '+'}{new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(m.quantity)}</span>
+                <span className={`text-base md:text-lg font-bold tracking-tight tabular-nums ${isManual ? 'text-amber-600 dark:text-amber-400' : t.isOut ? 'text-rose-600 dark:text-rose-400' : 'text-violet-600 dark:text-violet-400'}`}>{t.isOut ? '−' : '+'}{new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(m.quantity)}</span>
             </div>
             {/* Delete */}
             <div className="md:col-span-1 flex justify-end gap-2 md:gap-1 md:opacity-0 group-hover:opacity-100 transition-all pt-2 md:pt-0 border-t md:border-0 border-zinc-50 dark:border-white/5">
@@ -47,3 +67,4 @@ export const MovementItem: React.FC<MovementItemProps> = ({ movement: m, onRemov
         </motion.div>
     )
 }
+
