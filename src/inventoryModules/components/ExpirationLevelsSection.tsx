@@ -175,7 +175,7 @@ export function ExpirationLevelsSection({ items, getTotalQuantity, onConfigureIt
             >
                 {/* Main glass container */}
                 <div
-                    className="relative overflow-hidden rounded-[2.5rem] bg-white/95 dark:bg-zinc-900/95"
+                    className="relative overflow-hidden rounded-[2.5rem] bg-white/95 dark:bg-black"
                     style={{
                         boxShadow: '0 0 0 1px rgba(255,255,255,0.5) inset, 0 25px 50px -12px rgba(0,0,0,0.08), 0 0 80px -20px rgba(255,149,0,0.15)',
                         backdropFilter: 'blur(40px) saturate(180%)'

@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react'
 import AddIngredientModal from './components/AddIngredientModal'
-import { StockAlertsPanel } from './components/StockAlertsPanel'
-import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { useCurrency } from './stores/useCurrencyStore'
 import { useModal, useToast } from './stores/useUIStore'
 import { useAppStore, useIngredients, useSuppliers, useStockMovements } from './stores/useAppStore'
@@ -75,6 +73,22 @@ export default function Inventory() {
         onConfirm: () => { uiState.setCategories(prev => prev.filter(c => c !== cat)); setItems(prev => prev.map(item => item.category === cat ? { ...item, category: 'Outros' } : item)); handlers.showToast('Categoria removida', 'success') }
     })
 
+    const handleAddSubcategory = (category: string, subcategory: string) => {
+        uiState.setSubcategories(prev => ({
+            ...prev,
+            [category]: [...(prev[category] || []), subcategory]
+        }))
+        handlers.showToast('Subcategoria adicionada', 'success')
+    }
+
+    const handleRemoveSubcategory = (category: string, subcategory: string) => {
+        uiState.setSubcategories(prev => ({
+            ...prev,
+            [category]: (prev[category] || []).filter(s => s !== subcategory)
+        }))
+        handlers.showToast('Subcategoria removida', 'success')
+    }
+
     const handleSaveMovement = (data: Parameters<typeof addStockMovement>[0]) => {
         addStockMovement(data)
         const item = items.find(i => i.id === data.itemId)
@@ -91,27 +105,20 @@ export default function Inventory() {
 
             <InventoryHeader onScanInvoice={() => alert('📸 Scan Nota - Funcionalidade em desenvolvimento!')} onAddItem={() => uiState.setIsAddingItem(true)} />
             <InventoryDashboard totals={totals} taxRate={TAX_RATE} categories={uiState.categories} formatCurrency={formatCurrency} />
-
-            {/* Analytics & Stock Alerts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <AnalyticsDashboard />
-                <StockAlertsPanel />
-            </div>
             <AddIngredientModal isOpen={uiState.isAddingItem} onClose={() => uiState.setIsAddingItem(false)} onAdd={handlers.handleAddItem} newItem={newItem} setNewItem={setNewItem} suppliers={suppliers} />
             <InventoryFilters searchQuery={uiState.searchQuery} setSearchQuery={uiState.setSearchQuery} activeSubcategoryFilter={uiState.activeSubcategoryFilter}
-                setActiveSubcategoryFilter={uiState.setActiveSubcategoryFilter} subcategories={uiState.subcategories} filteredItemsCount={filteredItems.length}
+                setActiveSubcategoryFilter={uiState.setActiveSubcategoryFilter} subcategories={['None', ...Object.values(uiState.subcategories).flat()]} filteredItemsCount={filteredItems.length}
                 onManageCategories={() => uiState.setIsManagingCategories(true)} />
-            <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={uiState.subcategories} formatCurrency={formatCurrency}
+            <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={['None', ...Object.values(uiState.subcategories).flat()]} formatCurrency={formatCurrency}
                 getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal}
                 handleUpdateItem={handlers.handleUpdateItem} handleDeleteItem={handlers.handleDeleteItem} onAddItem={() => uiState.setIsAddingItem(true)}
                 hasActiveFilter={uiState.activeSubcategoryFilter === 'None'} onSelectIngredient={setSelectedIngredient} />
-            <MovementRegistry movements={movements as any} onRemoveMovement={m => handlers.removeMovement({ id: m.id, itemName: m.itemName })} onAddMovement={() => uiState.setMovementModalOpen(true)} />
             <StockLevelsSection items={items} getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} onConfigureItem={item => uiState.setConfiguringItem(item)} />
             <ExpirationLevelsSection items={items as any} getTotalQuantity={getTotalQuantity as any} onConfigureItem={item => uiState.setConfiguringItem(item as any)} />
-
+            <MovementRegistry movements={movements as any} onRemoveMovement={m => handlers.removeMovement({ id: m.id, itemName: m.itemName })} onAddMovement={() => uiState.setMovementModalOpen(true)} />
             <ItemConfigModal item={uiState.configuringItem} onClose={() => uiState.setConfiguringItem(null)} onUpdateItem={handlers.handleUpdateItem} getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} />
-            <CategoryManagementModal isOpen={uiState.isManagingCategories} onClose={() => uiState.setIsManagingCategories(false)} categories={uiState.categories} subcategories={{}}
-                onAddCategory={handleAddCategory} onRemoveCategory={handleRemoveCategory} onAddSubcategory={() => { }} onRemoveSubcategory={() => { }} />
+            <CategoryManagementModal isOpen={uiState.isManagingCategories} onClose={() => uiState.setIsManagingCategories(false)} categories={uiState.categories} subcategories={uiState.subcategories}
+                onAddCategory={handleAddCategory} onRemoveCategory={handleRemoveCategory} onAddSubcategory={handleAddSubcategory} onRemoveSubcategory={handleRemoveSubcategory} />
             <StockMovementModal isOpen={uiState.movementModalOpen} onClose={() => uiState.setMovementModalOpen(false)} items={items as any}
                 onSaveMovement={handleSaveMovement} getStock={getStock as any} />
             <IngredientDetailModal ingredient={selectedIngredient} onClose={() => setSelectedIngredient(null)} formatCurrency={formatCurrency} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal} />

@@ -79,7 +79,10 @@ export const TAX_RATE = 0.12
 
 export const DEFAULT_CATEGORIES = ['Ingredientes', 'Embalagens', 'Equipamentos', 'Limpeza']
 
-export const DEFAULT_SUBCATEGORIES = [
-    'None', 'Embutidos', 'Laticínios', 'Farináceos',
-    'Temperos', 'Vegetais', 'Produtos de Limpeza', 'Outros Ingredientes'
-]
+export const DEFAULT_SUBCATEGORIES: Record<string, string[]> = {
+    'Ingredientes': ['Embutidos', 'Laticínios', 'Farináceos', 'Temperos', 'Vegetais', 'Outros Ingredientes'],
+    'Embalagens': ['Caixas', 'Sacos', 'Descartáveis'],
+    'Equipamentos': ['Utensílios', 'Máquinas'],
+    'Limpeza': ['Produtos de Limpeza', 'Descartáveis']
+}
+

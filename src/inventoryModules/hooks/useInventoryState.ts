@@ -35,8 +35,8 @@ export interface InventoryStateReturn {
     // Data states
     categories: string[]
     setCategories: React.Dispatch<React.SetStateAction<string[]>>
-    subcategories: string[]
-    setSubcategories: React.Dispatch<React.SetStateAction<string[]>>
+    subcategories: Record<string, string[]>
+    setSubcategories: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
 }
 
 // ═══════════════════════════════════════════════════════════════════
