@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useCallback } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 import { useToast } from '../stores/useUIStore'
-import type { InventoryItem } from '../types'
+import type { InventoryItem } from '../inventoryModules/types'
 
 interface StockAlert {
     id: string
@@ -67,7 +67,7 @@ export function useStockAlerts() {
             return () => clearTimeout(timeout)
         }
         return undefined
-    }, [])  
+    }, [])
 
     const checkAndNotify = useCallback(() => {
         if (criticalCount > 0) {

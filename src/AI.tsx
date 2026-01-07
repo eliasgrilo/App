@@ -71,6 +71,20 @@ export default function AI() {
                 quotationTab={state.quotationTab}
                 setQuotationTab={state.setQuotationTab}
                 showToast={state.showToast}
+                onRequestQuotation={(quotation) => {
+                    // Create email draft from quotation data
+                    const itemsList = quotation.items
+                        .map(item => `• ${item.name}: ${item.requested}kg`)
+                        .join('\n')
+
+                    state.setEmailDraft({
+                        to: quotation.supplierEmail || '',
+                        subject: `Solicitação de Cotação - Padoca Pizza - ${new Date().toLocaleDateString('pt-BR')}`,
+                        body: `Olá ${quotation.supplier},\n\nEspero que esteja bem!\n\nEstamos precisando repor alguns itens do nosso estoque e gostaríamos de solicitar uma cotação:\n\n${itemsList}\n\nPoderia nos enviar os preços atualizados e prazo de entrega?\n\nObrigado!\nEquipe Padoca Pizza`
+                    })
+                    state.setSelectedSupplier({ id: quotation.id, name: quotation.supplier, email: quotation.supplierEmail } as any)
+                    state.setIsComposerOpen(true)
+                }}
             />
 
             {/* Email Composer Modal */}

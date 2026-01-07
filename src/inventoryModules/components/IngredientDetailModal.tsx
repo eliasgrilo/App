@@ -23,6 +23,7 @@ export function IngredientDetailModal({
     getTotalQuantity,
     getItemTotal
 }: IngredientDetailModalProps): React.ReactElement | null {
+    // Early return BEFORE createPortal - matching pattern from working modals
     if (!ingredient) return null
 
     const currentStock = getTotalQuantity(ingredient)
@@ -50,7 +51,7 @@ export function IngredientDetailModal({
                     onClick={onClose}
                 />
 
-                {/* Modal Card - Exact match */}
+                {/* Modal Card */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -60,7 +61,6 @@ export function IngredientDetailModal({
                 >
                     {/* Header */}
                     <div className="relative px-6 pt-6 pb-4">
-                        {/* Close X Button - Apple style with circle background */}
                         <button
                             onClick={onClose}
                             className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
@@ -69,8 +69,6 @@ export function IngredientDetailModal({
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
-
-                        {/* Title */}
                         <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 pr-10">{ingredient.name}</h2>
                         <p className="text-sm text-zinc-400 mt-1">{categoryText} • {supplierText}</p>
                     </div>
@@ -79,35 +77,32 @@ export function IngredientDetailModal({
                     <div className="px-6 pb-6 space-y-4">
                         {/* Current Stock & Unit Price Row */}
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Current Stock - Gray background card */}
                             <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl px-5 py-4">
-                                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block mb-2">CURRENT STOCK</span>
+                                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block mb-2">ESTOQUE</span>
                                 <div className="flex items-baseline gap-1.5">
                                     <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{currentStock.toFixed(0)}</span>
                                     <span className="text-base text-zinc-400 font-medium">{ingredient.unit}</span>
                                 </div>
                             </div>
-
-                            {/* Unit Price - Gray background card */}
                             <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl px-5 py-4">
-                                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block mb-2">UNIT PRICE</span>
+                                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block mb-2">PREÇO UNIT</span>
                                 <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
                                     {formatCurrency(ingredient.pricePerUnit)}
                                 </span>
                             </div>
                         </div>
 
-                        {/* Total Value - Violet background with GREEN value (Apple reference) */}
+                        {/* Total Value */}
                         <div className="bg-violet-50 dark:bg-violet-500/10 rounded-2xl px-5 py-5">
-                            <span className="text-[10px] font-semibold text-violet-500 uppercase tracking-widest block mb-2">TOTAL VALUE</span>
+                            <span className="text-[10px] font-semibold text-violet-500 uppercase tracking-widest block mb-2">VALOR TOTAL</span>
                             <span className="text-4xl font-bold text-emerald-500 dark:text-emerald-400 tabular-nums">
                                 {formatCurrency(totalValue)}
                             </span>
                         </div>
 
-                        {/* Stock Limits - Gray background with Min/Max */}
+                        {/* Stock Limits */}
                         <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl px-5 py-4">
-                            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block mb-3">STOCK LIMITS</span>
+                            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest block mb-3">LIMITES DE ESTOQUE</span>
                             <div className="flex items-center gap-8">
                                 <div>
                                     <span className="text-xs font-semibold text-orange-500 block mb-1">Min</span>
@@ -120,12 +115,12 @@ export function IngredientDetailModal({
                             </div>
                         </div>
 
-                        {/* Close Button - Black rounded Apple style */}
+                        {/* Close Button */}
                         <button
                             onClick={onClose}
                             className="w-full py-4 mt-2 rounded-2xl text-sm font-bold uppercase tracking-wider text-white bg-zinc-900 hover:bg-zinc-800 active:scale-[0.98] transition-all shadow-lg"
                         >
-                            CLOSE
+                            FECHAR
                         </button>
                     </div>
                 </motion.div>

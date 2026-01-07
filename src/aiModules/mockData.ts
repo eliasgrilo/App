@@ -1,13 +1,25 @@
-// ═══════════════════════════════════════════════════════════════════
-// AI MODULE — Mock Data (Temporary)
-// ═══════════════════════════════════════════════════════════════════
+import type { Quotation, HistoryQuotation } from './types'
 
-import type { Quotation } from './types'
-
-export type MockQuotations = Record<string, Quotation[]>
+export interface MockQuotations {
+    pendente: Quotation[]
+    aguardando: Quotation[]
+    ordens: Quotation[]
+    recebido: Quotation[]
+    historico: HistoryQuotation[]
+}
 
 export const createMockQuotations = (): MockQuotations => ({
-    pendente: [],
+    pendente: [
+        {
+            id: 'p1', supplier: 'João', supplierInitial: 'J', itemCount: 3, timestamp: 'Agora',
+            supplierEmail: 'karimgosson@gmail.com',
+            items: [
+                { name: 'Mussarela', current: 10, max: 100, requested: 90 },
+                { name: 'Tomato Sauce', current: 10, max: 100, requested: 90 },
+                { name: 'Abacaxi', current: 1, max: 40, requested: 39 }
+            ]
+        }
+    ],
     aguardando: [
         {
             id: 'q1', supplier: 'João Silva', supplierInitial: 'J', itemCount: 3, timestamp: '2 dias atrás',
@@ -27,17 +39,48 @@ export const createMockQuotations = (): MockQuotations => ({
     ],
     ordens: [
         {
-            id: 'q3', supplier: 'Pedro Oliveira', supplierInitial: 'P', itemCount: 4, timestamp: '1 dia atrás',
-            items: [{ name: 'Azeite Extra Virgem', current: 5, max: 15, requested: 10 }]
+            id: 'q3', supplier: 'João', supplierInitial: 'J', itemCount: 3, timestamp: 'Jan 01, 2026',
+            items: [
+                { name: 'Mussarela', current: 10, max: 100, requested: 90 },
+                { name: 'Tomato Sauce', current: 10, max: 100, requested: 90 },
+                { name: 'Abacaxi', current: 1, max: 40, requested: 39 }
+            ]
         }
     ],
     recebido: [
         {
-            id: 'q4', supplier: 'Ana Costa', supplierInitial: 'A', itemCount: 2, timestamp: '5 dias atrás',
-            items: [{ name: 'Molho San Marzano', current: 8, max: 30, requested: 22 }]
+            id: 'q4', supplier: 'João', supplierInitial: 'J', itemCount: 3, timestamp: 'Jan 01, 2026',
+            items: [
+                { name: 'Mussarela', current: 10, max: 100, requested: 90 },
+                { name: 'Tomato Sauce', current: 10, max: 100, requested: 90 },
+                { name: 'Abacaxi', current: 1, max: 40, requested: 39 }
+            ]
         }
     ],
     historico: [
-        { id: 'q5', supplier: 'Carlos Mendes', supplierInitial: 'C', itemCount: 5, timestamp: '1 semana atrás', items: [] }
+        {
+            id: 'h1', supplier: 'João', supplierInitial: 'J', itemCount: 3, timestamp: 'Jan 01, 2026',
+            supplierEmail: 'karimgosson@gmail.com', status: 'sem_resposta', time: '08:29 PM',
+            items: [
+                { name: 'Mussarela', current: 10, max: 100, requested: 90 },
+                { name: 'Tomato Sauce', current: 10, max: 100, requested: 90 },
+                { name: 'Abacaxi', current: 1, max: 40, requested: 39 }
+            ]
+        },
+        {
+            id: 'h2', supplier: 'João', supplierInitial: 'J', itemCount: 1, timestamp: 'Jan 01, 2026',
+            supplierEmail: 'karimgosson@gmail.com', status: 'sem_resposta', time: '05:31 PM',
+            items: [
+                { name: 'Abacaxi', current: 1, max: 40, requested: 39 }
+            ]
+        },
+        {
+            id: 'h3', supplier: 'João', supplierInitial: 'J', itemCount: 2, timestamp: 'Jan 01, 2026',
+            supplierEmail: 'karimgosson@gmail.com', status: 'recebido', time: '12:07 PM',
+            items: [
+                { name: 'Mussarela', current: 10, max: 100, requested: 90 },
+                { name: 'Tomato Sauce', current: 10, max: 100, requested: 90 }
+            ]
+        }
     ]
 })

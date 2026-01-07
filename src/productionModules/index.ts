@@ -26,7 +26,7 @@ export {
 // Hooks
 // ═══════════════════════════════════════════════════════════════════
 export { useProductionState } from './hooks/useProductionState'
-export type { ProductionStateReturn } from './hooks/useProductionState'
+export type { ProductionStateReturn, ProductionViewType } from './hooks/useProductionState'
 
 export { useProductionHandlers } from './hooks/useProductionHandlers'
 export type { ProductionHandlersReturn, UseProductionHandlersProps } from './hooks/useProductionHandlers'
@@ -42,3 +42,5 @@ export { FinalDoughSection } from './components/FinalDoughSection'
 export { SystemControlsSection } from './components/SystemControlsSection'
 export { SavedRecipesSection } from './components/SavedRecipesSection'
 export { ProductionInputModal } from './components/ProductionInputModal'
+export { ProductionContent } from './components/ProductionContent'
+

@@ -9,6 +9,9 @@ import type {
     InputState, GramsInputState, InputModalState, Recipes,
     YeastTypeKey, PrefermentKey, PrefermentData, YeastTypeData, DisplayGrams
 } from '../types'
+
+// Tab view types
+export type ProductionViewType = 'producao' | 'kanban' | 'ficha' | 'receitas'
 import { DEFAULT_INPUT_STATE, DEFAULT_GRAMS_STATE } from '../types'
 
 // ═══════════════════════════════════════════════════════════════════
@@ -26,6 +29,10 @@ export interface ProductionStateReturn {
     inputModal: InputModalState | null
     setInputModal: (v: InputModalState | null) => void
     fileRef: React.RefObject<HTMLInputElement>
+
+    // Tab navigation
+    activeView: ProductionViewType
+    setActiveView: (view: ProductionViewType) => void
 
     // Calculated values
     totalPct: number
@@ -64,6 +71,7 @@ export function useProductionState(): ProductionStateReturn {
     const [gramsInputs, setGramsInputs] = useState<GramsInputState>(DEFAULT_GRAMS_STATE)
     const [recipes, setRecipes] = useState<Recipes>({})
     const [inputModal, setInputModal] = useState<InputModalState | null>(null)
+    const [activeView, setActiveView] = useState<ProductionViewType>('producao')
     const fileRef = useRef<HTMLInputElement>(null)
 
     // Toast helper
@@ -197,6 +205,7 @@ export function useProductionState(): ProductionStateReturn {
         recipes, setRecipes,
         inputModal, setInputModal,
         fileRef: fileRef as any,
+        activeView, setActiveView,
         totalPct, totalDoughWeight, flourWeight,
         grams, displayGrams, hydration,
         prefermentKey, prefermentData, prefermentFlour, prefermentWater, prefermentMass,

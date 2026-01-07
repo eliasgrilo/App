@@ -1,45 +1,93 @@
 // ═══════════════════════════════════════════════════════════════════
-// PRODUCTION — Premium Dough Calculator
-// Refactored: ~140 lines
+// PRODUCTION — Premium Dough Calculator with Tabbed Navigation
+// Includes: Produção, Kanban, Ficha Técnica, Receitas
 // ═══════════════════════════════════════════════════════════════════
 
-import { useRef, useCallback } from 'react'
-import BufferedInput from './BufferedInput'
-import YeastType, { YeastDataSet } from './YeastType'
-import Preferment, { PrefermentDataSet } from './Preferment'
+import { useCallback } from 'react'
 import { useModal, useToast } from './stores/useUIStore'
-import { useProductionState, useProductionHandlers, ProductionHeader, ProductionSummaryCard, PortioningSection, MaturationSection, ColdFermentationSection, FinalDoughSection, SystemControlsSection, SavedRecipesSection, ProductionInputModal, formatNumber, type ProductionProps, type PrefermentType, type YeastTypeValue, type PrefermentKey, type InputState } from './productionModules'
+import {
+    useProductionState,
+    useProductionHandlers,
+    ProductionContent,
+    type ProductionProps,
+    type ProductionViewType
+} from './productionModules'
+
+// Lazy imports for other views
+import Kanban from './Kanban'
+import FichaTecnica from './FichaTecnica'
+import Recipes from './Recipes'
+
+// Tab configuration
+const PRODUCTION_TABS: { key: ProductionViewType; label: string }[] = [
+    { key: 'producao', label: 'Produção' },
+    { key: 'kanban', label: 'Kanban' },
+    { key: 'ficha', label: 'Ficha' },
+    { key: 'receitas', label: 'Receitas' }
+]
 
 export default function Production({ inputMode }: ProductionProps) {
-    const fileRef = useRef<HTMLInputElement>(null); const { modal } = useModal(); const { toast } = useToast()
-    const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success'): void => { if (type === 'success') toast.success(message); else if (type === 'error') toast.error(message); else toast.info(message) }, [toast])
+    const { modal } = useModal()
+    const { toast } = useToast()
+    const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success'): void => {
+        if (type === 'success') toast.success(message)
+        else if (type === 'error') toast.error(message)
+        else toast.info(message)
+    }, [toast])
+
     const state = useProductionState()
-    const handlers = useProductionHandlers({ inputs: state.inputs, setInputs: state.setInputs, recipes: state.recipes, setRecipes: state.setRecipes, setInputModal: state.setInputModal, modal: { confirm: modal.confirm }, showToast })
-    const prefermentKey = state.inputs.prefermentType.toLowerCase() as PrefermentKey
-    const prefermentData = (state.inputs.prefermentType !== 'None' && state.inputs.preferment[prefermentKey]) ? state.inputs.preferment[prefermentKey] : null
-    const prefermentFlour = prefermentData ? state.flourWeight * (Number(prefermentData.pct) || 0) / 100 : 0
-    const prefermentWater = prefermentFlour * (Number(prefermentData?.hydration) || 0) / 100; const prefermentMass = prefermentFlour + prefermentWater
+    const handlers = useProductionHandlers({
+        inputs: state.inputs,
+        setInputs: state.setInputs,
+        recipes: state.recipes,
+        setRecipes: state.setRecipes,
+        setInputModal: state.setInputModal,
+        modal: { confirm: modal.confirm },
+        showToast
+    })
 
     return (
         <div className="space-y-6 md:space-y-8 animate-fade-in pb-16 relative font-sans selection:bg-indigo-500/20">
-            <div className="fixed inset-0 pointer-events-none overflow-hidden select-none opacity-40"><div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/5 blur-[120px] rounded-full"></div><div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/5 blur-[120px] rounded-full"></div></div>
-            <ProductionHeader />
-            <ProductionSummaryCard inputs={state.inputs} displayGrams={state.displayGrams} totalDoughWeight={state.totalDoughWeight} />
-            <PortioningSection inputs={state.inputs} inputMode={inputMode} flourWeight={state.flourWeight} totalPct={state.totalPct} onDoughBallsChange={(val) => state.update('doughBalls', val)} onBallWeightChange={(val, flourW, totalP, mode) => { if (mode === 'grams') { const totalDough = flourW * totalP / 100; let newBalls = (val > 0) ? Math.round(totalDough / val) : 1; if (newBalls < 1) newBalls = 1; state.setInputs(prev => ({ ...prev, ballWeight: Math.round(totalDough / newBalls), doughBalls: newBalls })) } else state.update('ballWeight', Math.round(val)) }} />
-            {/* Fermentation */}
-            <section className="relative z-10 bg-white dark:bg-zinc-950 rounded-[2rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 shadow-xl"><h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6">Fermentação</h2><Preferment value={state.inputs.prefermentType} onChange={(t: PrefermentType) => state.update('prefermentType', t)} data={state.inputs.preferment as PrefermentDataSet} onDataChange={state.updatePrefermentData as (data: PrefermentDataSet) => void} inputMode={inputMode === 'percent' ? 'pct' : 'grams'} flourWeight={state.flourWeight} /></section>
-            {/* Ingredients */}
-            <section className="relative z-10 bg-white dark:bg-zinc-950 rounded-[2rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 shadow-xl"><h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6">Ingredientes</h2><div className="grid grid-cols-2 gap-4 sm:grid-cols-4">{inputMode === 'grams' && <BufferedInput label="Farinha Total" value={state.gramsInputs.flour} onChange={state.updateFlourGrams} unit="g" />}<BufferedInput label="Água" value={inputMode === 'grams' ? state.gramsInputs.water : state.inputs.water} onChange={(v) => state.updateIngredient('water', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /><BufferedInput label="Sal" value={inputMode === 'grams' ? state.gramsInputs.salt : state.inputs.salt} onChange={(v) => state.updateIngredient('salt', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /><BufferedInput label="Azeite" value={inputMode === 'grams' ? state.gramsInputs.oliveOil : state.inputs.oliveOil} onChange={(v) => state.updateIngredient('oliveOil', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /><BufferedInput label="Açúcar" value={inputMode === 'grams' ? state.gramsInputs.sugar : state.inputs.sugar} onChange={(v) => state.updateIngredient('sugar', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /><BufferedInput label="Óleo" value={inputMode === 'grams' ? state.gramsInputs.oil : state.inputs.oil} onChange={(v) => state.updateIngredient('oil', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /><BufferedInput label="Leite" value={inputMode === 'grams' ? state.gramsInputs.milk : state.inputs.milk} onChange={(v) => state.updateIngredient('milk', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /><BufferedInput label="Manteiga" value={inputMode === 'grams' ? state.gramsInputs.butter : state.inputs.butter} onChange={(v) => state.updateIngredient('butter', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /><BufferedInput label="Malte" value={inputMode === 'grams' ? state.gramsInputs.diastatic : state.inputs.diastatic} onChange={(v) => state.updateIngredient('diastatic', v, inputMode)} unit={inputMode === 'grams' ? 'g' : '%'} /></div></section>
-            {/* Yeast */}
-            <section className="relative z-10 bg-white dark:bg-zinc-950 rounded-[2rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 shadow-xl"><h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-6">Agente Biológico</h2><YeastType value={state.inputs.yeastSelection} onChange={(t: YeastTypeValue) => state.update('yeastSelection', t)} data={state.inputs.yeastType as YeastDataSet} onDataChange={state.updateYeastData as (data: YeastDataSet) => void} inputMode={inputMode === 'percent' ? 'pct' : 'grams'} flourWeight={state.flourWeight} /></section>
-            <MaturationSection inputs={state.inputs} onUpdate={state.update} />
-            <ColdFermentationSection inputs={state.inputs} onUpdate={state.update} />
-            {/* Preferment Summary */}
-            {state.inputs.prefermentType !== 'None' && prefermentData && <section className="relative z-10 bg-white dark:bg-zinc-950 rounded-[2rem] p-6 md:p-8 border border-zinc-200/50 dark:border-white/10 shadow-xl"><h2 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-6">{state.inputs.prefermentType}</h2><div className="rounded-2xl bg-zinc-50/80 dark:bg-zinc-800/30 p-5 border border-zinc-100/80 dark:border-zinc-700/50"><div className="grid grid-cols-2 sm:grid-cols-4 gap-4"><div><div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium mb-1">% Farinha</div><div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">{formatNumber(prefermentData.pct, 1, '%')}</div></div><div><div className="text-xs text-zinc-600 dark:text-zinc-400 font-medium mb-1">Farinha (g)</div><div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{formatNumber(prefermentFlour, 0, 'g')}</div></div><div><div className="text-xs text-zinc-600 dark:text-zinc-400 font-medium mb-1">Água (g)</div><div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{formatNumber(prefermentWater, 0, 'g')}</div></div><div><div className="text-xs text-zinc-600 dark:text-zinc-400 font-medium mb-1">Massa Total (g)</div><div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{formatNumber(prefermentMass, 0, 'g')}</div></div></div></div></section>}
-            <FinalDoughSection inputs={state.inputs} displayGrams={state.displayGrams} hydration={state.hydration} prefermentData={prefermentData} prefermentFlour={prefermentFlour} prefermentWater={prefermentWater} prefermentMass={prefermentMass} />
-            <SystemControlsSection fileRef={fileRef as React.RefObject<HTMLInputElement>} onSave={handlers.saveRecipe} onExport={handlers.exportJSON} onImport={handlers.importJSON} onClear={handlers.clearForm} />
-            <SavedRecipesSection recipes={state.recipes} onLoad={handlers.loadRecipe} onRename={handlers.renameRecipe} onDelete={handlers.deleteRecipe} />
-            <ProductionInputModal inputModal={state.inputModal} />
+            <div className="fixed inset-0 pointer-events-none overflow-hidden select-none opacity-40">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/5 blur-[120px] rounded-full"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/5 blur-[120px] rounded-full"></div>
+            </div>
+
+            {/* Header */}
+            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
+                <div>
+                    <div className="flex items-center gap-3 mb-1">
+                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">Produção</h1>
+                    </div>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">Calculadora premium de massas e receitas</p>
+                </div>
+            </div>
+
+            {/* Segmented Control Tabs */}
+            <section className="relative z-10">
+                <div className="bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl inline-flex">
+                    {PRODUCTION_TABS.map((tab) => (
+                        <button
+                            key={tab.key}
+                            onClick={() => state.setActiveView(tab.key)}
+                            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all touch-manipulation ${state.activeView === tab.key
+                                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            {/* Tab Content */}
+            {state.activeView === 'producao' && (
+                <ProductionContent inputMode={inputMode} state={state} handlers={handlers} />
+            )}
+            {state.activeView === 'kanban' && <Kanban />}
+            {state.activeView === 'ficha' && <FichaTecnica />}
+            {state.activeView === 'receitas' && <Recipes />}
         </div>
     )
 }

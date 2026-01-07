@@ -46,9 +46,17 @@ export interface Quotation {
     id: string
     supplier: string
     supplierInitial: string
+    supplierEmail?: string
     itemCount: number
     timestamp: string
     items: QuotationItemData[]
+}
+
+export type HistoryQuotationStatus = 'sem_resposta' | 'recebido'
+
+export interface HistoryQuotation extends Quotation {
+    status: HistoryQuotationStatus
+    time: string
 }
 
 export type QuotationTabKey = 'pendente' | 'aguardando' | 'ordens' | 'recebido' | 'historico'
