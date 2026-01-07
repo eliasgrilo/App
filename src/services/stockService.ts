@@ -276,6 +276,58 @@ export function getExpiryData(item: StockItem): ExpiryData | null {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// COMBINED ALERT STATUS
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Combined alert status type for visual indicators.
+ * Used to determine the color of the status indicator ball.
+ */
+export type CombinedAlertStatus = 'critical' | 'warning' | 'ok'
+
+/**
+ * Get combined alert status based on both stock level and expiry date.
+ * 
+ * @param item - The inventory item
+ * @returns Combined alert status for visual indicator
+ * 
+ * @description
+ * - **critical** (red): Stock is critical OR expiry ≤ 7 days
+ * - **warning** (orange): Stock is at minimum warning level OR expiry ≤ 30 days
+ * - **ok**: Neither condition applies
+ */
+export function getCombinedAlertStatus(item: StockItem): CombinedAlertStatus {
+    const stockStatus = getStockStatus(item)
+    const daysUntilExpiry = getDaysUntilExpiry(item)
+
+    // Critical: stock critical OR expiry <= 7 days
+    if (stockStatus === 'critical') return 'critical'
+    if (daysUntilExpiry !== null && daysUntilExpiry <= 7) return 'critical'
+
+    // Warning: stock warning OR expiry <= 30 days
+    if (stockStatus === 'warning') return 'warning'
+    if (daysUntilExpiry !== null && daysUntilExpiry <= 30) return 'warning'
+
+    return 'ok'
+}
+
+/**
+ * Get sort priority for items based on alert status.
+ * Lower numbers = higher priority (sorted first).
+ * 
+ * @param item - The inventory item
+ * @returns Sort priority (0 = critical, 1 = warning, 2 = ok)
+ */
+export function getAlertSortPriority(item: StockItem): number {
+    const status = getCombinedAlertStatus(item)
+    switch (status) {
+        case 'critical': return 0
+        case 'warning': return 1
+        case 'ok': return 2
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // SERVICE OBJECT (for backwards compatibility)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -295,6 +347,8 @@ export const StockService = {
     getExpiryStatus,
     getDaysUntilExpiry,
     getExpiryData,
+    getCombinedAlertStatus,
+    getAlertSortPriority,
 }
 
 export default StockService

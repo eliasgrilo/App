@@ -5,10 +5,12 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { RowProps, unitOptions } from './types'
+import { getCombinedAlertStatus } from '../../../services/stockService'
 
 export const MobileCard: React.FC<RowProps> = ({ item, isEditing, taxRate, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId, onSelectIngredient }) => {
     const stockStatus = getStockStatus(item)
-    const stockBorderClass = stockStatus === 'low' ? 'border-l-4 border-l-rose-500' : stockStatus === 'warning' ? 'border-l-4 border-l-amber-500' : stockStatus === 'high' ? 'border-l-4 border-l-blue-500' : ''
+    const alertStatus = getCombinedAlertStatus(item)
+    const stockBorderClass = alertStatus === 'critical' ? 'border-l-4 border-l-rose-500' : alertStatus === 'warning' ? 'border-l-4 border-l-amber-500' : stockStatus === 'excess' ? 'border-l-4 border-l-blue-500' : ''
     const itemId = `inv-${item.id}`
 
     if (isEditing) {

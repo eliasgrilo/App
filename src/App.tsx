@@ -31,7 +31,7 @@ const AI = lazy(() => import('./AI'))
 
 export default function App() {
   const [inputMode, setInputMode] = useState<UnitMode>('pct')
-  const [view, setView] = useState<string>('recipes')
+  const [view, setView] = useState<string>('ai')
   const [isLoaded, setIsLoaded] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)

@@ -66,13 +66,6 @@ export const StatusTile: React.FC<StatusTileProps> = ({ tile, isSelected, onClic
                 <div className="flex items-center gap-2 mb-1.5">
                     <div className={`w-1.5 h-1.5 rounded-full ${colors.pulse} ${colors.shadow}`} />
                     <h3 className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{tile.label}</h3>
-                    {/* Pulse indicator for critical */}
-                    {tile.id === 'critical' && tile.count > 0 && (
-                        <span className="ml-auto flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full opacity-50 bg-red-500" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-                        </span>
-                    )}
                 </div>
 
                 {/* Count */}
@@ -140,7 +133,7 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
                 {/* Status indicator */}
                 <div className="flex-shrink-0">
                     <div
-                        className="w-2.5 h-2.5 rounded-full"
+                        className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: color, boxShadow: `0 0 6px 1px ${color}25` }}
                     />
                 </div>

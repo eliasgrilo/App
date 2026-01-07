@@ -4,6 +4,7 @@
 
 import React from 'react'
 import { RowProps, unitOptions } from './types'
+import { getCombinedAlertStatus } from '../../../services/stockService'
 
 export const DesktopRow: React.FC<RowProps> = ({ item, isEditing, taxRate, subcategories, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId, onSelectIngredient }) => {
     if (isEditing) {
@@ -32,12 +33,13 @@ export const DesktopRow: React.FC<RowProps> = ({ item, isEditing, taxRate, subca
     }
 
     const status = getStockStatus(item)
+    const alertStatus = getCombinedAlertStatus(item)
     return (
         <div onClick={() => onSelectIngredient?.(item)} className="grid grid-cols-12 gap-6 px-8 py-5 items-center hover:bg-zinc-50/80 dark:hover:bg-white/[0.02] transition-colors duration-300 group cursor-pointer">
             <div className="col-span-3 flex items-center gap-2">
-                {status === 'low' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]" title="Estoque baixo" />}
-                {status === 'warning' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]" title="Próximo do mínimo" />}
-                {status === 'high' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)]" title="Acima do máximo" />}
+                {alertStatus === 'critical' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]" title="Estoque crítico ou validade próxima" />}
+                {alertStatus === 'warning' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]" title="Estoque baixo ou validade em atenção" />}
+                {status === 'excess' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)]" title="Acima do máximo" />}
                 <span className="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">{item.name}</span>
             </div>
             <div className="col-span-2 text-center"><span className="inline-flex items-center px-2.5 py-1 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5 text-xs font-medium text-zinc-600 dark:text-zinc-400 tabular-nums">{item.packageQuantity} {item.unit}</span></div>

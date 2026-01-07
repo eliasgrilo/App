@@ -14,9 +14,8 @@ export function RecipeListView({ recipes, filtered, categories, activeFilter, se
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative z-10">
-            {/* Header */}
-            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
-                <div><h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mb-1">Receitas</h1><p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">Bíblia culinária & fichas de produção</p></div>
+            {/* Action Button */}
+            <div className="relative z-10 flex justify-end mb-2">
                 <button onClick={onAddRecipe} className="w-full md:w-auto px-8 py-4 md:py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs md:text-sm font-bold uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"><Icons.Plus />Criar Nova Receita</button>
             </div>
             {/* Filters */}

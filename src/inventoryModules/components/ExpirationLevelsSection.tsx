@@ -74,7 +74,7 @@ const ExpirationItemRow = ({ item, status, total, unit, onClick }: {
             />
             <div className="relative z-10 p-3.5 flex items-center gap-4">
                 <div className="flex-shrink-0">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 6px 1px ${color}25` }} />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 6px 1px ${color}25` }} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-3">
@@ -175,9 +175,9 @@ export function ExpirationLevelsSection({ items, getTotalQuantity, onConfigureIt
             >
                 {/* Main glass container */}
                 <div
-                    className="relative overflow-hidden rounded-[2.5rem] bg-white/95 dark:bg-black"
+                    className="relative overflow-hidden rounded-[2.5rem] bg-white/60 dark:bg-black/40"
                     style={{
-                        boxShadow: '0 0 0 1px rgba(255,255,255,0.5) inset, 0 25px 50px -12px rgba(0,0,0,0.08), 0 0 80px -20px rgba(255,149,0,0.15)',
+                        boxShadow: '0 0 0 1px rgba(255,255,255,0.3) inset, 0 25px 50px -12px rgba(0,0,0,0.08), 0 0 80px -20px rgba(255,149,0,0.15)',
                         backdropFilter: 'blur(40px) saturate(180%)'
                     }}
                 >

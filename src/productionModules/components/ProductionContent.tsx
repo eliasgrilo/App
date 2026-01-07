@@ -7,7 +7,6 @@ import { useRef } from 'react'
 import BufferedInput from '../../BufferedInput'
 import YeastType, { YeastDataSet } from '../../YeastType'
 import Preferment, { PrefermentDataSet } from '../../Preferment'
-import { ProductionHeader } from './ProductionHeader'
 import { ProductionSummaryCard } from './ProductionSummaryCard'
 import { PortioningSection } from './PortioningSection'
 import { MaturationSection, ColdFermentationSection } from './MaturationSection'
@@ -31,7 +30,6 @@ export function ProductionContent({ inputMode, state, handlers }: ProductionCont
 
     return (
         <>
-            <ProductionHeader />
             <ProductionSummaryCard inputs={state.inputs} displayGrams={state.displayGrams} totalDoughWeight={state.totalDoughWeight} />
             <PortioningSection
                 inputs={state.inputs}

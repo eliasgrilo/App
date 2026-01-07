@@ -18,12 +18,12 @@ import Kanban from './Kanban'
 import FichaTecnica from './FichaTecnica'
 import Recipes from './Recipes'
 
-// Tab configuration
-const PRODUCTION_TABS: { key: ProductionViewType; label: string }[] = [
-    { key: 'producao', label: 'Produção' },
-    { key: 'kanban', label: 'Kanban' },
-    { key: 'ficha', label: 'Ficha' },
-    { key: 'receitas', label: 'Receitas' }
+// Tab configuration with titles and subtitles
+const PRODUCTION_TABS: { key: ProductionViewType; label: string; title: string; subtitle: string }[] = [
+    { key: 'producao', label: 'Produção', title: 'Produção', subtitle: 'Calculadora de massa premium' },
+    { key: 'kanban', label: 'Kanban', title: 'Kanban', subtitle: 'Gestão visual de tarefas e projetos' },
+    { key: 'ficha', label: 'Ficha', title: 'Ficha Técnica', subtitle: 'Gestão premium de receitas e custos' },
+    { key: 'receitas', label: 'Receitas', title: 'Receitas', subtitle: 'Biblioteca completa de receitas' }
 ]
 
 export default function Production({ inputMode }: ProductionProps) {
@@ -53,16 +53,6 @@ export default function Production({ inputMode }: ProductionProps) {
                 <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500/5 blur-[120px] rounded-full"></div>
             </div>
 
-            {/* Header */}
-            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
-                <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">Produção</h1>
-                    </div>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">Calculadora premium de massas e receitas</p>
-                </div>
-            </div>
-
             {/* Segmented Control Tabs */}
             <section className="relative z-10">
                 <div className="bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-xl inline-flex">
@@ -71,8 +61,8 @@ export default function Production({ inputMode }: ProductionProps) {
                             key={tab.key}
                             onClick={() => state.setActiveView(tab.key)}
                             className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all touch-manipulation ${state.activeView === tab.key
-                                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
                                 }`}
                         >
                             {tab.label}
@@ -80,6 +70,26 @@ export default function Production({ inputMode }: ProductionProps) {
                     ))}
                 </div>
             </section>
+
+            {/* Header - Dynamic based on active tab */}
+            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
+                <div>
+                    <div className="flex items-center gap-3 mb-1">
+                        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                            {PRODUCTION_TABS.find(tab => tab.key === state.activeView)?.title || 'Produção'}
+                        </h1>
+                        {state.activeView === 'ficha' && (
+                            <div className="mt-2 px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 transition-all duration-500 bg-emerald-500/5 border-emerald-500/10 text-emerald-500/80">
+                                <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest leading-none">Cloud Active</span>
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">
+                        {PRODUCTION_TABS.find(tab => tab.key === state.activeView)?.subtitle || 'Calculadora de massa premium'}
+                    </p>
+                </div>
+            </div>
 
             {/* Tab Content */}
             {state.activeView === 'producao' && (

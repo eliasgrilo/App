@@ -40,7 +40,7 @@ export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }:
 
     return (
         <section className="relative z-10 mb-8">
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.1 }} className="relative z-10 bg-white dark:bg-zinc-950 rounded-[2rem] md:rounded-[3rem] border border-zinc-200/50 dark:border-white/10 overflow-hidden shadow-xl">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.1 }} className="relative z-10 bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-[2rem] md:rounded-[3rem] border border-zinc-200/50 dark:border-white/10 overflow-hidden shadow-xl">
                 {/* Header */}
                 <div className="p-6 md:p-10 pb-4 md:pb-6">
                     <div className="flex items-start justify-between">

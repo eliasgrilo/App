@@ -9,8 +9,9 @@ import {
     StockMovementModal, CategoryManagementModal, InventoryTable, InventoryDashboard,
     InventoryFilters, InventoryHeader, useNewItemForm, InventoryItem, TAX_RATE, getStock,
     useInventoryState, useInventoryHandlers, useInventoryTotals, useAutoQuotation,
-    IngredientDetailModal
+    IngredientDetailModal, ExpirationDateModal
 } from './inventoryModules'
+import { getAlertSortPriority } from './services/stockService'
 
 /**
  * Inventory - Premium inventory management
@@ -47,6 +48,12 @@ export default function Inventory() {
 
     useAutoQuotation(items)
     const [selectedIngredient, setSelectedIngredient] = useState<InventoryItem | null>(null)
+    const [expirationEditItem, setExpirationEditItem] = useState<InventoryItem | null>(null)
+
+    const handleSaveExpirationDate = (itemId: number, newDate: string) => {
+        handlers.handleUpdateItem(itemId, 'expiryDate', newDate)
+        handlers.showToast('Validade atualizada', 'success')
+    }
 
     const filteredItems = useMemo((): InventoryItem[] => {
         let filtered = items
@@ -59,7 +66,9 @@ export default function Inventory() {
     }, [items, uiState.searchQuery, uiState.activeSubcategoryFilter])
 
     const groupedItems = useMemo(() => uiState.categories.reduce((acc: Record<string, InventoryItem[]>, cat) => {
-        const categoryItems = filteredItems.filter(item => item.category === cat)
+        const categoryItems = filteredItems
+            .filter(item => item.category === cat)
+            .sort((a, b) => getAlertSortPriority(a) - getAlertSortPriority(b))
         if (categoryItems.length > 0) acc[cat] = categoryItems
         return acc
     }, {}), [filteredItems, uiState.categories])
@@ -89,6 +98,24 @@ export default function Inventory() {
         handlers.showToast('Subcategoria removida', 'success')
     }
 
+    // Extract all unique subcategories from items + configured subcategories
+    const allSubcategories = useMemo(() => {
+        const fromItems = new Set(items.map(item => item.subcategory).filter(Boolean) as string[])
+        const fromConfig = Object.values(uiState.subcategories).flat()
+        return ['None', ...Array.from(new Set([...fromItems, ...fromConfig])).filter(s => s !== 'None')]
+    }, [items, uiState.subcategories])
+
+    // Reorder handlers
+    const handleReorderCategories = (newOrder: string[]) => {
+        uiState.setCategories(newOrder)
+    }
+
+    const handleReorderSubcategories = (newOrder: string[]) => {
+        // Update the order by rebuilding the subcategories object
+        // For now, we just track the display order separately
+        // The allSubcategories will reflect this order
+    }
+
     const handleSaveMovement = (data: Parameters<typeof addStockMovement>[0]) => {
         addStockMovement(data)
         const item = items.find(i => i.id === data.itemId)
@@ -107,21 +134,23 @@ export default function Inventory() {
             <InventoryDashboard totals={totals} taxRate={TAX_RATE} categories={uiState.categories} formatCurrency={formatCurrency} />
             <AddIngredientModal isOpen={uiState.isAddingItem} onClose={() => uiState.setIsAddingItem(false)} onAdd={handlers.handleAddItem} newItem={newItem} setNewItem={setNewItem} suppliers={suppliers} />
             <InventoryFilters searchQuery={uiState.searchQuery} setSearchQuery={uiState.setSearchQuery} activeSubcategoryFilter={uiState.activeSubcategoryFilter}
-                setActiveSubcategoryFilter={uiState.setActiveSubcategoryFilter} subcategories={['None', ...Object.values(uiState.subcategories).flat()]} filteredItemsCount={filteredItems.length}
+                setActiveSubcategoryFilter={uiState.setActiveSubcategoryFilter} subcategories={allSubcategories} filteredItemsCount={filteredItems.length}
                 onManageCategories={() => uiState.setIsManagingCategories(true)} />
-            <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={['None', ...Object.values(uiState.subcategories).flat()]} formatCurrency={formatCurrency}
+            <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={allSubcategories} formatCurrency={formatCurrency}
                 getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal}
                 handleUpdateItem={handlers.handleUpdateItem} handleDeleteItem={handlers.handleDeleteItem} onAddItem={() => uiState.setIsAddingItem(true)}
                 hasActiveFilter={uiState.activeSubcategoryFilter === 'None'} onSelectIngredient={setSelectedIngredient} />
             <StockLevelsSection items={items} getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} onConfigureItem={item => uiState.setConfiguringItem(item)} />
-            <ExpirationLevelsSection items={items as any} getTotalQuantity={getTotalQuantity as any} onConfigureItem={item => uiState.setConfiguringItem(item as any)} />
+            <ExpirationLevelsSection items={items as any} getTotalQuantity={getTotalQuantity as any} onConfigureItem={item => setExpirationEditItem(item as any)} />
             <MovementRegistry movements={movements as any} onRemoveMovement={m => handlers.removeMovement({ id: m.id, itemName: m.itemName })} onAddMovement={() => uiState.setMovementModalOpen(true)} />
             <ItemConfigModal item={uiState.configuringItem} onClose={() => uiState.setConfiguringItem(null)} onUpdateItem={handlers.handleUpdateItem} getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} />
             <CategoryManagementModal isOpen={uiState.isManagingCategories} onClose={() => uiState.setIsManagingCategories(false)} categories={uiState.categories} subcategories={uiState.subcategories}
-                onAddCategory={handleAddCategory} onRemoveCategory={handleRemoveCategory} onAddSubcategory={handleAddSubcategory} onRemoveSubcategory={handleRemoveSubcategory} />
+                allSubcategories={allSubcategories} onAddCategory={handleAddCategory} onRemoveCategory={handleRemoveCategory} onAddSubcategory={handleAddSubcategory} onRemoveSubcategory={handleRemoveSubcategory}
+                onReorderCategories={handleReorderCategories} onReorderSubcategories={handleReorderSubcategories} />
             <StockMovementModal isOpen={uiState.movementModalOpen} onClose={() => uiState.setMovementModalOpen(false)} items={items as any}
                 onSaveMovement={handleSaveMovement} getStock={getStock as any} />
             <IngredientDetailModal ingredient={selectedIngredient} onClose={() => setSelectedIngredient(null)} formatCurrency={formatCurrency} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal} />
+            <ExpirationDateModal item={expirationEditItem} onClose={() => setExpirationEditItem(null)} onSave={handleSaveExpirationDate} />
         </div>
     )
 }

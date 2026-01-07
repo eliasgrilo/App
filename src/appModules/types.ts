@@ -5,8 +5,8 @@
 import type { ComponentType } from 'react'
 import type { IconProps } from './components/NavIcons'
 import {
-    AIIcon, KanbanIcon, RecipesIcon, ProductsIcon,
-    InventoryIcon, SuppliersIcon, CostsIcon, FichaIcon, ProductionIcon
+    AIIcon, KanbanIcon, ProductsIcon,
+    InventoryIcon, SuppliersIcon, CostsIcon, ProductionIcon
 } from './components/NavIcons'
 
 export type UnitMode = 'pct' | 'grams'
@@ -21,12 +21,10 @@ export const NAV_ITEMS: NavItem[] = [
     { key: 'ai', label: 'Dashboard', icon: AIIcon },
     { key: 'kanban', label: 'Vendas', icon: KanbanIcon },
     { key: 'calculator', label: 'Produção', icon: ProductionIcon },
-    { key: 'products', label: 'Compras', icon: ProductsIcon },
     { key: 'inventory', label: 'Inventário', icon: InventoryIcon },
+    { key: 'products', label: 'Compras', icon: ProductsIcon },
     { key: 'costs', label: 'Financeiro', icon: CostsIcon },
-    { key: 'suppliers', label: 'Parceiros', icon: SuppliersIcon },
-    { key: 'recipes', label: 'Receitas', icon: RecipesIcon },
-    { key: 'ficha', label: 'Ficha', icon: FichaIcon }
+    { key: 'suppliers', label: 'Parceiros', icon: SuppliersIcon }
 ]
 
 // Spring animation configuration

@@ -34,8 +34,8 @@ export interface SuppliersStateReturn {
     setSelectedSupplier: (s: LocalSupplier | null) => void
     searchQuery: string
     setSearchQuery: (v: string) => void
-    activeView: 'suppliers' | 'quotes'
-    setActiveView: (v: 'suppliers' | 'quotes') => void
+    activeView: 'suppliers' | 'quotes' | 'clients'
+    setActiveView: (v: 'suppliers' | 'quotes' | 'clients') => void
 
     // Form state
     formData: SupplierFormData
@@ -93,7 +93,7 @@ export function useSuppliersState(): SuppliersStateReturn {
     const [editingSupplier, setEditingSupplier] = useState<LocalSupplier | null>(null)
     const [selectedSupplier, setSelectedSupplier] = useState<LocalSupplier | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [activeView, setActiveView] = useState<'suppliers' | 'quotes'>('suppliers')
+    const [activeView, setActiveView] = useState<'suppliers' | 'quotes' | 'clients'>('suppliers')
 
     // Form state
     const [formData, setFormData] = useState<SupplierFormData>(DEFAULT_FORM_DATA)
