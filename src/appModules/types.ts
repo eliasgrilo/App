@@ -18,15 +18,15 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-    { key: 'ai', label: 'IA', icon: AIIcon },
-    { key: 'kanban', label: 'Kanban', icon: KanbanIcon },
-    { key: 'recipes', label: 'Receitas', icon: RecipesIcon },
-    { key: 'products', label: 'Produtos', icon: ProductsIcon },
-    { key: 'inventory', label: 'Estoque', icon: InventoryIcon },
-    { key: 'suppliers', label: 'Fornecedores', icon: SuppliersIcon },
+    { key: 'ai', label: 'Dashboard', icon: AIIcon },
+    { key: 'kanban', label: 'Vendas', icon: KanbanIcon },
+    { key: 'calculator', label: 'Produção', icon: ProductionIcon },
+    { key: 'products', label: 'Compras', icon: ProductsIcon },
+    { key: 'inventory', label: 'Inventário', icon: InventoryIcon },
     { key: 'costs', label: 'Financeiro', icon: CostsIcon },
-    { key: 'ficha', label: 'Ficha', icon: FichaIcon },
-    { key: 'calculator', label: 'Produção', icon: ProductionIcon }
+    { key: 'suppliers', label: 'Parceiros', icon: SuppliersIcon },
+    { key: 'recipes', label: 'Receitas', icon: RecipesIcon },
+    { key: 'ficha', label: 'Ficha', icon: FichaIcon }
 ]
 
 // Spring animation configuration
