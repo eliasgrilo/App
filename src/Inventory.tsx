@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import AddIngredientModal from './components/AddIngredientModal'
+import { StockAlertsPanel } from './components/StockAlertsPanel'
+import { AnalyticsDashboard } from './components/AnalyticsDashboard'
 import { useCurrency } from './stores/useCurrencyStore'
 import { useModal, useToast } from './stores/useUIStore'
 import { useAppStore, useIngredients, useSuppliers, useStockMovements } from './stores/useAppStore'
@@ -89,6 +91,12 @@ export default function Inventory() {
 
             <InventoryHeader onScanInvoice={() => alert('📸 Scan Nota - Funcionalidade em desenvolvimento!')} onAddItem={() => uiState.setIsAddingItem(true)} />
             <InventoryDashboard totals={totals} taxRate={TAX_RATE} categories={uiState.categories} formatCurrency={formatCurrency} />
+
+            {/* Analytics & Stock Alerts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AnalyticsDashboard />
+                <StockAlertsPanel />
+            </div>
             <AddIngredientModal isOpen={uiState.isAddingItem} onClose={() => uiState.setIsAddingItem(false)} onAdd={handlers.handleAddItem} newItem={newItem} setNewItem={setNewItem} suppliers={suppliers} />
             <InventoryFilters searchQuery={uiState.searchQuery} setSearchQuery={uiState.setSearchQuery} activeSubcategoryFilter={uiState.activeSubcategoryFilter}
                 setActiveSubcategoryFilter={uiState.setActiveSubcategoryFilter} subcategories={uiState.subcategories} filteredItemsCount={filteredItems.length}
