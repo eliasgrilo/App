@@ -10,7 +10,23 @@ import { getCombinedAlertStatus } from '../../../services/stockService'
 export const MobileCard: React.FC<RowProps> = ({ item, isEditing, taxRate, formatCurrency, getStockStatus, getTotalQuantity, getItemTotal, handleUpdateItem, handleDeleteItem, setEditingId, onSelectIngredient }) => {
     const stockStatus = getStockStatus(item)
     const alertStatus = getCombinedAlertStatus(item)
-    const stockBorderClass = alertStatus === 'critical' ? 'border-l-4 border-l-rose-500' : alertStatus === 'warning' ? 'border-l-4 border-l-amber-500' : stockStatus === 'excess' ? 'border-l-4 border-l-blue-500' : ''
+    const totalQty = getTotalQuantity(item)
+    const hasStock = totalQty > 0
+
+    // Determine border color based on status - same logic as DesktopRow
+    // Green: has stock and everything is OK
+    // Orange: minimum stock OR expiry <= 30 days
+    // Red: critical stock OR expiry <= 7 days
+    // No border: no quantity registered
+    const getStockBorderClass = () => {
+        if (!hasStock) return '' // No border if no stock
+        if (alertStatus === 'critical') return 'border-l-4 border-l-rose-500'
+        if (alertStatus === 'warning') return 'border-l-4 border-l-amber-500'
+        if (stockStatus === 'excess') return 'border-l-4 border-l-blue-500'
+        return 'border-l-4 border-l-emerald-500' // OK with stock
+    }
+
+    const stockBorderClass = getStockBorderClass()
     const itemId = `inv-${item.id}`
 
     if (isEditing) {

@@ -103,13 +103,23 @@ export default function Inventory() {
         handlers.showToast('Subcategoria adicionada', 'success')
     }
 
-    const handleRemoveSubcategory = (category: string, subcategory: string) => {
-        uiState.setSubcategories(prev => ({
-            ...prev,
-            [category]: (prev[category] || []).filter(s => s !== subcategory)
-        }))
-        handlers.showToast('Subcategoria removida', 'success')
-    }
+    const handleRemoveSubcategory = (category: string, subcategory: string) => modal.confirm({
+        title: 'Excluir Subcategoria',
+        message: `Excluir subcategoria "${subcategory}"? Itens com essa subcategoria terão a subcategoria removida.`,
+        isDangerous: true,
+        onConfirm: () => {
+            // Remove from configuration
+            uiState.setSubcategories(prev => ({
+                ...prev,
+                [category]: (prev[category] || []).filter(s => s !== subcategory)
+            }))
+            // Also clear subcategory from items that use it
+            setItems(prev => prev.map(item =>
+                item.subcategory === subcategory ? { ...item, subcategory: 'None' } : item
+            ))
+            handlers.showToast('Subcategoria removida', 'success')
+        }
+    })
 
     // Extract all unique subcategories from items + configured subcategories
     const allSubcategories = useMemo(() => {
@@ -149,10 +159,13 @@ export default function Inventory() {
             <InventoryFilters searchQuery={uiState.searchQuery} setSearchQuery={uiState.setSearchQuery} activeSubcategoryFilter={uiState.activeSubcategoryFilter}
                 setActiveSubcategoryFilter={uiState.setActiveSubcategoryFilter} subcategories={allSubcategories} filteredItemsCount={filteredItems.length}
                 onManageCategories={() => uiState.setIsManagingCategories(true)} />
-            <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={allSubcategories} formatCurrency={formatCurrency}
-                getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal}
-                handleUpdateItem={handlers.handleUpdateItem} handleDeleteItem={handlers.handleDeleteItem} onAddItem={() => uiState.setIsAddingItem(true)}
-                hasActiveFilter={!!uiState.activeSubcategoryFilter || !!uiState.searchQuery.trim()} onSelectIngredient={setSelectedIngredient} />
+            {/* Show InventoryTable only when: Not "None" filter OR there's a search query */}
+            {(uiState.activeSubcategoryFilter !== 'None' || uiState.searchQuery.trim().length > 0) && (
+                <InventoryTable groupedItems={groupedItems as any} totals={totals} taxRate={TAX_RATE} subcategories={allSubcategories} formatCurrency={formatCurrency}
+                    getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} getItemTotal={getItemTotal}
+                    handleUpdateItem={handlers.handleUpdateItem} handleDeleteItem={handlers.handleDeleteItem} onAddItem={() => uiState.setIsAddingItem(true)}
+                    hasActiveFilter={!!uiState.activeSubcategoryFilter || !!uiState.searchQuery.trim()} onSelectIngredient={setSelectedIngredient} />
+            )}
             <StockLevelsSection items={items} getStockStatus={getStockStatus} getTotalQuantity={getTotalQuantity} onConfigureItem={item => uiState.setConfiguringItem(item)} />
             <ExpirationLevelsSection items={items as any} getTotalQuantity={getTotalQuantity as any} onConfigureItem={item => setExpirationEditItem(item as any)} />
             <MovementRegistry movements={movements as any} onRemoveMovement={m => handlers.removeMovement({ id: m.id, itemName: m.itemName })} onAddMovement={() => uiState.setMovementModalOpen(true)} />

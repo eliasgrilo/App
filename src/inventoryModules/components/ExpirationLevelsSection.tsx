@@ -74,7 +74,7 @@ const ExpirationItemRow = ({ item, status, total, unit, onClick }: {
             />
             <div className="relative z-10 p-3.5 flex items-center gap-4">
                 <div className="flex-shrink-0">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 6px 1px ${color}25` }} />
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 4px 1px ${color}25` }} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-3">

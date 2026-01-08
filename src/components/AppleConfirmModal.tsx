@@ -31,9 +31,9 @@ const AppleConfirmModal: React.FC<AppleConfirmModalProps> = ({ isOpen = false, t
 
     return createPortal(
         <AnimatePresence>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[50000] flex items-center justify-center p-4">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0" onClick={handleCancel}>
-                    <div className="absolute inset-0 bg-black/40 dark:bg-black/60" style={{ backdropFilter: 'blur(40px) saturate(1.8)', WebkitBackdropFilter: 'blur(40px) saturate(1.8)' }} />
+                    <div className="absolute inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm" />
                 </motion.div>
                 <motion.div ref={modalRef} role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description"
                     initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} transition={MODAL_ANIMATIONS.springGentle}

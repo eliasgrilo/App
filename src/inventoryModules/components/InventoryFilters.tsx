@@ -109,8 +109,8 @@ export function InventoryFilters({
                     </button>
                 </div>
 
-                {/* Active Filters Indicator */}
-                {(searchQuery || activeSubcategoryFilter) && (
+                {/* Active Filters Indicator - Only show for actual filters, not for None or Todos */}
+                {(searchQuery || (activeSubcategoryFilter && activeSubcategoryFilter !== 'None')) && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-100/80 dark:border-zinc-800">
                         <span className="text-xs text-zinc-500">
                             {filteredItemsCount} {filteredItemsCount === 1 ? 'resultado' : 'resultados'}

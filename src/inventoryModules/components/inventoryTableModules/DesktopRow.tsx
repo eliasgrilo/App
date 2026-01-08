@@ -34,12 +34,26 @@ export const DesktopRow: React.FC<RowProps> = ({ item, isEditing, taxRate, subca
 
     const status = getStockStatus(item)
     const alertStatus = getCombinedAlertStatus(item)
+    const totalQty = getTotalQuantity(item)
+    const hasStock = totalQty > 0
+
+    // Determine indicator color based on user requirements:
+    // Green: has stock and everything is OK
+    // Orange: minimum stock OR expiry <= 30 days
+    // Red: critical stock OR expiry <= 7 days
+    // No ball: no quantity registered
+    const getIndicator = () => {
+        if (!hasStock) return null // No ball if no stock
+        if (alertStatus === 'critical') return <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.5)]" title="Estoque crítico ou validade ≤ 7 dias" />
+        if (alertStatus === 'warning') return <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]" title="Estoque mínimo ou validade ≤ 30 dias" />
+        if (status === 'excess') return <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_4px_rgba(59,130,246,0.4)]" title="Acima do máximo" />
+        return <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]" title="Estoque OK" />
+    }
+
     return (
         <div onClick={() => onSelectIngredient?.(item)} className="grid grid-cols-12 gap-6 px-8 py-5 items-center hover:bg-zinc-50/80 dark:hover:bg-white/[0.02] transition-colors duration-300 group cursor-pointer">
             <div className="col-span-3 flex items-center gap-2">
-                {alertStatus === 'critical' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.5)]" title="Estoque crítico ou validade próxima" />}
-                {alertStatus === 'warning' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]" title="Estoque baixo ou validade em atenção" />}
-                {status === 'excess' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.4)]" title="Acima do máximo" />}
+                {getIndicator()}
                 <span className="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">{item.name}</span>
             </div>
             <div className="col-span-2 text-center"><span className="inline-flex items-center px-2.5 py-1 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5 text-xs font-medium text-zinc-600 dark:text-zinc-400 tabular-nums">{item.packageQuantity} {item.unit}</span></div>

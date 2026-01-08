@@ -133,8 +133,8 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
                 {/* Status indicator */}
                 <div className="flex-shrink-0">
                     <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: color, boxShadow: `0 0 6px 1px ${color}25` }}
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: color, boxShadow: `0 0 4px 1px ${color}25` }}
                     />
                 </div>
 

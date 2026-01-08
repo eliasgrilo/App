@@ -495,8 +495,8 @@ export function IngredientDetailModal({
                                                                                             }
                                                                                         }}
                                                                                         className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full transition-all duration-200 text-[8px] font-medium ${invoiceNumber
-                                                                                                ? 'bg-violet-50 dark:bg-violet-500/15 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/25'
-                                                                                                : 'bg-zinc-100 dark:bg-zinc-700/50 text-zinc-400 dark:text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                                                                            ? 'bg-violet-50 dark:bg-violet-500/15 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-500/25'
+                                                                                            : 'bg-zinc-100 dark:bg-zinc-700/50 text-zinc-400 dark:text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                                                                                             }`}
                                                                                     >
                                                                                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -542,9 +542,9 @@ export function IngredientDetailModal({
                         {/* Close Button */}
                         <button
                             onClick={onClose}
-                            className="w-full py-4 mt-4 rounded-2xl text-sm font-bold uppercase tracking-wider text-white bg-zinc-900 hover:bg-zinc-800 active:scale-[0.98] transition-all shadow-lg"
+                            className="w-full h-12 mt-4 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[15px] font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-100 shadow-lg transition-all active:scale-[0.98]"
                         >
-                            FECHAR
+                            Fechar
                         </button>
                     </div>
                 </motion.div>

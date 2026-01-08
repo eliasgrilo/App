@@ -18,7 +18,7 @@ export interface InventoryTableProps {
     formatCurrency: (value: number) => string; getStockStatus: (item: InventoryItem) => StockStatus
     getTotalQuantity: (item: InventoryItem) => number; getItemTotal: (item: InventoryItem) => number
     handleUpdateItem: (id: number | ID, field: string, value: string | number) => void; handleDeleteItem: (id: number | ID) => void; onAddItem: () => void
-    hasActiveFilter?: boolean; onSelectIngredient?: (item: InventoryItem) => void
+    hasActiveFilter?: boolean; onSelectIngredient?: (item: InventoryItem) => void; activeFilter?: string | null
 }
 
 export interface RowProps {
