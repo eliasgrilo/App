@@ -118,10 +118,7 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
             onClick={onClick}
             whileHover={{ scale: 1.003 }}
             whileTap={{ scale: 0.997 }}
-            className="group cursor-pointer relative overflow-hidden rounded-xl transition-all duration-200 bg-white/85 dark:bg-zinc-800/60"
-            style={{
-                boxShadow: '0 0 0 1px rgba(0,0,0,0.02), 0 2px 8px -2px rgba(0,0,0,0.03)'
-            }}
+            className="group cursor-pointer relative overflow-hidden rounded-xl transition-all duration-200 bg-transparent dark:bg-transparent border border-zinc-200/30 dark:border-white/10"
         >
             {/* Hover glow */}
             <motion.div
