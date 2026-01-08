@@ -123,7 +123,7 @@ export function IngredientDetailModal({
                                     key={tab.key}
                                     onClick={() => setActiveTab(tab.key)}
                                     className={`flex-1 px-3 py-2 text-xs font-semibold rounded-xl transition-all duration-200 ${activeTab === tab.key
-                                        ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                                        ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
                                         : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
                                         }`}
                                 >
