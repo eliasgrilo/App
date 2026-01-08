@@ -21,7 +21,7 @@ export function useCrudHandlers({ addSupplier, updateSupplier, removeSupplier, f
     const openAddModal = useCallback(() => { setFormData(DEFAULT_FORM_DATA); setEditingSupplier(null); setIsModalOpen(true) }, [setFormData, setEditingSupplier, setIsModalOpen])
 
     const openEditModal = useCallback((supplier: LocalSupplier) => {
-        setFormData({ name: supplier.name || '', company: supplier.company || '', email: supplier.email || '', phone: supplier.phone || '', whatsapp: supplier.whatsapp || '', address: supplier.address || '', notes: supplier.notes || '', linkedItems: supplier.linkedItems || [], documents: supplier.documents || [], autoOrderEnabled: supplier.autoOrderEnabled || false })
+        setFormData({ id: supplier.id, name: supplier.name || '', company: supplier.company || '', email: supplier.email || '', phone: supplier.phone || '', whatsapp: supplier.whatsapp || '', address: supplier.address || '', notes: supplier.notes || '', linkedItems: supplier.linkedItems || [], documents: supplier.documents || [], autoOrderEnabled: supplier.autoOrderEnabled || false })
         setEditingSupplier(supplier); setSelectedSupplier(null); setIsModalOpen(true)
     }, [setFormData, setEditingSupplier, setSelectedSupplier, setIsModalOpen])
 

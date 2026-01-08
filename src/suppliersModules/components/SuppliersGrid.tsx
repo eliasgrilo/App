@@ -5,10 +5,11 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import type { LocalSupplier } from '../types'
+import { useStockMovements, useIngredients } from '../../stores/useAppStore'
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -62,9 +63,36 @@ function HeroExpandedCard({ supplier, originRect, onClose, onEdit }: HeroCardPro
     const controls = useAnimation()
     const [phase, setPhase] = useState<'flying' | 'expanding' | 'ready' | 'closing'>('flying')
 
+    // Get stock movements and ingredients for price calculation
+    const stockMovements = useStockMovements()
+    const ingredients = useIngredients()
+
+    // Calculate last purchase price for a specific item from the same supplier
+    const getLastPurchasePrice = useCallback((itemId: string | number): number | undefined => {
+        if (!supplier.id || !stockMovements.length) return undefined
+
+        // Find the inventory item to check if it belongs to this supplier
+        const invItem = ingredients.find((i: any) => i.id === Number(itemId))
+        if (!invItem || invItem.supplierId !== Number(supplier.id)) return undefined
+
+        // Find the most recent 'entrada' movement for this item
+        const entryMovements = stockMovements
+            .filter(m => m.itemId === Number(itemId) && m.type === 'entrada' && m.costAtTime && m.quantity > 0)
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+        if (entryMovements.length === 0) return undefined
+
+        // Return price per unit
+        const lastEntry = entryMovements[0]
+        if (!lastEntry || !lastEntry.costAtTime) return undefined
+        return lastEntry.costAtTime / lastEntry.quantity
+    }, [stockMovements, ingredients, supplier.id])
+
     const hasLinkedItems = (supplier.linkedItems?.length ?? 0) > 0
     const hasNotes = !!supplier.notes?.trim()
     const hasAddress = !!supplier.address?.trim()
+    const hasCommercialInfo = !!supplier.deliveryDays?.length || !!supplier.minimumOrder || !!supplier.paymentTerms
+    const hasDocuments = (supplier.documents?.length ?? 0) > 0
 
     // Calculate dimensions
     const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1024
@@ -121,26 +149,11 @@ function HeroExpandedCard({ supplier, originRect, onClose, onEdit }: HeroCardPro
     const handleClose = async () => {
         setPhase('closing')
 
-        // Apple exit: card stays visible, animates back to origin fully
-        // Only fades at the very end for seamless merge with grid card
-        await controls.start({
-            width: originRect.width,
-            height: originRect.height,
-            x: originRect.left,
-            y: originRect.top,
-            scale: 1,
-            transition: {
-                type: 'spring' as const,
-                stiffness: 400,
-                damping: 35,
-                mass: 0.7
-            }
-        })
-
-        // Quick final fade
+        // Apple-style: simple, elegant fade out with slight scale
         await controls.start({
             opacity: 0,
-            transition: { duration: 0.1 }
+            scale: 0.96,
+            transition: { duration: 0.2, ease: [0.32, 0.72, 0, 1] }
         })
 
         onClose()
@@ -259,7 +272,7 @@ function HeroExpandedCard({ supplier, originRect, onClose, onEdit }: HeroCardPro
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 20 }}
                                 transition={{ duration: 0.25 }}
-                                className="px-6 pb-6 space-y-5"
+                                className="px-6 pb-6 space-y-4"
                             >
                                 {/* Quick Actions Row */}
                                 <div className="flex gap-3">
@@ -363,6 +376,64 @@ function HeroExpandedCard({ supplier, originRect, onClose, onEdit }: HeroCardPro
                                     </motion.div>
                                 )}
 
+                                {/* Commercial Info - Apple Inline Pills */}
+                                {hasCommercialInfo && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.22 }}
+                                        className="flex flex-wrap gap-2"
+                                    >
+                                        {supplier.deliveryDays && supplier.deliveryDays.length > 0 && (
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20">
+                                                <span className="text-sm">🚚</span>
+                                                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                                                    {supplier.deliveryDays.map(d =>
+                                                        d === 'mon' ? 'Seg' : d === 'tue' ? 'Ter' : d === 'wed' ? 'Qua' : d === 'thu' ? 'Qui' : d === 'fri' ? 'Sex' : d === 'sat' ? 'Sáb' : 'Dom'
+                                                    ).join(', ')}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {supplier.minimumOrder && (
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
+                                                <span className="text-sm">📦</span>
+                                                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Mín. {supplier.minimumOrder}</span>
+                                            </div>
+                                        )}
+                                        {supplier.paymentTerms && (
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20">
+                                                <span className="text-sm">💳</span>
+                                                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{supplier.paymentTerms}</span>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
+
+                                {/* Documents - Apple Compact Badges */}
+                                {hasDocuments && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.24 }}
+                                        className="flex flex-wrap gap-2"
+                                    >
+                                        {supplier.documents?.slice(0, 4).map(doc => (
+                                            <div
+                                                key={doc.id}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                                            >
+                                                <span className="text-sm">{doc.type.includes('pdf') ? '📄' : doc.type.includes('image') ? '🖼️' : '📎'}</span>
+                                                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300 max-w-[100px] truncate">{doc.name}</span>
+                                            </div>
+                                        ))}
+                                        {(supplier.documents?.length ?? 0) > 4 && (
+                                            <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 text-xs text-zinc-400">
+                                                +{(supplier.documents?.length ?? 0) - 4}
+                                            </span>
+                                        )}
+                                    </motion.div>
+                                )}
+
                                 {/* Linked Items */}
                                 {hasLinkedItems && (
                                     <motion.div
@@ -381,14 +452,22 @@ function HeroExpandedCard({ supplier, originRect, onClose, onEdit }: HeroCardPro
                                             </span>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
-                                            {supplier.linkedItems?.slice(0, 8).map((item) => (
-                                                <span
-                                                    key={item.itemId}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/20 text-sm font-medium text-violet-800 dark:text-violet-200"
-                                                >
-                                                    📦 {item.itemName}
-                                                </span>
-                                            ))}
+                                            {supplier.linkedItems?.slice(0, 8).map((item) => {
+                                                const lastPrice = getLastPurchasePrice(item.itemId)
+                                                return (
+                                                    <span
+                                                        key={item.itemId}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/20 text-sm font-medium text-violet-800 dark:text-violet-200"
+                                                    >
+                                                        📦 {item.itemName}
+                                                        {lastPrice !== undefined && lastPrice > 0 && (
+                                                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                                                ${lastPrice.toFixed(2)}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                )
+                                            })}
                                             {(supplier.linkedItems?.length ?? 0) > 8 && (
                                                 <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-sm text-zinc-500">
                                                     +{(supplier.linkedItems?.length ?? 0) - 8} mais
@@ -421,7 +500,11 @@ function HeroExpandedCard({ supplier, originRect, onClose, onEdit }: HeroCardPro
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.35 }}
-                                    onClick={(e) => { e.stopPropagation(); onEdit(supplier); handleClose() }}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleClose()
+                                        setTimeout(() => onEdit(supplier), 200)
+                                    }}
                                     className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold text-sm hover:opacity-90 transition-opacity"
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -448,6 +531,31 @@ export function SuppliersGrid({ suppliers, onSupplierClick, onEditClick, onAddCl
     const [selectedRect, setSelectedRect] = useState<DOMRect | null>(null)
     const [expandedItemsId, setExpandedItemsId] = useState<string | number | null>(null)
     const cardRefs = useRef<Map<string | number, HTMLDivElement>>(new Map())
+
+    // Get stock movements and ingredients for price calculation
+    const stockMovements = useStockMovements()
+    const ingredients = useIngredients()
+
+    // Calculate last purchase price for a specific item from the same supplier
+    const getLastPurchasePrice = useCallback((itemId: string | number, supplierId: string | number): number | undefined => {
+        if (!supplierId || !stockMovements.length) return undefined
+
+        // Find the inventory item to check if it belongs to this supplier
+        const invItem = ingredients.find((i: any) => i.id === Number(itemId))
+        if (!invItem || invItem.supplierId !== Number(supplierId)) return undefined
+
+        // Find the most recent 'entrada' movement for this item
+        const entryMovements = stockMovements
+            .filter(m => m.itemId === Number(itemId) && m.type === 'entrada' && m.costAtTime && m.quantity > 0)
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+        if (entryMovements.length === 0) return undefined
+
+        // Return price per unit
+        const lastEntry = entryMovements[0]
+        if (!lastEntry || !lastEntry.costAtTime) return undefined
+        return lastEntry.costAtTime / lastEntry.quantity
+    }, [stockMovements, ingredients])
 
     const handleCardClick = (supplier: LocalSupplier) => {
         const cardEl = cardRefs.current.get(supplier.id)
@@ -637,17 +745,20 @@ export function SuppliersGrid({ suppliers, onSupplierClick, onEditClick, onAddCl
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                                                     </svg>
                                                                 </div>
-                                                                <span className="text-[15px] font-semibold text-zinc-900 dark:text-white truncate">
+                                                                <span className="text-[15px] font-medium tracking-tight text-zinc-800 dark:text-zinc-100 truncate">
                                                                     {item.itemName}
                                                                 </span>
                                                             </div>
 
-                                                            {/* Price */}
-                                                            {(item as any).price !== undefined && (item as any).price > 0 && (
-                                                                <span className="text-[14px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                                                                    ${(item as any).price.toFixed(2)}
-                                                                </span>
-                                                            )}
+                                                            {/* Price - Apple Style */}
+                                                            {(() => {
+                                                                const lastPrice = getLastPurchasePrice(item.itemId, supplier.id)
+                                                                return lastPrice !== undefined && lastPrice > 0 ? (
+                                                                    <span className="text-[14px] font-semibold tabular-nums text-zinc-600 dark:text-zinc-300 shrink-0">
+                                                                        ${lastPrice.toFixed(2)}
+                                                                    </span>
+                                                                ) : null
+                                                            })()}
                                                         </div>
                                                     ))}
                                                 </div>

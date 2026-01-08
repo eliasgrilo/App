@@ -20,6 +20,7 @@ export interface SupplierDocument {
 }
 
 export interface SupplierFormData {
+    id?: ID
     name: string
     company: string
     email: string
@@ -44,6 +45,9 @@ export interface LocalSupplier {
     linkedItems?: LinkedItem[]
     documents?: SupplierDocument[]
     autoOrderEnabled?: boolean
+    paymentTerms?: string
+    minimumOrder?: string
+    deliveryDays?: string[]
     createdAt?: string
     updatedAt?: string
 }
@@ -70,6 +74,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
 
 // Default form data
 export const DEFAULT_FORM_DATA: SupplierFormData = {
+    id: undefined,
     name: '',
     company: '',
     email: '',

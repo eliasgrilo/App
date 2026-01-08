@@ -299,6 +299,195 @@ const DEMO_MOVEMENTS: StockMovement[] = [
         costAtTime: 89.70,
         reason: 'Venda urgente (contagem errada)',
         timestamp: new Date(Date.now() - 1800000).toISOString() // 30min ago
+    },
+    // ═══ ADDITIONAL TEST ENTRIES FOR SUPPLIER LINKED ITEMS ═══
+    // Supplier 1 (Moinho Globo) - Items: 1, 8
+    {
+        id: 'demo_entrada_fermento_1',
+        itemId: 8,
+        itemName: 'Fermento Biológico Seco',
+        type: 'entrada',
+        quantity: 2,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 2,
+        costAtTime: 64.00, // R$32.00/kg
+        reason: 'Compra Moinho Globo',
+        timestamp: new Date(Date.now() - 86400000 * 3).toISOString()
+    },
+    // Supplier 2 (Importadora Italia) - Items: 2, 4, 7, 10
+    {
+        id: 'demo_entrada_molho_1',
+        itemId: 2,
+        itemName: 'Molho de Tomate San Marzano',
+        type: 'entrada',
+        quantity: 10,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 10,
+        costAtTime: 425.00, // R$42.50/kg
+        reason: 'Compra Importadora Italia',
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+        id: 'demo_entrada_azeite_1',
+        itemId: 4,
+        itemName: 'Azeite Extra Virgem',
+        type: 'entrada',
+        quantity: 15,
+        unit: 'L',
+        previousStock: 0,
+        newStock: 15,
+        costAtTime: 2835.00, // R$189.00/L
+        reason: 'Compra Importadora Italia',
+        timestamp: new Date(Date.now() - 86400000 * 5).toISOString()
+    },
+    {
+        id: 'demo_entrada_parmesao_1',
+        itemId: 7,
+        itemName: 'Parmesão Reggiano 24 meses',
+        type: 'entrada',
+        quantity: 3,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 3,
+        costAtTime: 855.00, // R$285.00/kg
+        reason: 'Compra Importadora Italia',
+        timestamp: new Date(Date.now() - 86400000 * 4).toISOString()
+    },
+    {
+        id: 'demo_entrada_presunto_1',
+        itemId: 10,
+        itemName: 'Presunto de Parma',
+        type: 'entrada',
+        quantity: 4,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 4,
+        costAtTime: 580.00, // R$145.00/kg
+        reason: 'Compra Importadora Italia',
+        timestamp: new Date(Date.now() - 86400000 * 6).toISOString()
+    },
+    // Supplier 3 (Laticínios Premium) - Items: 3, 13
+    {
+        id: 'demo_entrada_mussarela_2',
+        itemId: 3,
+        itemName: 'Mussarela di Bufala',
+        type: 'entrada',
+        quantity: 5,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 5,
+        costAtTime: 625.00, // R$125.00/kg
+        reason: 'Compra Laticínios Premium',
+        timestamp: new Date(Date.now() - 86400000 * 1).toISOString()
+    },
+    {
+        id: 'demo_entrada_gorgonzola_1',
+        itemId: 13,
+        itemName: 'Gorgonzola',
+        type: 'entrada',
+        quantity: 4,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 4,
+        costAtTime: 380.00, // R$95.00/kg
+        reason: 'Compra Laticínios Premium',
+        timestamp: new Date(Date.now() - 86400000 * 3).toISOString()
+    },
+    // Supplier 4 (Embutidos Gourmet) - Items: 5, 15
+    {
+        id: 'demo_entrada_pepperoni_1',
+        itemId: 5,
+        itemName: 'Pepperoni Artesanal',
+        type: 'entrada',
+        quantity: 12,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 12,
+        costAtTime: 936.00, // R$78.00/kg
+        reason: 'Compra Embutidos Gourmet',
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+        id: 'demo_entrada_calabresa_1',
+        itemId: 15,
+        itemName: 'Calabresa Artesanal',
+        type: 'entrada',
+        quantity: 10,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 10,
+        costAtTime: 520.00, // R$52.00/kg
+        reason: 'Compra Embutidos Gourmet',
+        timestamp: new Date(Date.now() - 86400000 * 4).toISOString()
+    },
+    // Supplier 5 (Horta Orgânica) - Items: 6, 11, 14
+    {
+        id: 'demo_entrada_manjericao_1',
+        itemId: 6,
+        itemName: 'Manjericão Fresco',
+        type: 'entrada',
+        quantity: 24,
+        unit: 'un',
+        previousStock: 0,
+        newStock: 24,
+        costAtTime: 204.00, // R$8.50/un
+        reason: 'Compra Horta Orgânica',
+        timestamp: new Date(Date.now() - 86400000 * 1).toISOString()
+    },
+    {
+        id: 'demo_entrada_cogumelos_1',
+        itemId: 11,
+        itemName: 'Cogumelos Portobello',
+        type: 'entrada',
+        quantity: 3,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 3,
+        costAtTime: 114.00, // R$38.00/kg
+        reason: 'Compra Horta Orgânica',
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+        id: 'demo_entrada_cebola_1',
+        itemId: 14,
+        itemName: 'Cebola Roxa',
+        type: 'entrada',
+        quantity: 10,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 10,
+        costAtTime: 180.00, // R$18.00/kg
+        reason: 'Compra Horta Orgânica',
+        timestamp: new Date(Date.now() - 86400000 * 3).toISOString()
+    },
+    // Supplier 6 (Distribuidora Central) - Items: 9, 12
+    {
+        id: 'demo_entrada_sal_1',
+        itemId: 9,
+        itemName: 'Sal Marinho',
+        type: 'entrada',
+        quantity: 10,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 10,
+        costAtTime: 120.00, // R$12.00/kg
+        reason: 'Compra Distribuidora Central',
+        timestamp: new Date(Date.now() - 86400000 * 5).toISOString()
+    },
+    {
+        id: 'demo_entrada_detergente_1',
+        itemId: 12,
+        itemName: 'Detergente Neutro',
+        type: 'entrada',
+        quantity: 20,
+        unit: 'L',
+        previousStock: 0,
+        newStock: 20,
+        costAtTime: 560.00, // R$28.00/L
+        reason: 'Compra Distribuidora Central',
+        timestamp: new Date(Date.now() - 86400000 * 7).toISOString()
     }
 ]
 

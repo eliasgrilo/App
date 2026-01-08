@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { Icons, LinkedItemsSearch, FileUploadZone } from '../addSupplierModules'
+import { useStockMovements } from '../stores/useAppStore'
 
 // ═══════════════════════════════════════════════════════════════════
 // ANIMATION SYSTEM — Apple-quality springs
@@ -441,6 +442,7 @@ export default function AddSupplierModal({
 
     useScrollLock(isOpen)
     useFocusTrap(isOpen, modalRef)
+    const stockMovements = useStockMovements()
 
     const isValid = useMemo(() => formData.name?.trim().length > 0, [formData.name])
 
@@ -757,6 +759,9 @@ export default function AddSupplierModal({
                                             onUnlink={unlinkItem}
                                             searchQuery={itemSearchQuery}
                                             setSearchQuery={setItemSearchQuery}
+                                            stockMovements={stockMovements}
+                                            supplierId={formData.id}
+                                            inventoryItemsFull={inventoryItems}
                                         />
                                     </div>
                                 </GlassCard>

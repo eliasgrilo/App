@@ -300,8 +300,16 @@ export const MOCK_SUPPLIERS = [
         notes: 'Entrega às terças e quintas. Pedido mínimo 100kg.',
         contactPerson: 'Roberto Silva',
         paymentTerms: 'Net 30',
-        linkedItems: [1, 8],
-        documents: [],
+        minimumOrder: '$500',
+        deliveryDays: ['tue', 'thu'],
+        linkedItems: [
+            { itemId: 1, itemName: 'Farinha de Trigo Tipo 00' },
+            { itemId: 8, itemName: 'Fermento Biológico Seco' }
+        ],
+        documents: [
+            { id: 'doc1', name: 'Catálogo 2025.pdf', type: 'application/pdf', size: 2458000, dataUrl: '', uploadedAt: '2025-12-01T10:00:00Z', category: 'catalogo' },
+            { id: 'doc2', name: 'Certificado ISO.pdf', type: 'application/pdf', size: 845000, dataUrl: '', uploadedAt: '2025-11-15T14:00:00Z', category: 'tecnico' }
+        ],
         createdAt: '2025-11-01T10:00:00Z',
         updatedAt: '2025-12-28T14:00:00Z'
     },
@@ -317,7 +325,12 @@ export const MOCK_SUPPLIERS = [
         notes: 'Produtos DOP autênticos. Prazo de entrega 5-7 dias.',
         contactPerson: 'Maria Rossi',
         paymentTerms: 'Net 15',
-        linkedItems: [2, 4, 7, 10],
+        linkedItems: [
+            { itemId: 2, itemName: 'Molho de Tomate San Marzano' },
+            { itemId: 4, itemName: 'Azeite Extra Virgem' },
+            { itemId: 7, itemName: 'Parmesão Reggiano 24 meses' },
+            { itemId: 10, itemName: 'Presunto de Parma' }
+        ],
         documents: [],
         createdAt: '2025-10-15T09:00:00Z',
         updatedAt: '2025-12-27T11:00:00Z'
@@ -334,7 +347,10 @@ export const MOCK_SUPPLIERS = [
         notes: 'Produção artesanal. Entregas diárias disponíveis.',
         contactPerson: 'João Monteiro',
         paymentTerms: 'COD',
-        linkedItems: [3, 13],
+        linkedItems: [
+            { itemId: 3, itemName: 'Mussarela di Bufala' },
+            { itemId: 13, itemName: 'Gorgonzola' }
+        ],
         documents: [],
         createdAt: '2025-09-20T08:00:00Z',
         updatedAt: '2025-12-30T16:00:00Z'
@@ -351,7 +367,10 @@ export const MOCK_SUPPLIERS = [
         notes: 'Cura artesanal. Certificação orgânica disponível.',
         contactPerson: 'Carlos Ferreira',
         paymentTerms: 'Net 7',
-        linkedItems: [5, 15],
+        linkedItems: [
+            { itemId: 5, itemName: 'Pepperoni Artesanal' },
+            { itemId: 15, itemName: 'Calabresa Artesanal' }
+        ],
         documents: [],
         createdAt: '2025-11-10T11:00:00Z',
         updatedAt: '2025-12-29T09:00:00Z'
@@ -368,7 +387,11 @@ export const MOCK_SUPPLIERS = [
         notes: 'Colheita diária. 100% orgânico certificado.',
         contactPerson: 'Ana Paula',
         paymentTerms: 'COD',
-        linkedItems: [6, 11, 14],
+        linkedItems: [
+            { itemId: 6, itemName: 'Manjericão Fresco' },
+            { itemId: 11, itemName: 'Cogumelos Portobello' },
+            { itemId: 14, itemName: 'Cebola Roxa' }
+        ],
         documents: [],
         createdAt: '2025-08-01T07:00:00Z',
         updatedAt: '2025-12-31T08:00:00Z'
@@ -385,7 +408,10 @@ export const MOCK_SUPPLIERS = [
         notes: 'Entrega rápida. Amplo catálogo.',
         contactPerson: 'Pedro Santos',
         paymentTerms: 'Net 30',
-        linkedItems: [9, 12],
+        linkedItems: [
+            { itemId: 9, itemName: 'Sal Marinho' },
+            { itemId: 12, itemName: 'Detergente Neutro' }
+        ],
         documents: [],
         createdAt: '2025-07-15T10:00:00Z',
         updatedAt: '2025-12-22T11:00:00Z'

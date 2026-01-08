@@ -9,7 +9,16 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Icons } from '../Icons'
 import { formatFileSize } from '../formatters'
 
-interface LinkedItem { itemId: string | number; itemName?: string }
+interface LinkedItem { itemId: string | number; itemName?: string; lastPurchasePrice?: number }
+
+interface StockMovement {
+    id: string
+    itemId: number
+    type: string
+    quantity: number
+    costAtTime?: number
+    timestamp: string
+}
 
 export interface LinkedItemsSearchProps {
     inventoryItems: any[]
@@ -18,13 +27,37 @@ export interface LinkedItemsSearchProps {
     onUnlink: (itemId: any) => void
     searchQuery: string
     setSearchQuery: (query: string) => void
+    stockMovements?: StockMovement[]
+    supplierId?: number | string
+    inventoryItemsFull?: any[]
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // LINKED ITEMS SEARCH — with portal dropdown and match animation
 // ═══════════════════════════════════════════════════════════════════
 
-export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlink, searchQuery, setSearchQuery }: LinkedItemsSearchProps) {
+export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlink, searchQuery, setSearchQuery, stockMovements = [], supplierId, inventoryItemsFull = [] }: LinkedItemsSearchProps) {
+    // Calculate last purchase price for a specific item from the same supplier
+    const getLastPurchasePrice = useCallback((itemId: string | number): number | undefined => {
+        if (!supplierId || !stockMovements.length) return undefined
+
+        // Find the inventory item to check its supplierId
+        const invItem = inventoryItemsFull.find((i: any) => i.id === itemId)
+        if (!invItem || invItem.supplierId !== Number(supplierId)) return undefined
+
+        // Find the most recent 'entrada' movement for this item
+        const entryMovements = stockMovements
+            .filter(m => m.itemId === Number(itemId) && m.type === 'entrada' && m.costAtTime && m.quantity > 0)
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+        if (entryMovements.length === 0) return undefined
+
+        // Return price per unit
+        const lastEntry = entryMovements[0]
+        if (!lastEntry || !lastEntry.costAtTime) return undefined
+        return lastEntry.costAtTime / lastEntry.quantity
+    }, [stockMovements, supplierId, inventoryItemsFull])
+
     const [isOpen, setIsOpen] = useState(false)
     const [matchedItem, setMatchedItem] = useState<any>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -235,14 +268,20 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
                             transition={{ delay: i * 0.03 }}
                             className="flex items-center gap-2 px-3 py-2 bg-violet-50 dark:bg-violet-500/15 rounded-xl border border-violet-200 dark:border-violet-500/30"
                         >
-                            <span className="text-[14px] font-medium text-violet-700 dark:text-violet-300">{item.itemName}</span>
+                            <span className="text-[14px] font-medium tracking-tight text-zinc-800 dark:text-zinc-200">{item.itemName}</span>
 
-                            {/* Price - Same violet color scheme */}
-                            {item.price !== undefined && item.price > 0 && (
-                                <span className="text-[12px] font-semibold text-violet-500 dark:text-violet-400">
-                                    ${item.price.toFixed(2)}
-                                </span>
-                            )}
+                            {/* Last Purchase Price - Apple Style */}
+                            {(() => {
+                                const lastPrice = item.lastPurchasePrice ?? getLastPurchasePrice(item.itemId)
+                                return lastPrice !== undefined && lastPrice > 0 ? (
+                                    <>
+                                        <span className="text-zinc-300 dark:text-zinc-600">·</span>
+                                        <span className="text-[13px] font-normal tracking-tight text-zinc-500 dark:text-zinc-400">
+                                            ${lastPrice.toFixed(2)}
+                                        </span>
+                                    </>
+                                ) : null
+                            })()}
 
                             <button
                                 type="button"
