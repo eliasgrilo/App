@@ -24,7 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
     { key: 'inventory', label: 'Inventário', icon: InventoryIcon },
     { key: 'products', label: 'Compras', icon: ProductsIcon },
     { key: 'costs', label: 'Financeiro', icon: CostsIcon },
-    { key: 'suppliers', label: 'Parceiros', icon: SuppliersIcon }
+    { key: 'suppliers', label: 'Fornecedores', icon: SuppliersIcon }
 ]
 
 // Spring animation configuration

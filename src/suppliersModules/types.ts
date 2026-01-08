@@ -79,7 +79,7 @@ export const DEFAULT_FORM_DATA: SupplierFormData = {
     notes: '',
     linkedItems: [],
     documents: [],
-    autoOrderEnabled: false
+    autoOrderEnabled: true
 }
 
 // File utilities

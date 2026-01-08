@@ -7,7 +7,7 @@
 
 import React from 'react'
 import AddSupplierModal from './components/AddSupplierModal'
-import { useSuppliersState, useSuppliersHandlers, SuppliersGrid, QuotesView, SupplierDetailModal } from './suppliersModules'
+import { useSuppliersState, useSuppliersHandlers, SuppliersGrid, QuotesView } from './suppliersModules'
 
 export default function Suppliers() {
     const state = useSuppliersState()
@@ -18,7 +18,7 @@ export default function Suppliers() {
             <div className="fixed inset-0 pointer-events-none overflow-hidden select-none opacity-40"><div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-500/5 blur-[120px] rounded-full"></div><div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 blur-[120px] rounded-full"></div></div>
             {/* Header */}
             <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-2">
-                <div><div className="flex items-center gap-3 mb-1"><h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">Parceiros</h1></div><p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">Gestão de fornecedores e clientes</p></div>
+                <div><div className="flex items-center gap-3 mb-1"><h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">Fornecedores</h1></div><p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">Gestão de fornecedores e parceiros</p></div>
                 <button onClick={handlers.openAddModal} className="w-full md:w-auto px-8 py-4 md:py-3.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl text-xs md:text-sm font-bold uppercase tracking-widest shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"><svg className="h-5 w-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>Adicionar Fornecedor</button>
             </div>
             {/* Segmented Control */}
@@ -44,7 +44,7 @@ export default function Suppliers() {
                 </section>
             )}
             <AddSupplierModal isOpen={state.isModalOpen} onClose={() => state.setIsModalOpen(false)} onSave={handlers.handleSave} formData={state.formData} setFormData={state.setFormData} inventoryItems={state.inventoryItems} isEditing={!!state.editingSupplier} onFileSelect={handlers.handleFileSelect} uploadingFile={!!state.uploadingFile} uploadProgress={state.uploadProgress} onDeleteDocument={handlers.deleteDocument} />
-            <SupplierDetailModal supplier={state.selectedSupplier} onClose={() => state.setSelectedSupplier(null)} onEdit={handlers.openEditModal} onDelete={handlers.handleDelete} handleCall={handlers.handleCall} handleEmail={handlers.handleEmail} handleWhatsApp={handlers.handleWhatsApp} downloadDocument={handlers.downloadDocument} />
+
         </div>
     )
 }

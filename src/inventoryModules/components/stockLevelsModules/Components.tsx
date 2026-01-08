@@ -145,30 +145,28 @@ export const StockItemRow: React.FC<StockItemRowProps> = ({ item, status, total,
                         </div>
                     </div>
 
-                    {/* Progress bar */}
-                    {hasLimits && (
-                        <div className="mt-2 relative">
-                            <div className="h-1 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-700">
-                                <motion.div
-                                    className="h-full rounded-full"
-                                    style={{
-                                        background: `linear-gradient(90deg, ${color} 0%, ${color}CC 100%)`,
-                                        boxShadow: `0 0 10px 1px ${color}40`
-                                    }}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${progress}%` }}
-                                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-                                />
-                            </div>
-
-                            {/* Labels */}
-                            <div className="flex justify-between mt-1.5">
-                                <span className="text-[9px] text-zinc-400 tabular-nums">{min > 0 ? `Min ${min}` : ''}</span>
-                                <span className="text-[9px] font-medium" style={{ color }}>{label}</span>
-                                <span className="text-[9px] text-zinc-400 tabular-nums">{max > 0 ? `Max ${max}` : ''}</span>
-                            </div>
+                    {/* Progress bar - always shown like ExpirationItemRow */}
+                    <div className="mt-2 relative">
+                        <div className="h-1 rounded-full overflow-hidden bg-zinc-100 dark:bg-zinc-700">
+                            <motion.div
+                                className="h-full rounded-full"
+                                style={{
+                                    background: `linear-gradient(90deg, ${color} 0%, ${color}CC 100%)`,
+                                    boxShadow: `0 0 10px 1px ${color}40`
+                                }}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progress}%` }}
+                                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                            />
                         </div>
-                    )}
+
+                        {/* Labels */}
+                        <div className="flex justify-between mt-1.5">
+                            <span className="text-[9px] text-zinc-400 tabular-nums">{min > 0 ? `Min ${min}` : ''}</span>
+                            <span className="text-[9px] font-medium" style={{ color }}>{label}</span>
+                            <span className="text-[9px] text-zinc-400 tabular-nums">{max > 0 ? `Max ${max}` : ''}</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Arrow */}

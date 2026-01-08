@@ -3,7 +3,8 @@
 // LinkedItemsSearch, FileUploadZone
 // ═══════════════════════════════════════════════════════════════════
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Icons } from '../Icons'
 import { formatFileSize } from '../formatters'
@@ -19,53 +20,238 @@ export interface LinkedItemsSearchProps {
     setSearchQuery: (query: string) => void
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// LINKED ITEMS SEARCH — with portal dropdown and match animation
+// ═══════════════════════════════════════════════════════════════════
+
 export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlink, searchQuery, setSearchQuery }: LinkedItemsSearchProps) {
     const [isOpen, setIsOpen] = useState(false)
-    const filtered = inventoryItems.filter((item: any) =>
-        item.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !linkedItems.find((li: LinkedItem) => li.itemId === item.id)
-    ).slice(0, 5)
+    const [matchedItem, setMatchedItem] = useState<any>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+
+    // Minimum characters before showing results
+    const minChars = 3
+    const hasMinChars = searchQuery.trim().length >= minChars
+
+    // Filter items - exclude already linked, only show if user typed enough
+    const filtered = hasMinChars
+        ? inventoryItems.filter((item: any) =>
+            item.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !linkedItems.find((li: LinkedItem) => li.itemId === item.id)
+        ).slice(0, 6)
+        : []
+
+    // Check for exact match (same word count and content) - only if typed enough
+    const exactMatch = hasMinChars
+        ? inventoryItems.find((item: any) => {
+            const queryWords = searchQuery.toLowerCase().trim().split(/\s+/)
+            const itemWords = item.name?.toLowerCase().trim().split(/\s+/) || []
+            return queryWords.length === itemWords.length &&
+                queryWords.every((word, i) => itemWords[i] === word) &&
+                !linkedItems.find((li: LinkedItem) => li.itemId === item.id)
+        })
+        : null
+
+    // Update dropdown position when input is focused
+    const updatePosition = useCallback(() => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect()
+            setDropdownPosition({
+                top: rect.bottom + 8,
+                left: rect.left,
+                width: rect.width
+            })
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!isOpen) return
+
+        updatePosition()
+        window.addEventListener('scroll', updatePosition, true)
+        window.addEventListener('resize', updatePosition)
+        return () => {
+            window.removeEventListener('scroll', updatePosition, true)
+            window.removeEventListener('resize', updatePosition)
+        }
+    }, [isOpen, updatePosition])
+
+    // Handle exact match with animation
+    const handleExactMatch = useCallback(() => {
+        if (exactMatch) {
+            setMatchedItem(exactMatch)
+            onLink(exactMatch)
+            setSearchQuery('')
+            setIsOpen(false)
+            // Clear match animation after delay
+            setTimeout(() => setMatchedItem(null), 1500)
+        }
+    }, [exactMatch, onLink, setSearchQuery])
+
+    // Handle Enter key for exact match
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && exactMatch) {
+            e.preventDefault()
+            handleExactMatch()
+        }
+        if (e.key === 'Escape') {
+            setIsOpen(false)
+        }
+    }
 
     return (
         <div className="space-y-3">
+            {/* Match Success Animation */}
+            <AnimatePresence>
+                {matchedItem && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                        className="flex items-center gap-3 p-3 bg-green-500/15 dark:bg-green-500/20 rounded-xl border border-green-500/30"
+                    >
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 25, delay: 0.1 }}
+                            className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center"
+                        >
+                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </motion.div>
+                        <span className="text-[14px] font-semibold text-green-700 dark:text-green-300">
+                            {matchedItem.name} vinculado com sucesso!
+                        </span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Search Input */}
             <div className="relative">
-                <input type="text" value={searchQuery}
-                    onChange={(e: any) => { setSearchQuery(e.target.value); setIsOpen(true) }}
-                    onFocus={() => setIsOpen(true)} placeholder="Buscar item do estoque..."
-                    className="w-full h-[44px] px-4 pr-10 text-[16px] bg-[#f5f5f7] dark:bg-[#2c2c2e] rounded-xl text-[#1d1d1f] dark:text-white placeholder:text-[#aeaeb2] outline-none" />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#c7c7cc]">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setIsOpen(true); updatePosition() }}
+                    onFocus={() => { setIsOpen(true); updatePosition() }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Buscar item do estoque..."
+                    className={`w-full h-[48px] px-4 pr-10 text-[16px] rounded-xl outline-none transition-all duration-200 ${exactMatch
+                        ? 'bg-green-500/10 dark:bg-green-500/15 border-2 border-green-500 text-green-700 dark:text-green-300'
+                        : 'bg-[#f5f5f7] dark:bg-[#2c2c2e] border-2 border-transparent text-[#1d1d1f] dark:text-white'
+                        } placeholder:text-[#aeaeb2]`}
+                />
+                <div className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${exactMatch ? 'text-green-500' : 'text-[#c7c7cc]'}`}>
+                    {exactMatch ? (
+                        <motion.div
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </motion.div>
+                    ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                        </svg>
+                    )}
                 </div>
+
+                {/* Exact match hint */}
+                {exactMatch && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute -bottom-6 left-0 text-[12px] font-medium text-green-600 dark:text-green-400"
+                    >
+                        Pressione Enter para vincular
+                    </motion.div>
+                )}
+            </div>
+
+            {/* Dropdown rendered via Portal */}
+            {createPortal(
                 <AnimatePresence>
-                    {isOpen && filtered.length > 0 && (
+                    {isOpen && filtered.length > 0 && !exactMatch && (
                         <>
-                            <motion.div initial={{ opacity: 0, y: -8, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                            {/* Backdrop to close */}
+                            <div
+                                className="fixed inset-0 z-[99998]"
+                                onClick={() => setIsOpen(false)}
+                            />
+
+                            {/* Dropdown */}
+                            <motion.div
+                                initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -8, scale: 0.96 }}
                                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-[#2c2c2e] rounded-[14px] shadow-2xl overflow-hidden z-50 border border-black/[0.04] dark:border-white/[0.06]"
-                                style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+                                className="fixed bg-white dark:bg-[#2c2c2e] rounded-[14px] shadow-2xl overflow-hidden z-[99999] border border-black/[0.04] dark:border-white/[0.06]"
+                                style={{
+                                    top: dropdownPosition.top,
+                                    left: dropdownPosition.left,
+                                    width: dropdownPosition.width,
+                                    boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.05)'
+                                }}
+                            >
                                 {filtered.map((item, i) => (
-                                    <motion.button key={item.id} onClick={() => { onLink(item); setSearchQuery(''); setIsOpen(false) }}
-                                        initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-                                        whileHover={{ backgroundColor: 'rgba(52,199,89,0.08)' }} whileTap={{ scale: 0.98 }}
-                                        className={`w-full h-[48px] px-4 text-left flex items-center justify-between text-[15px] text-[#1d1d1f] dark:text-white ${i < filtered.length - 1 ? 'border-b border-[#f5f5f7] dark:border-[#3a3a3c]' : ''}`}>
+                                    <motion.button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => { onLink(item); setSearchQuery(''); setIsOpen(false) }}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.03 }}
+                                        whileHover={{ backgroundColor: 'rgba(52,199,89,0.12)' }}
+                                        whileTap={{ scale: 0.98 }}
+                                        className={`w-full h-[52px] px-4 text-left flex items-center justify-between text-[15px] text-[#1d1d1f] dark:text-white ${i < filtered.length - 1 ? 'border-b border-[#f5f5f7] dark:border-[#3a3a3c]' : ''
+                                            }`}
+                                    >
                                         <span className="font-medium">{item.name}</span>
-                                        <div className="w-6 h-6 rounded-full bg-[#34c759]/15 flex items-center justify-center text-[#34c759]">{Icons.plus}</div>
+                                        <div className="w-7 h-7 rounded-full bg-[#34c759]/15 flex items-center justify-center text-[#34c759]">
+                                            {Icons.plus}
+                                        </div>
                                     </motion.button>
                                 ))}
                             </motion.div>
-                            <button type="button" aria-label="Fechar lista" className="fixed inset-0 z-40 bg-transparent border-none cursor-default" onClick={() => setIsOpen(false)} />
                         </>
                     )}
-                </AnimatePresence>
-            </div>
+                </AnimatePresence>,
+                document.body
+            )}
+
+            {/* Linked Items - Pure Violet Apple Style */}
             {linkedItems.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 mt-4">
                     {linkedItems.map((item, i) => (
-                        <motion.div key={item.itemId} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.03 }}
-                            className="flex items-center gap-2 px-3 py-2 bg-[#34c759]/10 rounded-xl border border-[#34c759]/20">
-                            <span className="text-[14px] font-medium text-[#34c759]">{item.itemName}</span>
-                            <button onClick={() => onUnlink(item.itemId)} className="w-5 h-5 rounded-full bg-[#ff3b30]/10 flex items-center justify-center text-[#ff3b30] hover:bg-[#ff3b30]/20 transition-colors">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                        <motion.div
+                            key={item.itemId}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.03 }}
+                            className="flex items-center gap-2 px-3 py-2 bg-violet-50 dark:bg-violet-500/15 rounded-xl border border-violet-200 dark:border-violet-500/30"
+                        >
+                            <span className="text-[14px] font-medium text-violet-700 dark:text-violet-300">{item.itemName}</span>
+
+                            {/* Price - Same violet color scheme */}
+                            {item.price !== undefined && item.price > 0 && (
+                                <span className="text-[12px] font-semibold text-violet-500 dark:text-violet-400">
+                                    ${item.price.toFixed(2)}
+                                </span>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => onUnlink(item.itemId)}
+                                className="w-5 h-5 rounded-full bg-violet-200/50 dark:bg-violet-500/20 flex items-center justify-center text-violet-500 hover:bg-violet-300/50 dark:hover:bg-violet-500/30 transition-colors"
+                            >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
                             </button>
                         </motion.div>
                     ))}
@@ -74,6 +260,10 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
         </div>
     )
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE UPLOAD ZONE
+// ═══════════════════════════════════════════════════════════════════
 
 export interface FileUploadZoneProps {
     documents: any[]

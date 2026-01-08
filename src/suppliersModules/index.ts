@@ -35,4 +35,3 @@ export type { SuppliersHandlersReturn, UseSuppliersHandlersProps } from './hooks
 // ═══════════════════════════════════════════════════════════════════
 export { SuppliersGrid } from './components/SuppliersGrid'
 export { QuotesView } from './components/QuotesView'
-export { SupplierDetailModal } from './components/SupplierDetailModal'
