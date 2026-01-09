@@ -93,7 +93,7 @@ export function useSuppliersState(): SuppliersStateReturn {
     const [editingSupplier, setEditingSupplier] = useState<LocalSupplier | null>(null)
     const [selectedSupplier, setSelectedSupplier] = useState<LocalSupplier | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [activeView, setActiveView] = useState<'suppliers' | 'quotes' | 'clients'>('suppliers')
+    const [activeView, setActiveView] = useState<'suppliers' | 'quotes' | 'clients'>('clients')
 
     // Form state
     const [formData, setFormData] = useState<SupplierFormData>(DEFAULT_FORM_DATA)

@@ -42,13 +42,13 @@ export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }:
         <section className="relative z-10 mb-8">
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.1 }} className="relative z-10 bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-[2rem] md:rounded-[3rem] border border-zinc-200/50 dark:border-white/10 overflow-hidden shadow-xl">
                 {/* Header */}
-                <div className="p-6 md:p-10 pb-4 md:pb-6">
+                <div className="p-5 md:p-8 pb-3 md:pb-5">
                     <div className="flex items-start justify-between">
                         <div><span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2 block">PROTOCOL LEDGER</span><h2 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight leading-none">Movement Registry</h2></div>
                         <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{filteredMovements.length} items</span>
                     </div>
                     {/* Filters */}
-                    <div className="flex flex-wrap items-center gap-3 mt-6">
+                    <div className="flex flex-wrap items-center gap-3 mt-5">
                         {/* Search */}
                         <div className="relative flex-1 min-w-[180px] max-w-sm">
                             <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>

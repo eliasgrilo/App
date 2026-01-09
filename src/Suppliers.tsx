@@ -32,10 +32,23 @@ export default function Suppliers() {
     // Purchases state (aba Compras)
     const [purchaseSearchQuery, setPurchaseSearchQuery] = useState('')
     const [purchaseFilter, setPurchaseFilter] = useState<string>('Todos')
+    const [purchasePeriod, setPurchasePeriod] = useState<'today' | '7d' | '30d' | 'all'>('all')
 
     // Filtered purchases with smart search
     const filteredPurchases = useMemo(() => {
         let purchases = MOCK_PURCHASES
+        const now = new Date()
+
+        // Period filter
+        if (purchasePeriod !== 'all') {
+            purchases = purchases.filter(p => {
+                const diff = (now.getTime() - new Date(p.date).getTime()) / (1000 * 60 * 60 * 24)
+                if (purchasePeriod === 'today') return diff <= 1
+                if (purchasePeriod === '7d') return diff <= 7
+                if (purchasePeriod === '30d') return diff <= 30
+                return true
+            })
+        }
 
         // Smart search: nome, fantasia, cnpj, telefone, vendedor, produto, nota, valor, data, status
         if (purchaseSearchQuery.trim()) {
@@ -63,7 +76,7 @@ export default function Suppliers() {
         // "Todos" shows all
 
         return purchases
-    }, [purchaseSearchQuery, purchaseFilter])
+    }, [purchaseSearchQuery, purchaseFilter, purchasePeriod])
 
     return (
         <div className="space-y-6 md:space-y-8 animate-fade-in pb-16 relative font-sans selection:bg-violet-500/20">
@@ -123,7 +136,7 @@ export default function Suppliers() {
                         </div>
 
                         {/* Results Indicator */}
-                        {(purchaseSearchQuery || purchaseFilter !== 'Todos') && (
+                        {purchaseSearchQuery && (
                             <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-100/80 dark:border-zinc-800">
                                 <span className="text-xs text-zinc-500">
                                     {filteredPurchases.length} {filteredPurchases.length === 1 ? 'resultado' : 'resultados'}
@@ -150,70 +163,89 @@ export default function Suppliers() {
             {state.activeView === 'clients' && (
                 <section className="relative z-10">
                     <div className="bg-white dark:bg-zinc-950 rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/10 shadow-lg overflow-hidden">
+                        {/* Period Filters */}
+                        <div className="flex items-center mb-4">
+                            <div className="inline-flex bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg">
+                                {(['today', '7d', '30d', 'all'] as const).map(p => (
+                                    <button
+                                        key={p}
+                                        onClick={() => setPurchasePeriod(p)}
+                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${purchasePeriod === p ? 'text-zinc-900 dark:text-white bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+                                    >
+                                        {p === 'all' ? 'Todos' : p === 'today' ? 'Hoje' : p === '7d' ? '7 dias' : '30 dias'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {filteredPurchases.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                                            <th className="text-left py-3 px-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Fornecedor / Nota</th>
-                                            <th className="text-left py-3 px-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Vendedor</th>
-                                            <th className="text-left py-3 px-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Produtos</th>
-                                            <th className="text-center py-3 px-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Data</th>
-                                            <th className="text-right py-3 px-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Valor</th>
-                                            <th className="text-center py-3 px-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredPurchases.map(purchase => (
-                                            <tr key={purchase.id} className="border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer">
-                                                <td className="py-4 px-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-violet-500/20">
+                            <div className="space-y-6">
+                                {(() => {
+                                    // Group purchases by date
+                                    const grouped = filteredPurchases.reduce((acc, purchase) => {
+                                        const dateKey = new Date(purchase.date).toDateString()
+                                        if (!acc[dateKey]) acc[dateKey] = []
+                                        acc[dateKey].push(purchase)
+                                        return acc
+                                    }, {} as Record<string, typeof filteredPurchases>)
+
+                                    // Format date label
+                                    const formatDateLabel = (dateStr: string) => {
+                                        const date = new Date(dateStr)
+                                        const today = new Date()
+                                        const yesterday = new Date(today)
+                                        yesterday.setDate(yesterday.getDate() - 1)
+
+                                        if (date.toDateString() === today.toDateString()) return 'HOJE'
+                                        if (date.toDateString() === yesterday.toDateString()) return 'ONTEM'
+                                        return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).toUpperCase()
+                                    }
+
+                                    // Sort dates descending
+                                    const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+
+                                    return sortedDates.map(dateKey => (
+                                        <div key={dateKey}>
+                                            {/* Date Divider - Apple Style */}
+                                            <div className="flex items-center gap-4 mb-3">
+                                                <span className="text-[10px] font-bold text-violet-500 uppercase tracking-widest whitespace-nowrap">{formatDateLabel(dateKey)}</span>
+                                                <div className="flex-1 h-px bg-gradient-to-r from-zinc-200 dark:from-zinc-700 to-transparent" />
+                                            </div>
+
+                                            {/* Purchases for this date */}
+                                            <div className="space-y-2">
+                                                {(grouped[dateKey] ?? []).map(purchase => (
+                                                    <div key={purchase.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer group">
+                                                        {/* Avatar */}
+                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-violet-500/20 flex-shrink-0">
                                                             {purchase.supplierName.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                                                         </div>
-                                                        <div>
-                                                            <p className="font-semibold text-zinc-900 dark:text-white">{purchase.supplierName}</p>
-                                                            <p className="text-xs text-zinc-400">{purchase.noteNumber}</p>
+
+                                                        {/* Main Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="font-semibold text-zinc-900 dark:text-white truncate">{purchase.supplierName}</p>
+                                                                <span className="text-xs text-zinc-400">{purchase.noteNumber}</span>
+                                                            </div>
+                                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{purchase.products.join(', ')}</p>
                                                         </div>
+
+                                                        {/* Status Dot */}
+                                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${purchase.status === 'pago' ? 'bg-green-500' :
+                                                            purchase.status === 'pendente' ? 'bg-amber-500' :
+                                                                'bg-zinc-300 dark:bg-zinc-600'
+                                                            }`} />
+
+                                                        {/* Value */}
+                                                        <span className="font-medium text-sm tabular-nums text-zinc-900 dark:text-white flex-shrink-0">
+                                                            {formatCurrency(purchase.value)}
+                                                        </span>
                                                     </div>
-                                                </td>
-                                                <td className="py-4 px-4 text-sm text-zinc-600 dark:text-zinc-400">{purchase.sellerName}</td>
-                                                <td className="py-4 px-4">
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {purchase.products.slice(0, 2).map((prod: string, i: number) => (
-                                                            <span key={i} className="px-2 py-0.5 rounded-full text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                                                {prod}
-                                                            </span>
-                                                        ))}
-                                                        {purchase.products.length > 2 && (
-                                                            <span className="px-2 py-0.5 rounded-full text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-400">
-                                                                +{purchase.products.length - 2}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="py-4 px-4 text-center">
-                                                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                                                        {new Date(purchase.date).toLocaleDateString('pt-BR')}
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 px-4 text-right">
-                                                    <span className="font-medium text-sm tabular-nums text-zinc-900 dark:text-white">
-                                                        {formatCurrency(purchase.value)}
-                                                    </span>
-                                                </td>
-                                                <td className="py-4 px-4 text-center">
-                                                    <span className={`text-[11px] font-medium ${purchase.status === 'pago' ? 'text-green-600 dark:text-green-500' :
-                                                            purchase.status === 'pendente' ? 'text-amber-500 dark:text-amber-400' :
-                                                                'text-zinc-400 dark:text-zinc-500'
-                                                        }`}>
-                                                        {purchase.status === 'pago' ? 'Pago' : purchase.status === 'pendente' ? 'Pendente' : 'Inativo'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))
+                                })()}
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-center">
