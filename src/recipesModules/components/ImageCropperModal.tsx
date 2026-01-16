@@ -5,7 +5,7 @@
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import Cropper from 'react-easy-crop'
+import Cropper, { Area } from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropUtils'
 import { useScrollLock } from '../../hooks/useScrollLock'
 
@@ -15,15 +15,17 @@ interface ImageCropperModalProps {
     onCropComplete: (croppedImage: string) => void
 }
 
+type IconProps = React.SVGProps<SVGSVGElement>
+
 export const ImageCropperModal = ({ imageSrc, onCancel, onCropComplete }: ImageCropperModalProps): React.ReactElement => {
     const [crop, setCrop] = useState({ x: 0, y: 0 })
     const [zoom, setZoom] = useState(1)
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
     const [isInteracting, setIsInteracting] = useState(false)
 
     useScrollLock(true)
 
-    const onCropCompleteInternal = (_croppedArea: any, croppedAreaPixels: any): void => {
+    const onCropCompleteInternal = (_croppedArea: Area, croppedAreaPixels: Area): void => {
         setCroppedAreaPixels(croppedAreaPixels)
     }
 
@@ -37,8 +39,8 @@ export const ImageCropperModal = ({ imageSrc, onCancel, onCropComplete }: ImageC
     }
 
     const Icons = {
-        Camera: (props: any) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
-        Plus: (props: any) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
+        Camera: (props: IconProps) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+        Plus: (props: IconProps) => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
     }
 
     return createPortal(
@@ -92,7 +94,7 @@ export const ImageCropperModal = ({ imageSrc, onCancel, onCropComplete }: ImageC
                         min={1}
                         max={3}
                         step={0.01}
-                        onChange={(e: any) => setZoom(parseFloat(e.target.value))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setZoom(parseFloat(e.target.value))}
                         className="range-slider accent-white"
                     />
                     <button onClick={() => setZoom(Math.min(3, zoom + 0.1))} className="p-1 text-white/50 hover:text-white transition-colors">

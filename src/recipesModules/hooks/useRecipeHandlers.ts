@@ -48,7 +48,7 @@ export interface UseRecipeHandlersProps {
 }
 
 export interface RecipeHandlersReturn {
-    updateRecipe: (id: ID | null, changes: Partial<Recipe>) => void
+    updateRecipe: (id: string | number | null, changes: Partial<Recipe>) => void
     handleDeleteRecipe: (id: ID) => void
     handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
     onCropComplete: (croppedImage: string) => Promise<void>
@@ -91,7 +91,7 @@ export function useRecipeHandlers({
     /**
      * Update recipe - syncs to Zustand store
      */
-    const updateRecipe = useCallback((id: ID | null, changes: Partial<Recipe>) => {
+    const updateRecipe = useCallback((id: string | number | null, changes: Partial<Recipe>) => {
         setSyncing(true)
         setSyncError(false)
 

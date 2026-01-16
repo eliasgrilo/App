@@ -35,7 +35,7 @@ export const ImageLightbox = ({ src, onClose }: ImageLightboxProps): React.React
                 src={src}
                 className="max-w-full max-h-full object-contain shadow-2xl rounded-2xl"
                 draggable={false}
-                onClick={(e: any) => e.stopPropagation()}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 transition={{ type: "spring", stiffness: 250, damping: 35 }}
             />
         </motion.div>,

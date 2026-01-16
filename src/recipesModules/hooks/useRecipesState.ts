@@ -6,12 +6,18 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
+import type { CategoryInput, NormalizedCategory } from '../components/recipeCategoryModules'
 
 // ═══════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
 
-const DEFAULT_CATEGORIES = ['Tradicionais', 'Especiais', 'Veganas', 'Doces']
+const DEFAULT_CATEGORIES: NormalizedCategory[] = [
+    { name: 'Tradicionais', color: '#007AFF' },
+    { name: 'Especiais', color: '#FF9500' },
+    { name: 'Veganas', color: '#34C759' },
+    { name: 'Doces', color: '#FF2D55' }
+]
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -27,8 +33,8 @@ export interface RecipesStateReturn {
     // Filters
     activeFilter: string
     setActiveFilter: (v: string) => void
-    categories: string[]
-    setCategories: React.Dispatch<React.SetStateAction<string[]>>
+    categories: NormalizedCategory[]
+    setCategories: React.Dispatch<React.SetStateAction<NormalizedCategory[]>>
 
     // Loading/Error
     loading: boolean

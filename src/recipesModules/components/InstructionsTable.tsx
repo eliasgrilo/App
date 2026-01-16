@@ -6,9 +6,10 @@
  */
 
 import React, { useCallback } from 'react'
-import { Reorder } from 'framer-motion'
+import { Reorder, DragControls } from 'framer-motion'
 import { InstructionItem } from './InstructionItem'
 import { Icons } from './RecipeIcons'
+import type { RecipeSectionItem } from '../../types'
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES — Using any for items to allow flexibility with different sources
@@ -18,14 +19,14 @@ interface RecipeSectionLocal {
     id: number | string
     type: string
     title: string
-    items: any[]
+    items: RecipeSectionItem[]
 }
 
 interface InstructionsTableProps {
     section: RecipeSectionLocal
     onUpdate: (section: RecipeSectionLocal) => void
     onDelete: () => void
-    dragControls: any
+    dragControls: DragControls
     isEditing: boolean
 }
 
@@ -43,7 +44,7 @@ export function InstructionsTable({
 
     // Add a new instruction and scroll/focus to it
     const addNewInstruction = useCallback(() => {
-        const newId = `instr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        const newId = Date.now()
         const newItem = { id: newId, text: '' }
         onUpdate({ ...section, items: [...(section.items || []), newItem] })
 
@@ -106,21 +107,21 @@ export function InstructionsTable({
                 onReorder={newItems => isEditing && onUpdate({ ...section, items: newItems })}
                 className="space-y-3"
             >
-                {section.items.map((item: any, idx: number) => (
+                {section.items.map((item: RecipeSectionItem, idx: number) => (
                     <InstructionItem
                         key={item.id}
                         item={item}
                         index={idx}
                         onUpdate={u => onUpdate({
                             ...section,
-                            items: section.items.map((i: any) => i.id === item.id ? u : i)
+                            items: section.items.map((i: RecipeSectionItem) => i.id === item.id ? u : i)
                         })}
                         onDelete={() => onUpdate({
                             ...section,
-                            items: section.items.filter((i: any) => i.id !== item.id)
+                            items: section.items.filter((i: RecipeSectionItem) => i.id !== item.id)
                         })}
                         onNext={() => {
-                            if (item.text.trim()) {
+                            if (item.text?.trim()) {
                                 addNewInstruction()
                             }
                         }}

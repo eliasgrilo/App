@@ -4,9 +4,9 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { colorPalette } from './types'
+import { colorPalette, CategoryInput } from './types'
 
-interface ColorPickerProps { color: string; cat: any; onColorChange: (cat: any, color: string) => void; onClose: () => void }
+interface ColorPickerProps { color: string; cat: CategoryInput; onColorChange: (cat: CategoryInput, color: string) => void; onClose: () => void }
 
 export const MobileColorPicker: React.FC<ColorPickerProps> = ({ color, cat, onColorChange, onClose }) => (
     <>

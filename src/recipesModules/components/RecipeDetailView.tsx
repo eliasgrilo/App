@@ -4,15 +4,16 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import React from 'react'
-import { Reorder, motion } from 'framer-motion'
+import { Reorder, motion, DragControls } from 'framer-motion'
 import { SectionWrapper } from './SectionWrapper'
 import { RecipeSection } from './RecipeSection'
 import { getCategoryName } from '../utils/recipeUtils'
 import { RecipeDetailViewProps, RecipeSectionType, DetailHeader, ImageSection, StatsGrid } from './recipeDetailModules'
+import type { RecipeSectionItem } from '../../types'
 
 export function RecipeDetailView({ selected, selectedId, isEditing, syncing, syncError, isUploading, categories, scrollRef, setSelectedId, setIsEditing, setZoomedImage, updateRecipe, handleImageUpload, finishEditing, onDeleteRecipe, modal }: RecipeDetailViewProps): React.ReactElement {
     const handleClose = () => {
-        const cleanedSections = (selected?.sections || []).map((s: RecipeSectionType) => ({ ...s, items: s.items.filter((i: any) => s.type === 'ingredients' ? i.name?.trim() || i.quantity?.trim() : i.text?.trim()) }))
+        const cleanedSections = (selected?.sections || []).map((s: RecipeSectionType) => ({ ...s, items: s.items.filter((i: RecipeSectionItem) => s.type === 'ingredients' ? i.name?.trim() || i.quantity?.trim() : i.text?.trim()) }))
         updateRecipe(selectedId, { sections: cleanedSections }); setSelectedId(null)
     }
 
@@ -41,7 +42,7 @@ export function RecipeDetailView({ selected, selectedId, isEditing, syncing, syn
                             <button disabled={!isEditing} onClick={() => updateRecipe(selectedId, { sections: [...(selected?.sections || []), { id: Date.now(), type: 'instructions', title: 'PREPARO', items: [] }] })} className={`py-4 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 text-zinc-600 dark:text-zinc-300 font-bold text-xs uppercase tracking-widest shadow-sm transition-all flex items-center justify-center gap-2 group ${isEditing ? 'hover:bg-white dark:hover:bg-zinc-800 hover:shadow-md cursor-pointer' : 'opacity-50 cursor-not-allowed grayscale'}`}><div className="w-6 h-6 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform">PR</div>+ Preparo</button>
                         </div>
                         {/* Sections */}
-                        <Reorder.Group axis="y" values={selected?.sections || []} onReorder={newSections => updateRecipe(selectedId, { sections: newSections })} className="space-y-6">{(selected?.sections || []).map((section: RecipeSectionType) => <SectionWrapper key={section.id} id={section}>{(dragControls: any) => <RecipeSection section={section} onUpdate={(updatedSec: any) => updateRecipe(selectedId, { sections: selected.sections?.map((s: any) => s.id === section.id ? updatedSec : s) })} onDelete={() => updateRecipe(selectedId, { sections: selected.sections?.filter((s: RecipeSectionType) => s.id !== section.id) })} dragControls={dragControls} isEditing={isEditing} />}</SectionWrapper>)}</Reorder.Group>
+                        <Reorder.Group axis="y" values={selected?.sections || []} onReorder={newSections => updateRecipe(selectedId, { sections: newSections })} className="space-y-6">{(selected?.sections || []).map((section: RecipeSectionType) => <SectionWrapper key={section.id} id={section}>{(dragControls: DragControls) => <RecipeSection section={section as Parameters<typeof RecipeSection>[0]['section']} onUpdate={(updatedSec) => updateRecipe(selectedId, { sections: selected.sections?.map((s: RecipeSectionType) => s.id === (updatedSec as RecipeSectionType).id ? (updatedSec as RecipeSectionType) : s) })} onDelete={() => updateRecipe(selectedId, { sections: selected.sections?.filter((s: RecipeSectionType) => s.id !== section.id) })} dragControls={dragControls} isEditing={isEditing} />}</SectionWrapper>)}</Reorder.Group>
                         {/* Delete Button */}
                         <div className="pt-12 pb-8 border-t border-zinc-100/80 dark:border-zinc-800"><button onClick={() => modal.confirm({ title: 'Excluir Receita', message: 'Tem certeza? Esta ação é irreversível.', isDangerous: true, onConfirm: onDeleteRecipe })} className="w-full py-4 rounded-2xl bg-rose-50 dark:bg-rose-900/10 text-rose-500 font-bold text-sm uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-900/20 transition-colors">Excluir Receita</button></div>
                     </div>

@@ -3,11 +3,12 @@
  */
 
 import React from 'react'
-import { Reorder, useDragControls } from 'framer-motion'
+import { Reorder, useDragControls, DragControls } from 'framer-motion'
+import type { RecipeSection } from '../../types'
 
 interface SectionWrapperProps {
-    id: any
-    children: (controls: any) => React.ReactNode
+    id: RecipeSection
+    children: (controls: DragControls) => React.ReactNode
 }
 
 export const SectionWrapper = ({ id, children }: SectionWrapperProps): React.ReactElement => {

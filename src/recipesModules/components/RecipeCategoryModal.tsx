@@ -5,20 +5,20 @@
 
 import React, { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import { useScrollLock } from '../../hooks/useScrollLock'
-import { RecipeCategoryModalProps, getCategoryName, normalizeCategory, MobileColorPicker, DesktopColorPicker, DeleteConfirmation } from './recipeCategoryModules'
+import { RecipeCategoryModalProps, getCategoryName, normalizeCategory, MobileColorPicker, DesktopColorPicker, DeleteConfirmation, CategoryInput } from './recipeCategoryModules'
 
 export const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCategory }: RecipeCategoryModalProps): React.ReactElement => {
-    const [newName, setNewName] = useState(''); const [editingId, setEditingId] = useState<any>(null); const [editValue, setEditValue] = useState('')
-    const [confirmDelete, setConfirmDelete] = useState<any>(null); const [colorPicker, setColorPicker] = useState<any>(null); const [isDragging, setIsDragging] = useState(false)
+    const [newName, setNewName] = useState(''); const [editingId, setEditingId] = useState<string | null>(null); const [editValue, setEditValue] = useState('')
+    const [confirmDelete, setConfirmDelete] = useState<CategoryInput | null>(null); const [colorPicker, setColorPicker] = useState<string | null>(null); const [isDragging, setIsDragging] = useState(false)
     const modalRef = useRef(null); useScrollLock(true)
 
-    const handleAdd = () => { const name = newName.trim(); if (!name) return; if (categories.some(c => getCategoryName(c) === name)) return; onUpdate([...categories, { name, color: '#007AFF' }]); setNewName('') }
-    const handleRename = (oldCat: any) => { const trimmed = editValue.trim(); const oldName = getCategoryName(oldCat); if (!trimmed || trimmed === oldName) { setEditingId(null); return }; if (categories.some(c => getCategoryName(c) === trimmed)) { setEditingId(null); return }; onRenameCategory(oldName, trimmed); onUpdate(categories.map(c => { const n = normalizeCategory(c); if (n.name === oldName) return { ...n, name: trimmed }; return n })); setEditingId(null) }
-    const handleColorChange = (cat: any, color: string) => { const catName = getCategoryName(cat); onUpdate(categories.map(c => { const n = normalizeCategory(c); if (n.name === catName) return { ...n, color }; return n })); setColorPicker(null) }
-    const handleDelete = (cat: any) => { const catName = getCategoryName(cat); onUpdate(categories.filter(c => getCategoryName(c) !== catName)); onRenameCategory(catName, 'Outros'); setConfirmDelete(null) }
-    const handleDragEnd = (_e: any, info: any) => { setIsDragging(false); if (info.offset.y > 100 || info.velocity.y > 500) onClose() }
+    const handleAdd = () => { const name = newName.trim(); if (!name) return; if (categories.some(c => getCategoryName(c) === name)) return; onUpdate([...categories.map(normalizeCategory), { name, color: '#007AFF' }]); setNewName('') }
+    const handleRename = (oldCat: CategoryInput) => { const trimmed = editValue.trim(); const oldName = getCategoryName(oldCat); if (!trimmed || trimmed === oldName) { setEditingId(null); return }; if (categories.some(c => getCategoryName(c) === trimmed)) { setEditingId(null); return }; onRenameCategory(oldName, trimmed); onUpdate(categories.map(c => { const n = normalizeCategory(c); if (n.name === oldName) return { ...n, name: trimmed }; return n })); setEditingId(null) }
+    const handleColorChange = (cat: CategoryInput, color: string) => { const catName = getCategoryName(cat); onUpdate(categories.map(c => { const n = normalizeCategory(c); if (n.name === catName) return { ...n, color }; return n })); setColorPicker(null) }
+    const handleDelete = (cat: CategoryInput) => { const catName = getCategoryName(cat); onUpdate(categories.map(normalizeCategory).filter(c => getCategoryName(c) !== catName)); onRenameCategory(catName, 'Outros'); setConfirmDelete(null) }
+    const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => { setIsDragging(false); if (info.offset.y > 100 || info.velocity.y > 500) onClose() }
 
     return createPortal(
         <div className="fixed inset-0 z-[10000] flex items-stretch md:items-center justify-center">
@@ -49,7 +49,7 @@ export const RecipeCategoryModal = ({ categories, onClose, onUpdate, onRenameCat
                     {categories.length === 0 ? (
                         <div className="text-center py-12"><div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4"><svg className="w-8 h-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg></div><p className="text-[15px] font-medium text-zinc-400">Nenhuma categoria ainda</p></div>
                     ) : (
-                        <div className="space-y-2">{categories.map((cat: any, idx: number) => {
+                        <div className="space-y-2">{categories.map((cat: CategoryInput, idx: number) => {
                             const { name, color } = normalizeCategory(cat); const catId = name + idx; return (
                                 <div key={catId} className="group relative">
                                     <div className="flex items-center gap-3 py-3 px-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">

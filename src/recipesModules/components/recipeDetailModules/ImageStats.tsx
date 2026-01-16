@@ -27,7 +27,7 @@ export const ImageSection: React.FC<ImageSectionProps> = ({ image, isUploading, 
     </div>
 )
 
-interface StatsGridProps { selected: Recipe; selectedId: string | number; updateRecipe: (id: any, changes: any) => void }
+interface StatsGridProps { selected: Recipe; selectedId: string | number; updateRecipe: (id: string | number, changes: Partial<Recipe>) => void }
 
 export const StatsGrid: React.FC<StatsGridProps> = ({ selected, selectedId, updateRecipe }) => (
     <div className="grid grid-cols-3 gap-3 md:gap-4">
@@ -35,7 +35,7 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ selected, selectedId, upda
             <div key={stat.label} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-3 md:p-4 border border-zinc-100/80 dark:border-zinc-800 flex flex-col items-center justify-center">
                 <span className="text-[9px] md:text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1 md:mb-2">{stat.label}</span>
                 <div className="flex items-baseline gap-1">
-                    <input value={String((selected as any)?.[stat.val] || "")} onChange={e => updateRecipe(selectedId, { [stat.val]: e.target.value })} className="w-full bg-transparent font-bold text-lg md:text-xl text-center text-zinc-900 dark:text-white outline-none p-0 border-none focus:ring-0 tabular-nums" placeholder="0" />
+                    <input value={String((selected as unknown as Record<string, unknown>)?.[stat.val] || "")} onChange={e => updateRecipe(selectedId, { [stat.val]: e.target.value } as Partial<Recipe>)} className="w-full bg-transparent font-bold text-lg md:text-xl text-center text-zinc-900 dark:text-white outline-none p-0 border-none focus:ring-0 tabular-nums" placeholder="0" />
                     {stat.unit && <span className="text-[9px] md:text-[10px] text-zinc-500 font-bold">{stat.unit}</span>}
                 </div>
             </div>

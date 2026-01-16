@@ -4,9 +4,9 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { getCategoryName } from './types'
+import { getCategoryName, CategoryInput } from './types'
 
-interface DeleteConfirmProps { cat: any; onConfirm: (cat: any) => void; onCancel: () => void }
+interface DeleteConfirmProps { cat: CategoryInput; onConfirm: (cat: CategoryInput) => void; onCancel: () => void }
 
 export const DeleteConfirmation: React.FC<DeleteConfirmProps> = ({ cat, onConfirm, onCancel }) => (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">

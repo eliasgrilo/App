@@ -6,7 +6,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Icons } from './RecipeIcons'
-import { getCategoryName } from '../utils/recipeUtils'
 import { RecipeListViewProps, RecipeCard } from './recipeListModules'
 
 export function RecipeListView({ recipes, filtered, categories, activeFilter, setActiveFilter, setSelectedId, setIsEditing, setShowCatModal, onAddRecipe, onDeleteRecipe, modal }: RecipeListViewProps): React.ReactElement {
@@ -21,7 +20,8 @@ export function RecipeListView({ recipes, filtered, categories, activeFilter, se
             {/* Filters */}
             <div className="sticky top-4 z-30 mb-8 py-4 overflow-x-auto scrollbar-hidden bg-zinc-50/80 dark:bg-black/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-50/50">
                 <div className="flex items-center gap-2 w-max">
-                    {['Todas', ...categories].map(cat => <button key={getCategoryName(cat)} onClick={() => setActiveFilter(getCategoryName(cat))} className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wide transition-all ${activeFilter === getCategoryName(cat) ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:hover:text-white border border-zinc-200/50 dark:border-zinc-800'}`}>{getCategoryName(cat)}</button>)}
+                    <button onClick={() => setActiveFilter('Todas')} className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wide transition-all ${activeFilter === 'Todas' ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:hover:text-white border border-zinc-200/50 dark:border-zinc-800'}`}>Todas</button>
+                    {categories.map(cat => <button key={cat.name} onClick={() => setActiveFilter(cat.name)} className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wide transition-all ${activeFilter === cat.name ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20' : 'bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:hover:text-white border border-zinc-200/50 dark:border-zinc-800'}`}>{cat.name}</button>)}
                     <button onClick={() => setShowCatModal(true)} className="w-10 h-10 flex items-center justify-center rounded-full border border-zinc-200/50 dark:border-zinc-800 text-zinc-400 hover:text-indigo-500 hover:border-indigo-500/50 transition-all bg-white dark:bg-zinc-900 shadow-sm active:scale-90" title="Gerenciar Biblioteca"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></button>
                 </div>
             </div>
