@@ -519,7 +519,7 @@ export const AnnotatableChartWrapper: React.FC<AnnotatableChartWrapperProps> = (
         if (saved) {
             try {
                 const parsed = JSON.parse(saved)
-                setNotes(parsed.map((n: any) => ({ ...n, createdAt: new Date(n.createdAt) })))
+                setNotes(parsed.map((n: { id: string; text: string; color: string; createdAt: string; chartId: string }) => ({ ...n, createdAt: new Date(n.createdAt) })))
             } catch (e) {
                 console.warn('Failed to parse notes:', e)
             }

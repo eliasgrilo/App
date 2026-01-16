@@ -20,16 +20,23 @@ interface StockMovement {
     timestamp: string
 }
 
+// Minimal interface for inventory items - intentionally loose to accept Ingredient
+interface InventoryItem {
+    id: string | number
+    name: string
+    supplierId?: number
+}
+
 export interface LinkedItemsSearchProps {
-    inventoryItems: any[]
-    linkedItems: any[]
-    onLink: (item: any) => void
-    onUnlink: (itemId: any) => void
+    inventoryItems: InventoryItem[]
+    linkedItems: LinkedItem[]
+    onLink: (item: InventoryItem) => void
+    onUnlink: (itemId: string | number) => void
     searchQuery: string
     setSearchQuery: (query: string) => void
     stockMovements?: StockMovement[]
     supplierId?: number | string
-    inventoryItemsFull?: any[]
+    inventoryItemsFull?: InventoryItem[]
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -42,7 +49,7 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
         if (!supplierId || !stockMovements.length) return undefined
 
         // Find the inventory item to check its supplierId
-        const invItem = inventoryItemsFull.find((i: any) => i.id === itemId)
+        const invItem = inventoryItemsFull.find((i) => i.id === itemId)
         if (!invItem || invItem.supplierId !== Number(supplierId)) return undefined
 
         // Find the most recent 'entrada' movement for this item
@@ -59,7 +66,7 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
     }, [stockMovements, supplierId, inventoryItemsFull])
 
     const [isOpen, setIsOpen] = useState(false)
-    const [matchedItem, setMatchedItem] = useState<any>(null)
+    const [matchedItem, setMatchedItem] = useState<InventoryItem | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
 
@@ -69,7 +76,7 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
 
     // Filter items - exclude already linked, only show if user typed enough
     const filtered = hasMinChars
-        ? inventoryItems.filter((item: any) =>
+        ? inventoryItems.filter((item: InventoryItem) =>
             item.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
             !linkedItems.find((li: LinkedItem) => li.itemId === item.id)
         ).slice(0, 6)
@@ -77,7 +84,7 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
 
     // Check for exact match (same word count and content) - only if typed enough
     const exactMatch = hasMinChars
-        ? inventoryItems.find((item: any) => {
+        ? inventoryItems.find((item: InventoryItem) => {
             const queryWords = searchQuery.toLowerCase().trim().split(/\s+/)
             const itemWords = item.name?.toLowerCase().trim().split(/\s+/) || []
             return queryWords.length === itemWords.length &&
@@ -304,10 +311,18 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
 // FILE UPLOAD ZONE
 // ═══════════════════════════════════════════════════════════════════
 
+interface UploadDocument {
+    id: string
+    name: string
+    type?: string
+    size: number
+    dataUrl: string
+}
+
 export interface FileUploadZoneProps {
-    documents: any[]
+    documents: UploadDocument[]
     onFileSelect: (files: FileList) => void
-    onDelete: (docId: any) => void
+    onDelete: (docId: string) => void
     uploadingFile: boolean
     uploadProgress: number
 }
@@ -345,7 +360,7 @@ export function FileUploadZone({ documents, onFileSelect, onDelete, uploadingFil
                 </div>
             )}
             <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" className="hidden"
-                onChange={(e: any) => e.target.files?.length && onFileSelect(e.target.files)} />
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files?.length && onFileSelect(e.target.files)} />
             <motion.button type="button" onClick={() => fileInputRef.current?.click()} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} disabled={!!uploadingFile}
                 className={`w-full py-4 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 ${isDragging ? 'border-[#007aff] bg-[#007aff]/5' : 'border-[#c7c7cc] dark:border-[#48484a] hover:border-[#007aff] hover:bg-[#007aff]/5'}`} whileTap={{ scale: 0.99 }}>
                 {uploadingFile ? (

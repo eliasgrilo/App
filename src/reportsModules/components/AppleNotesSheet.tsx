@@ -71,7 +71,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, onDelete, onEdit }) => {
     const [swipeX, setSwipeX] = useState(0)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-    const handleDragEnd = (_: any, info: PanInfo) => {
+    const handleDragEnd = (_: unknown, info: PanInfo) => {
         if (info.offset.x < -100) {
             setShowDeleteConfirm(true)
         }

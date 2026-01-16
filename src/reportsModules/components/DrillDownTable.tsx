@@ -25,7 +25,7 @@ interface DrillDownColumn<T> {
     header: string
     width?: string
     align?: 'left' | 'center' | 'right'
-    render?: (value: any, row: T, level: number) => React.ReactNode
+    render?: (value: unknown, row: T, level: number) => React.ReactNode
 }
 
 interface DrillDownRow<T> {

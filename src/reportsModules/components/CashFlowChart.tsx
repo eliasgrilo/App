@@ -75,7 +75,21 @@ const CategoryBreakdown: React.FC<{
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipPayloadEntry {
+    name: string
+    value: number
+    color: string
+    dataKey: string
+    payload: Record<string, unknown>
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: TooltipPayloadEntry[]
+    label?: string
+}
+
+const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (!active || !payload?.length) return null
 
     return (
@@ -92,7 +106,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         >
             <p className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">{label}</p>
             <div className="space-y-2">
-                {payload.map((entry: any, index: number) => (
+                {payload.map((entry: TooltipPayloadEntry, index: number) => (
                     <div key={index} className="flex justify-between items-center text-xs">
                         <span className="flex items-center gap-1.5 text-zinc-600">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />

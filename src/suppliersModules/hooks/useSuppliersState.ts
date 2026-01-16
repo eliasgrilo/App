@@ -21,8 +21,8 @@ export interface SuppliersStateReturn {
     // Store data
     suppliers: LocalSupplier[]
     inventoryItems: Ingredient[]
-    addSupplier: (s: any) => void
-    updateSupplier: (id: ID, data: any) => void
+    addSupplier: (s: Partial<LocalSupplier>) => void
+    updateSupplier: (id: ID, data: Partial<LocalSupplier>) => void
     removeSupplier: (id: ID) => void
 
     // UI State
@@ -144,8 +144,8 @@ export function useSuppliersState(): SuppliersStateReturn {
         // Store
         suppliers,
         inventoryItems,
-        addSupplier,
-        updateSupplier,
+        addSupplier: addSupplier as unknown as (s: Partial<LocalSupplier>) => void,
+        updateSupplier: updateSupplier as unknown as (id: ID, data: Partial<LocalSupplier>) => void,
         removeSupplier,
 
         // UI State
@@ -177,10 +177,10 @@ export function useSuppliersState(): SuppliersStateReturn {
         setViewingDocument,
         selectedDocCategory,
         setSelectedDocCategory,
-        fileInputRef: fileInputRef as any,
+        fileInputRef: fileInputRef as React.RefObject<HTMLInputElement>,
 
         // Quotes
-        quotesFileInputRef: quotesFileInputRef as any,
+        quotesFileInputRef: quotesFileInputRef as React.RefObject<HTMLInputElement>,
         quotesUploadingFor,
         setQuotesUploadingFor,
 

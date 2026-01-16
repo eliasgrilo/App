@@ -10,7 +10,7 @@ import { ID, Ingredient } from '../../types'
 interface ModalContext { confirm: (opts: { title: string; message: string; isDangerous?: boolean; onConfirm: () => void }) => void }
 
 export interface UseCrudHandlersProps {
-    addSupplier: (s: any) => void; updateSupplier: (id: ID, data: any) => void; removeSupplier: (id: ID) => void
+    addSupplier: (s: Partial<LocalSupplier>) => void; updateSupplier: (id: ID, data: Partial<LocalSupplier>) => void; removeSupplier: (id: ID) => void
     formData: SupplierFormData; setFormData: React.Dispatch<React.SetStateAction<SupplierFormData>>
     editingSupplier: LocalSupplier | null; setEditingSupplier: (s: LocalSupplier | null) => void
     setSelectedSupplier: (s: LocalSupplier | null) => void; setIsModalOpen: (v: boolean) => void; setItemSearchQuery: (v: string) => void
@@ -28,7 +28,7 @@ export function useCrudHandlers({ addSupplier, updateSupplier, removeSupplier, f
     const handleSave = useCallback(() => {
         if (!formData.name?.trim()) { showToast('Nome é obrigatório', 'error'); return }
         if (editingSupplier) { updateSupplier(editingSupplier.id, { ...formData, updatedAt: new Date().toISOString() }); showToast('Fornecedor atualizado!') }
-        else { const newSupplier = { id: Date.now().toString(), ...formData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; addSupplier(newSupplier); showToast('Fornecedor adicionado!') }
+        else { const newSupplier = { id: Date.now(), ...formData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; addSupplier(newSupplier); showToast('Fornecedor adicionado!') }
         setIsModalOpen(false); setEditingSupplier(null)
     }, [formData, editingSupplier, addSupplier, updateSupplier, setIsModalOpen, setEditingSupplier, showToast])
 

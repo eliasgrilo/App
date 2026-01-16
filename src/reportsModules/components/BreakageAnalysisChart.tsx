@@ -59,7 +59,26 @@ const CriticalItemCard: React.FC<{ item: BreakageData; rank: number }> = ({ item
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface BreakageDataPayload {
+    name: string
+    wastePercentage: number
+    sold: number
+    produced: number
+    wasted: number
+    unit: string
+    lossValue: number
+}
+
+interface TooltipPayloadItem {
+    payload: BreakageDataPayload
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: TooltipPayloadItem[]
+}
+
+const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.[0]) return null
     const data = payload[0].payload
 

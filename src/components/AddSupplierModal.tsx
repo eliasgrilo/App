@@ -596,15 +596,15 @@ export default function AddSupplierModal({
                                     />
                                     <div className="p-4">
                                         <LinkedItemsSearch
-                                            inventoryItems={inventoryItems}
+                                            inventoryItems={inventoryItems as unknown as Parameters<typeof LinkedItemsSearch>[0]['inventoryItems']}
                                             linkedItems={formData.linkedItems || []}
-                                            onLink={linkItem}
-                                            onUnlink={unlinkItem}
+                                            onLink={linkItem as Parameters<typeof LinkedItemsSearch>[0]['onLink']}
+                                            onUnlink={unlinkItem as Parameters<typeof LinkedItemsSearch>[0]['onUnlink']}
                                             searchQuery={itemSearchQuery}
                                             setSearchQuery={setItemSearchQuery}
                                             stockMovements={stockMovements}
                                             supplierId={formData.id}
-                                            inventoryItemsFull={inventoryItems}
+                                            inventoryItemsFull={inventoryItems as unknown as Parameters<typeof LinkedItemsSearch>[0]['inventoryItemsFull']}
                                         />
                                     </div>
                                 </GlassCard>

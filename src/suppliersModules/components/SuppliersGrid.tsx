@@ -72,7 +72,7 @@ function HeroExpandedCard({ supplier, originRect, onClose, onEdit }: HeroCardPro
         if (!supplier.id || !stockMovements.length) return undefined
 
         // Find the inventory item to check if it belongs to this supplier
-        const invItem = ingredients.find((i: any) => i.id === Number(itemId))
+        const invItem = ingredients.find((i) => i.id === Number(itemId))
         if (!invItem || invItem.supplierId !== Number(supplier.id)) return undefined
 
         // Find the most recent 'entrada' movement for this item
@@ -541,7 +541,7 @@ export function SuppliersGrid({ suppliers, onSupplierClick, onEditClick, onAddCl
         if (!supplierId || !stockMovements.length) return undefined
 
         // Find the inventory item to check if it belongs to this supplier
-        const invItem = ingredients.find((i: any) => i.id === Number(itemId))
+        const invItem = ingredients.find((i) => i.id === Number(itemId))
         if (!invItem || invItem.supplierId !== Number(supplierId)) return undefined
 
         // Find the most recent 'entrada' movement for this item

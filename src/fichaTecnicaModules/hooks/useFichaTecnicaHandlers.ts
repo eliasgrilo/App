@@ -30,6 +30,14 @@ export interface ModalContextType {
     }) => void
 }
 
+export interface InputModalState {
+    title: string
+    placeholder: string
+    defaultValue: string
+    onConfirm: (value: string) => void
+    onCancel: () => void
+}
+
 export interface UseFichaTecnicaHandlersProps {
     pizzas: Pizza[]
     selectedPizzaId: ID | null
@@ -43,10 +51,10 @@ export interface UseFichaTecnicaHandlersProps {
     setNewIngredient: React.Dispatch<React.SetStateAction<NewIngredientState>>
     matchedInventoryItem: InventoryItemLocal | null
     setMatchedInventoryItem: (item: InventoryItemLocal | null) => void
-    setInputModal: (modal: any) => void
+    setInputModal: (modal: InputModalState | null) => void
     inventoryItems: InventoryItemLocal[]
     addRecipe: (recipe: NewRecipe) => void
-    updateRecipe: (id: ID, updates: any) => void
+    updateRecipe: (id: ID, updates: Partial<Pizza>) => void
     removeRecipe: (id: ID) => void
     formatCurrency: (v: number) => string
     toast: ToastContextType
@@ -238,7 +246,7 @@ export function useFichaTecnicaHandlers({
         }
 
         const updatedIngredients: PizzaIngredient[] = [...(selectedPizza.ingredients || []), ingredient]
-        updateRecipe(selectedPizzaId as ID, { ingredients: updatedIngredients as unknown as RecipeIngredient[] })
+        updateRecipe(selectedPizzaId as ID, { ingredients: updatedIngredients })
 
         setNewIngredient({
             name: '', quantity: '', unit: 'g', pricePerUnit: '',
@@ -264,14 +272,14 @@ export function useFichaTecnicaHandlers({
             }
         })
 
-        updateRecipe(selectedPizzaId as ID, { ingredients: updatedIngredients as unknown as RecipeIngredient[] })
+        updateRecipe(selectedPizzaId as ID, { ingredients: updatedIngredients })
     }, [selectedPizza, selectedPizzaId, updateRecipe])
 
     const handleDeleteIngredient = useCallback((ingredientId: ID) => {
         if (!selectedPizza) return
 
         const updatedIngredients = (selectedPizza.ingredients || []).filter((ing: PizzaIngredient) => ing.id !== ingredientId)
-        updateRecipe(selectedPizzaId as ID, { ingredients: updatedIngredients as unknown as RecipeIngredient[] })
+        updateRecipe(selectedPizzaId as ID, { ingredients: updatedIngredients })
         setEditingId(null)
     }, [selectedPizza, selectedPizzaId, updateRecipe, setEditingId])
 

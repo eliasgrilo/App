@@ -12,7 +12,7 @@ import { useCrudHandlers } from './useCrudHandlers'
 interface ModalContext { confirm: (opts: { title: string; message: string; isDangerous?: boolean; onConfirm: () => void }) => void }
 
 export interface UseSuppliersHandlersProps {
-    suppliers: LocalSupplier[]; addSupplier: (s: any) => void; updateSupplier: (id: ID, data: any) => void; removeSupplier: (id: ID) => void
+    suppliers: LocalSupplier[]; addSupplier: (s: Partial<LocalSupplier>) => void; updateSupplier: (id: ID, data: Partial<LocalSupplier>) => void; removeSupplier: (id: ID) => void
     formData: SupplierFormData; setFormData: React.Dispatch<React.SetStateAction<SupplierFormData>>
     editingSupplier: LocalSupplier | null; setEditingSupplier: (s: LocalSupplier | null) => void
     setSelectedSupplier: (s: LocalSupplier | null) => void; setIsModalOpen: (v: boolean) => void; setItemSearchQuery: (v: string) => void
