@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { MotionValue } from 'framer-motion'
-import type { DragState, DragTarget, PendingDrag, KanbanBoard } from '../types'
+import type { DragState, DragTarget, PendingDrag, KanbanBoard, KanbanCardData } from '../types'
 import { useDragHandlers } from './useDragHandlers'
 import { useCardColumnHandlers, ModalContextType } from './useCardColumnHandlers'
 
@@ -13,7 +13,7 @@ export interface UseKanbanHandlersProps {
     dragState: DragState; setDragState: React.Dispatch<React.SetStateAction<DragState>>
     ghostX: MotionValue<number>; ghostY: MotionValue<number>
     pendingDragRef: React.MutableRefObject<PendingDrag | null>; rafRef: React.MutableRefObject<number | null>
-    lastTargetRef: React.MutableRefObject<DragTarget>; setEditingCard: (card: any) => void
+    lastTargetRef: React.MutableRefObject<DragTarget>; setEditingCard: (card: (KanbanCardData & { columnId?: string }) | null) => void
     newCardTitle: string; setNewCardTitle: (v: string) => void; setAddingCardToCol: (colId: string | null) => void
     newColTitle: string; setNewColTitle: (v: string) => void; setAddingCol: (v: boolean) => void
     renameTitle: string; setRenamingColId: (id: string | null) => void
@@ -21,9 +21,9 @@ export interface UseKanbanHandlersProps {
 }
 
 export interface KanbanHandlersReturn {
-    addCard: (colId: string) => void; updateCard: (card: any) => void; deleteCard: (colId: string, cardId: string) => void
+    addCard: (colId: string) => void; updateCard: (card: KanbanCardData & { columnId?: string }) => void; deleteCard: (colId: string, cardId: string) => void
     addColumn: () => void; renameColumn: (colId: string) => void; deleteColumn: (colId: string) => void
-    handleCardPointerDown: (e: any, card: any, colId: string) => void
+    handleCardPointerDown: (e: React.PointerEvent<HTMLElement>, card: KanbanCardData, colId: string) => void
     findDropTarget: (clientX: number, clientY: number, activeCardId: string) => { colId: string | null; index: number } | null
 }
 

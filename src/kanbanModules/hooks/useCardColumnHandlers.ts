@@ -3,13 +3,13 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { useCallback } from 'react'
-import type { KanbanBoard } from '../types'
+import type { KanbanBoard, KanbanCardData, KanbanColumnData } from '../types'
 
 export interface ModalContextType { confirm: (opts: { title: string; message: string; isDangerous?: boolean; onConfirm: () => void }) => void }
 
 export interface UseCardColumnHandlersProps {
     setBoard: React.Dispatch<React.SetStateAction<KanbanBoard>>
-    setEditingCard: (card: any) => void; newCardTitle: string; setNewCardTitle: (v: string) => void
+    setEditingCard: (card: (KanbanCardData & { columnId?: string }) | null) => void; newCardTitle: string; setNewCardTitle: (v: string) => void
     setAddingCardToCol: (colId: string | null) => void; newColTitle: string; setNewColTitle: (v: string) => void
     setAddingCol: (v: boolean) => void; renameTitle: string; setRenamingColId: (id: string | null) => void
     haptic: (intensity?: string) => void; modal: ModalContextType
@@ -23,7 +23,7 @@ export function useCardColumnHandlers({ setBoard, setEditingCard, newCardTitle, 
         setNewCardTitle(''); setAddingCardToCol(null); haptic('light')
     }, [newCardTitle, haptic, setBoard, setNewCardTitle, setAddingCardToCol])
 
-    const updateCard = useCallback((card: any) => {
+    const updateCard = useCallback((card: KanbanCardData & { columnId?: string }) => {
         setBoard(prev => ({ ...prev, columns: prev.columns.map(c => c.id === card.columnId ? { ...c, cards: c.cards.map(existing => existing.id === card.id ? card : existing) } : c) }))
     }, [setBoard])
 
@@ -43,7 +43,7 @@ export function useCardColumnHandlers({ setBoard, setEditingCard, newCardTitle, 
     }, [renameTitle, setBoard, setRenamingColId])
 
     const deleteColumn = useCallback((colId: string) => {
-        modal.confirm({ title: "Excluir Lista", message: "Todos os cartões desta lista serão removidos. Continuar?", isDangerous: true, onConfirm: () => { setBoard(prev => ({ ...prev, columns: prev.columns.filter((c: any) => c.id !== colId) })); haptic('medium') } })
+        modal.confirm({ title: "Excluir Lista", message: "Todos os cartões desta lista serão removidos. Continuar?", isDangerous: true, onConfirm: () => { setBoard(prev => ({ ...prev, columns: prev.columns.filter((c: KanbanColumnData) => c.id !== colId) })); haptic('medium') } })
     }, [haptic, modal, setBoard])
 
     return { addCard, updateCard, deleteCard, addColumn, renameColumn, deleteColumn }
