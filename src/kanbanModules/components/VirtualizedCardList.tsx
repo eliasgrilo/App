@@ -17,14 +17,14 @@ interface VirtualizedCardListProps {
     colId: string
     dragState: DragState
     zoomLevel: number
-    handleCardPointerDown: (e: any, card: any, colId: string) => void
+    handleCardPointerDown: (e: React.PointerEvent<HTMLElement>, card: KanbanCardData, colId: string) => void
     isTargetCol: boolean
     setAddingCardToCol: (colId: string | null) => void
     setNewCardTitle: (title: string) => void
 }
 
 // Row component for react-window v2.x
-interface RowData { cards: KanbanCardData[]; colId: string; dragState: DragState; zoomLevel: number; handleCardPointerDown: (e: any, card: any, colId: string) => void }
+interface RowData { cards: KanbanCardData[]; colId: string; dragState: DragState; zoomLevel: number; handleCardPointerDown: (e: React.PointerEvent<HTMLElement>, card: KanbanCardData, colId: string) => void }
 
 const VirtualRow = React.memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: RowData }) => {
     const card = data.cards[index]; if (!card) return null

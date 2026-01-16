@@ -8,7 +8,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { VirtualizedCardList } from './VirtualizedCardList'
-import type { DragState, KanbanColumnData } from '../types'
+import type { DragState, KanbanColumnData, KanbanCardData } from '../types'
 import { spring, ZOOM_CONFIG } from '../types'
 
 // ═══════════════════════════════════════════════════════════════════
@@ -27,7 +27,7 @@ interface KanbanColumnProps {
     deleteColumn: (colId: string) => void
     setAddingCardToCol: (colId: string | null) => void
     setNewCardTitle: (title: string) => void
-    handleCardPointerDown: (e: any, card: any, colId: string) => void
+    handleCardPointerDown: (e: React.PointerEvent<HTMLElement>, card: KanbanCardData, colId: string) => void
 }
 
 // ═══════════════════════════════════════════════════════════════════

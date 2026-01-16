@@ -19,7 +19,7 @@ interface KanbanCardProps {
     colId: string
     dragState: DragState
     zoomLevel: number
-    handleCardPointerDown: (e: any, card: any, colId: string) => void
+    handleCardPointerDown: (e: React.PointerEvent<HTMLElement>, card: KanbanCardData, colId: string) => void
 }
 
 // ═══════════════════════════════════════════════════════════════════

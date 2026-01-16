@@ -10,16 +10,16 @@ import { createPortal } from 'react-dom'
 import { motion, Reorder } from 'framer-motion'
 import { useScrollLock } from '../../hooks/useScrollLock'
 import { useModal } from '../../stores/useUIStore'
-import { LABELS } from '../types'
+import { LABELS, KanbanCardData, CardLabel, Checklist, ChecklistItem } from '../types'
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
 interface CardDetailsModalProps {
-    card: any
+    card: KanbanCardData & { columnId?: string }
     onClose: () => void
-    onUpdate: (card: any) => void
+    onUpdate: (card: KanbanCardData & { columnId?: string }) => void
     onDelete: () => void
 }
 
@@ -30,7 +30,7 @@ interface CardDetailsModalProps {
 export function CardDetailsModal({ card, onClose, onUpdate, onDelete }: CardDetailsModalProps) {
     useScrollLock(true)
     const { modal } = useModal()
-    const [localCard, setLocalCard] = useState<any>(card)
+    const [localCard, setLocalCard] = useState<KanbanCardData & { columnId?: string }>(card)
     const [addingChecklist, setAddingChecklist] = useState(false)
     const [newChecklistTitle, setNewChecklistTitle] = useState('')
     const isFirstRender = useRef(true)
@@ -43,32 +43,32 @@ export function CardDetailsModal({ card, onClose, onUpdate, onDelete }: CardDeta
         return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }
     }, [localCard])
 
-    const toggleLabel = (label: any) => {
-        const has = localCard.labels?.find((l: any) => l.id === label.id)
-        setLocalCard((prev: any) => ({ ...prev, labels: has ? prev.labels.filter((l: any) => l.id !== label.id) : [...(prev.labels || []), label] }))
+    const toggleLabel = (label: CardLabel) => {
+        const has = localCard.labels?.find((l: CardLabel) => l.id === label.id)
+        setLocalCard(prev => ({ ...prev, labels: has ? prev.labels.filter((l: CardLabel) => l.id !== label.id) : [...(prev.labels || []), label] }))
     }
 
     const addChecklist = () => {
         if (!newChecklistTitle.trim()) return
-        setLocalCard((prev: any) => ({ ...prev, checklists: [...(prev.checklists || []), { id: Date.now(), title: newChecklistTitle.trim(), items: [] }] }))
+        setLocalCard(prev => ({ ...prev, checklists: [...(prev.checklists || []), { id: String(Date.now()), title: newChecklistTitle.trim(), items: [] }] }))
         setNewChecklistTitle(''); setAddingChecklist(false)
     }
 
     const deleteChecklist = (clId: string) => {
-        modal.confirm({ title: "Excluir Checklist", message: "Esta checklist será removida permanentemente.", isDangerous: true, onConfirm: () => setLocalCard((prev: any) => ({ ...prev, checklists: prev.checklists.filter((c: any) => c.id !== clId) })) })
+        modal.confirm({ title: "Excluir Checklist", message: "Esta checklist será removida permanentemente.", isDangerous: true, onConfirm: () => setLocalCard(prev => ({ ...prev, checklists: prev.checklists.filter((c: Checklist) => c.id !== clId) })) })
     }
 
     const toggleItem = (clId: string, itemId: string) => {
-        setLocalCard((prev: any) => ({ ...prev, checklists: prev.checklists.map((cl: any) => cl.id === clId ? { ...cl, items: cl.items.map((i: any) => i.id === itemId ? { ...i, done: !i.done } : i) } : cl) }))
+        setLocalCard(prev => ({ ...prev, checklists: prev.checklists.map((cl: Checklist) => cl.id === clId ? { ...cl, items: cl.items.map((i: ChecklistItem) => i.id === itemId ? { ...i, done: !i.done } : i) } : cl) }))
     }
 
     const addItem = (clId: string, text: string) => {
         if (!text.trim()) return
-        setLocalCard((prev: any) => ({ ...prev, checklists: prev.checklists.map((cl: any) => cl.id === clId ? { ...cl, items: [...cl.items, { id: Date.now(), text: text.trim(), done: false }] } : cl) }))
+        setLocalCard(prev => ({ ...prev, checklists: prev.checklists.map((cl: Checklist) => cl.id === clId ? { ...cl, items: [...cl.items, { id: String(Date.now()), text: text.trim(), done: false }] } : cl) }))
     }
 
     const removeItem = (clId: string, itemId: string) => {
-        setLocalCard((prev: any) => ({ ...prev, checklists: prev.checklists.map((cl: any) => cl.id === clId ? { ...cl, items: cl.items.filter((i: any) => i.id !== itemId) } : cl) }))
+        setLocalCard(prev => ({ ...prev, checklists: prev.checklists.map((cl: Checklist) => cl.id === clId ? { ...cl, items: cl.items.filter((i: ChecklistItem) => i.id !== itemId) } : cl) }))
     }
 
     return createPortal(
@@ -81,31 +81,31 @@ export function CardDetailsModal({ card, onClose, onUpdate, onDelete }: CardDeta
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex gap-2 flex-wrap">
                             {LABELS.map(label => (
-                                <button key={label.id} onClick={() => toggleLabel(label)} className={`w-7 h-7 rounded-full transition-all ring-2 ring-offset-2 dark:ring-offset-zinc-900 ${localCard.labels?.find((l: any) => l.id === label.id) ? 'ring-zinc-900 dark:ring-white scale-110' : 'ring-transparent opacity-40 hover:opacity-100 hover:scale-110'}`} style={{ backgroundColor: label.color }} />
+                                <button key={label.id} onClick={() => toggleLabel(label)} className={`w-7 h-7 rounded-full transition-all ring-2 ring-offset-2 dark:ring-offset-zinc-900 ${localCard.labels?.find((l: CardLabel) => l.id === label.id) ? 'ring-zinc-900 dark:ring-white scale-110' : 'ring-transparent opacity-40 hover:opacity-100 hover:scale-110'}`} style={{ backgroundColor: label.color }} />
                             ))}
                         </div>
                         <button onClick={onClose} className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-all hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-95">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                     </div>
-                    <input className="w-full text-xl md:text-2xl font-bold bg-transparent outline-none text-zinc-900 dark:text-white placeholder:text-zinc-300" value={localCard.title} onChange={e => setLocalCard((prev: any) => ({ ...prev, title: e.target.value }))} placeholder="Título do cartão" />
+                    <input className="w-full text-xl md:text-2xl font-bold bg-transparent outline-none text-zinc-900 dark:text-white placeholder:text-zinc-300" value={localCard.title} onChange={e => setLocalCard(prev => ({ ...prev, title: e.target.value }))} placeholder="Título do cartão" />
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-6 custom-scrollbar">
                     <div>
                         <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Descrição</h4>
-                        <textarea className="w-full bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl px-4 py-4 text-sm outline-none border border-zinc-200/50 dark:border-zinc-700 focus:ring-2 focus:ring-zinc-500/50 resize-none min-h-[100px]" placeholder="Adicione uma descrição..." value={localCard.description || ''} onChange={e => setLocalCard((prev: any) => ({ ...prev, description: e.target.value }))} />
+                        <textarea className="w-full bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl px-4 py-4 text-sm outline-none border border-zinc-200/50 dark:border-zinc-700 focus:ring-2 focus:ring-zinc-500/50 resize-none min-h-[100px]" placeholder="Adicione uma descrição..." value={localCard.description || ''} onChange={e => setLocalCard(prev => ({ ...prev, description: e.target.value }))} />
                     </div>
 
-                    {localCard.checklists?.map((cl: any) => (
+                    {localCard.checklists?.map((cl: Checklist) => (
                         <div key={cl.id}>
                             <div className="flex justify-between items-center mb-3">
                                 <h4 className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">{cl.title}</h4>
                                 <button onClick={() => deleteChecklist(cl.id)} className="text-[10px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors uppercase tracking-wider">Excluir</button>
                             </div>
-                            <Reorder.Group axis="y" values={cl.items} onReorder={newItems => setLocalCard((prev: any) => ({ ...prev, checklists: prev.checklists.map((c: any) => c.id === cl.id ? { ...c, items: newItems } : c) }))} className="space-y-2">
-                                {cl.items.map((item: any) => (
+                            <Reorder.Group axis="y" values={cl.items} onReorder={newItems => setLocalCard(prev => ({ ...prev, checklists: prev.checklists.map((c: Checklist) => c.id === cl.id ? { ...c, items: newItems } : c) }))} className="space-y-2">
+                                {cl.items.map((item: ChecklistItem) => (
                                     <Reorder.Item key={item.id} value={item} className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-100/80 dark:border-zinc-700 cursor-grab active:cursor-grabbing group shadow-sm">
                                         <div className="text-zinc-300 dark:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">⋮⋮</div>
                                         <button onClick={() => toggleItem(cl.id, item.id)} className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${item.done ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-300 dark:border-zinc-600 hover:border-emerald-400'}`}>
