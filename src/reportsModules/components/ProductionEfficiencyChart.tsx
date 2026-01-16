@@ -65,7 +65,25 @@ const EfficiencyRing: React.FC<{ value: number }> = ({ value }) => {
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface ProductionDataPayload {
+    name: string
+    standardTime: number
+    actualTime: number
+    efficiency: number
+    efficiencyLevel: 'optimal' | 'good' | 'needs_improvement' | 'critical'
+    defectRate: number
+}
+
+interface TooltipPayloadItem {
+    payload: ProductionDataPayload
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: TooltipPayloadItem[]
+}
+
+const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.[0]) return null
     const data = payload[0].payload
 

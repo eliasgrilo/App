@@ -110,7 +110,24 @@ const ClassCard: React.FC<{
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface ABCDataPayload {
+    name: string
+    classification: 'A' | 'B' | 'C'
+    totalCost: number
+    percentage: number
+    cumulativePercentage: number
+}
+
+interface TooltipPayloadItem {
+    payload: ABCDataPayload
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: TooltipPayloadItem[]
+}
+
+const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.[0]) return null
     const data = payload[0].payload
 

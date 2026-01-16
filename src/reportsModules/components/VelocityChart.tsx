@@ -103,7 +103,27 @@ const ExpiryAlertCard: React.FC<{ item: VelocityItem; rank: number }> = ({ item,
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface VelocityDataPayload {
+    name: string
+    currentStock: number
+    unit: string
+    daysRemaining: number
+    turnoverRate: number
+    avgDailySales: number
+    expiryRisk?: boolean
+    expiryDate?: string
+}
+
+interface TooltipPayloadItem {
+    payload: VelocityDataPayload
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: TooltipPayloadItem[]
+}
+
+const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.[0]) return null
     const item = payload[0].payload
 

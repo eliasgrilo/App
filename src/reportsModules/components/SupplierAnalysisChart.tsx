@@ -86,7 +86,27 @@ const SupplierCard: React.FC<{ supplier: SupplierItem; rank: number }> = ({ supp
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface SupplierDataPayload {
+    name: string
+    category: string
+    overallRating: 'A' | 'B' | 'C' | 'D'
+    totalPurchases: number
+    qualityScore: number
+    onTimeDeliveryRate: number
+    avgDeliveryTime: number
+    dependencyRisk: number
+}
+
+interface TooltipPayloadItem {
+    payload: SupplierDataPayload
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: TooltipPayloadItem[]
+}
+
+const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.[0]) return null
     const data = payload[0].payload
 

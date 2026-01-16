@@ -126,7 +126,26 @@ const PerformerCard: React.FC<{
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface MarginDataPayload {
+    name: string
+    unitCost: number
+    unitPrice: number
+    marginPercent: number
+    marginValue: number
+    unitsSold: number
+    totalMargin: number
+}
+
+interface TooltipPayloadItem {
+    payload: MarginDataPayload
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: TooltipPayloadItem[]
+}
+
+const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.[0]) return null
     const data = payload[0].payload
 

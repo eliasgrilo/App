@@ -73,7 +73,19 @@ const AccuracyCard: React.FC<{ item: ForecastItem; rank: number }> = ({ item, ra
 // CUSTOM TOOLTIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface ForecastTooltipPayloadItem {
+    value: number
+    dataKey: string
+    payload: Record<string, unknown>
+}
+
+interface ChartTooltipProps {
+    active?: boolean
+    payload?: ForecastTooltipPayloadItem[]
+    label?: string
+}
+
+const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (!active || !payload?.length) return null
 
     const forecast = payload[0]?.value

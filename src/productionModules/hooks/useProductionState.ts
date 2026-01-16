@@ -7,7 +7,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useModal, useToast } from '../../stores/useUIStore'
 import type {
     InputState, GramsInputState, InputModalState, Recipes,
-    YeastTypeKey, PrefermentKey, PrefermentData, YeastTypeData, DisplayGrams
+    YeastTypeKey, PrefermentKey, PrefermentData, PrefermentDataItem, YeastTypeData, DisplayGrams
 } from '../types'
 
 // Tab view types
@@ -28,7 +28,7 @@ export interface ProductionStateReturn {
     setRecipes: React.Dispatch<React.SetStateAction<Recipes>>
     inputModal: InputModalState | null
     setInputModal: (v: InputModalState | null) => void
-    fileRef: React.RefObject<HTMLInputElement>
+    fileRef: React.RefObject<HTMLInputElement | null>
 
     // Tab navigation
     activeView: ProductionViewType
@@ -42,7 +42,7 @@ export interface ProductionStateReturn {
     displayGrams: DisplayGrams
     hydration: number
     prefermentKey: PrefermentKey
-    prefermentData: any
+    prefermentData: PrefermentDataItem | null
     prefermentFlour: number
     prefermentWater: number
     prefermentMass: number
@@ -204,7 +204,7 @@ export function useProductionState(): ProductionStateReturn {
         gramsInputs, setGramsInputs,
         recipes, setRecipes,
         inputModal, setInputModal,
-        fileRef: fileRef as any,
+        fileRef: fileRef as React.RefObject<HTMLInputElement | null>,
         activeView, setActiveView,
         totalPct, totalDoughWeight, flourWeight,
         grams, displayGrams, hydration,
