@@ -24,7 +24,7 @@ export function useFileHandlers({ setFormData, selectedDocCategory, setUploading
             reader.onload = (e: ProgressEvent<FileReader>) => {
                 setUploadProgress(100)
                 const newDoc: SupplierDocument = { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), name: file.name, type: file.type, size: file.size, dataUrl: (e.target?.result as string) || '', uploadedAt: new Date().toISOString(), category: selectedDocCategory }
-                setTimeout(() => { setFormData(prev => ({ ...prev, documents: [...prev.documents, newDoc] })); setUploadingFile(null); setUploadingFileType(null); setUploadProgress(0); showToast('Documento anexado!') }, 200)
+                setTimeout(() => { setFormData(prev => ({ ...prev, documents: [...(prev.documents ?? []), newDoc] })); setUploadingFile(null); setUploadingFileType(null); setUploadProgress(0); showToast('Documento anexado!') }, 200)
             }
             reader.onerror = () => { setUploadingFile(null); setUploadingFileType(null); setUploadProgress(0); showToast('Erro ao ler arquivo', 'error') }
             reader.readAsDataURL(file)
@@ -34,7 +34,7 @@ export function useFileHandlers({ setFormData, selectedDocCategory, setUploading
     const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation() }, [])
     const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation() }, [])
     const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); const files = e.dataTransfer.files; if (files.length > 0) handleFileSelect(files) }, [handleFileSelect])
-    const deleteDocument = useCallback((docId: string) => { setFormData(prev => ({ ...prev, documents: prev.documents.filter(d => d.id !== docId) })); showToast('Documento removido') }, [setFormData, showToast])
+    const deleteDocument = useCallback((docId: string) => { setFormData(prev => ({ ...prev, documents: (prev.documents ?? []).filter(d => d.id !== docId) })); showToast('Documento removido') }, [setFormData, showToast])
 
     const downloadDocument = useCallback((doc: SupplierDocument) => {
         try {

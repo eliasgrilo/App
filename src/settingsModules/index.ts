@@ -2,9 +2,10 @@
 // SETTINGS MODULES — Barrel Export
 // ═══════════════════════════════════════════════════════════════════
 
-export { Icons, sectionGradients, regionColors } from './Icons'
+export { Icons, sectionGradients } from './Icons'
 
-export { Section, Row, SegmentedControl, ProvinceCard } from './components/FormComponents'
-export type { SectionProps, RowProps, SegmentedOption, SegmentedControlProps, ProvinceData, ProvinceCardProps } from './components/FormComponents'
+export { Section, Row, SegmentedControl } from './components/FormComponents'
+export type { SectionProps, RowProps, SegmentedOption, SegmentedControlProps } from './components/FormComponents'
 
-export { MainView, TerritoryView } from './components/Views'
+export { MainView } from './components/Views'
+

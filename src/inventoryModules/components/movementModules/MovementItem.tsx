@@ -50,7 +50,7 @@ export const MovementItem: React.FC<MovementItemProps> = ({ movement: m, onRemov
                 {(() => {
                     const notesText = m.notes || ''
                     const invoiceMatch = notesText.match(/nNF[:\s]*([0-9]+)/i) || notesText.match(/^([0-9]+)$/)
-                    const invoiceNumber = invoiceMatch ? invoiceMatch[1].replace(/^0+/, '') || '0' : null
+                    const invoiceNumber = invoiceMatch && invoiceMatch[1] ? invoiceMatch[1].replace(/^0+/, '') || '0' : null
                     return (
                         <button
                             onClick={(e) => {
@@ -80,7 +80,7 @@ export const MovementItem: React.FC<MovementItemProps> = ({ movement: m, onRemov
             </div>
             {/* Total Value */}
             <div className="hidden md:flex md:col-span-2 justify-end items-center">
-                <span className={`text-[15px] font-semibold tracking-tight tabular-nums ${isManual ? 'text-amber-600 dark:text-amber-400' : t.isOut ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{t.isOut ? '−' : '+'}{new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(m.quantity)}</span>
+                <span className={`text-[15px] font-semibold tracking-tight tabular-nums ${isManual ? 'text-amber-600 dark:text-amber-400' : t.isOut ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{t.isOut ? '−' : '+'}{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(m.quantity)}</span>
             </div>
             {/* Date + Delete */}
             <div className="md:col-span-1 flex justify-end items-center gap-1.5 pt-2 md:pt-0 border-t md:border-0 border-zinc-50 dark:border-white/5">

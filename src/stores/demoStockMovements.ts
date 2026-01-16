@@ -1,0 +1,202 @@
+/**
+ * Demo Stock Movements Data
+ * Extracted from useAppStore to reduce main store file size
+ */
+
+import type { StockMovement } from './useAppStore'
+
+export const DEMO_MOVEMENTS: StockMovement[] = [
+    // Farinha - Multiple purchases with price variation
+    {
+        id: 'demo_entrada_1',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 50,
+        unit: 'kg',
+        previousStock: 25,
+        newStock: 75,
+        costAtTime: 175.00,
+        reason: 'Compra Fornecedor Moinho',
+        notes: 'nNF: 000012847',
+        timestamp: new Date().toISOString()
+    },
+    {
+        id: 'demo_entrada_farinha_2',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 40,
+        unit: 'kg',
+        previousStock: 10,
+        newStock: 50,
+        costAtTime: 132.00,
+        reason: 'Compra Fornecedor Moinho',
+        notes: 'nNF: 000012691',
+        timestamp: new Date(Date.now() - 86400000 * 7).toISOString()
+    },
+    {
+        id: 'demo_entrada_farinha_3',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 60,
+        unit: 'kg',
+        previousStock: 5,
+        newStock: 65,
+        costAtTime: 186.00,
+        reason: 'Compra Atacadão',
+        notes: 'nNF: 000045123',
+        timestamp: new Date(Date.now() - 86400000 * 14).toISOString()
+    },
+    {
+        id: 'demo_entrada_farinha_4',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 50,
+        unit: 'kg',
+        previousStock: 0,
+        newStock: 50,
+        costAtTime: 150.00,
+        reason: 'Compra Fornecedor Moinho',
+        timestamp: new Date(Date.now() - 86400000 * 21).toISOString()
+    },
+    {
+        id: 'demo_entrada_farinha_5',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'entrada',
+        quantity: 45,
+        unit: 'kg',
+        previousStock: 8,
+        newStock: 53,
+        costAtTime: 126.00,
+        reason: 'Promoção Atacadista',
+        timestamp: new Date(Date.now() - 86400000 * 30).toISOString()
+    },
+    // Mussarela di Bufala - Multiple purchases
+    {
+        id: 'demo_manual_entrada_1',
+        itemId: 3,
+        itemName: 'Mussarela di Bufala',
+        type: 'entrada',
+        quantity: 8,
+        unit: 'kg',
+        previousStock: 5,
+        newStock: 13,
+        costAtTime: 1000.00,
+        reason: 'Ajuste manual - estoque encontrado',
+        timestamp: new Date(Date.now() - 600000).toISOString(),
+        isManual: true
+    },
+    {
+        id: 'demo_saida_1',
+        itemId: 2,
+        itemName: 'Mussarela',
+        type: 'saida',
+        quantity: 5,
+        unit: 'kg',
+        previousStock: 20,
+        newStock: 15,
+        costAtTime: 89.90,
+        reason: 'Venda Balcão',
+        timestamp: new Date(Date.now() - 3600000).toISOString()
+    },
+    {
+        id: 'demo_manual_saida_1',
+        itemId: 4,
+        itemName: 'Azeite Extra Virgem',
+        type: 'saida',
+        quantity: 2,
+        unit: 'L',
+        previousStock: 15,
+        newStock: 13,
+        costAtTime: 378.00,
+        reason: 'Correção de contagem',
+        timestamp: new Date(Date.now() - 1200000).toISOString(),
+        isManual: true
+    },
+    {
+        id: 'demo_producao_1',
+        itemId: 1,
+        itemName: 'Farinha de Trigo T55',
+        type: 'producao',
+        quantity: 10,
+        unit: 'kg',
+        previousStock: 75,
+        newStock: 65,
+        costAtTime: 35.00,
+        reason: 'Produção 50 pizzas',
+        timestamp: new Date(Date.now() - 7200000).toISOString()
+    },
+    {
+        id: 'demo_manual_entrada_2',
+        itemId: 6,
+        itemName: 'Manjericão Fresco',
+        type: 'entrada',
+        quantity: 12,
+        unit: 'un',
+        previousStock: 24,
+        newStock: 36,
+        costAtTime: 102.00,
+        reason: 'Recontagem manual',
+        timestamp: new Date(Date.now() - 900000).toISOString(),
+        isManual: true
+    },
+    {
+        id: 'demo_perda_1',
+        itemId: 3,
+        itemName: 'Tomate Pelati',
+        type: 'perda',
+        quantity: 2,
+        unit: 'kg',
+        previousStock: 8,
+        newStock: 6,
+        costAtTime: 24.00,
+        reasonCode: 'expired',
+        reason: 'Lote vencido 02/01',
+        timestamp: new Date(Date.now() - 86400000).toISOString()
+    },
+    {
+        id: 'demo_ajuste_1',
+        itemId: 4,
+        itemName: 'Fermento Biológico',
+        type: 'ajuste',
+        quantity: 0.5,
+        unit: 'kg',
+        previousStock: 1.5,
+        newStock: 2,
+        costAtTime: 15.00,
+        reason: 'Correção inventário',
+        timestamp: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+        id: 'demo_negativo_1',
+        itemId: 5,
+        itemName: 'Azeite Extra Virgem',
+        type: 'saida',
+        quantity: 3,
+        unit: 'L',
+        previousStock: 2,
+        newStock: -1,
+        costAtTime: 89.70,
+        reason: 'Venda urgente (contagem errada)',
+        timestamp: new Date(Date.now() - 1800000).toISOString()
+    },
+    // Additional supplier linked items
+    { id: 'demo_entrada_fermento_1', itemId: 8, itemName: 'Fermento Biológico Seco', type: 'entrada', quantity: 2, unit: 'kg', previousStock: 0, newStock: 2, costAtTime: 64.00, reason: 'Compra Moinho Globo', timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { id: 'demo_entrada_molho_1', itemId: 2, itemName: 'Molho de Tomate San Marzano', type: 'entrada', quantity: 10, unit: 'kg', previousStock: 0, newStock: 10, costAtTime: 425.00, reason: 'Compra Importadora Italia', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { id: 'demo_entrada_azeite_1', itemId: 4, itemName: 'Azeite Extra Virgem', type: 'entrada', quantity: 15, unit: 'L', previousStock: 0, newStock: 15, costAtTime: 2835.00, reason: 'Compra Importadora Italia', timestamp: new Date(Date.now() - 86400000 * 5).toISOString() },
+    { id: 'demo_entrada_parmesao_1', itemId: 7, itemName: 'Parmesão Reggiano 24 meses', type: 'entrada', quantity: 3, unit: 'kg', previousStock: 0, newStock: 3, costAtTime: 855.00, reason: 'Compra Importadora Italia', timestamp: new Date(Date.now() - 86400000 * 4).toISOString() },
+    { id: 'demo_entrada_presunto_1', itemId: 10, itemName: 'Presunto de Parma', type: 'entrada', quantity: 4, unit: 'kg', previousStock: 0, newStock: 4, costAtTime: 580.00, reason: 'Compra Importadora Italia', timestamp: new Date(Date.now() - 86400000 * 6).toISOString() },
+    { id: 'demo_entrada_mussarela_2', itemId: 3, itemName: 'Mussarela di Bufala', type: 'entrada', quantity: 5, unit: 'kg', previousStock: 0, newStock: 5, costAtTime: 625.00, reason: 'Compra Laticínios Premium', timestamp: new Date(Date.now() - 86400000 * 1).toISOString() },
+    { id: 'demo_entrada_gorgonzola_1', itemId: 13, itemName: 'Gorgonzola', type: 'entrada', quantity: 4, unit: 'kg', previousStock: 0, newStock: 4, costAtTime: 380.00, reason: 'Compra Laticínios Premium', timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { id: 'demo_entrada_pepperoni_1', itemId: 5, itemName: 'Pepperoni Artesanal', type: 'entrada', quantity: 12, unit: 'kg', previousStock: 0, newStock: 12, costAtTime: 936.00, reason: 'Compra Embutidos Gourmet', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { id: 'demo_entrada_calabresa_1', itemId: 15, itemName: 'Calabresa Artesanal', type: 'entrada', quantity: 10, unit: 'kg', previousStock: 0, newStock: 10, costAtTime: 520.00, reason: 'Compra Embutidos Gourmet', timestamp: new Date(Date.now() - 86400000 * 4).toISOString() },
+    { id: 'demo_entrada_manjericao_1', itemId: 6, itemName: 'Manjericão Fresco', type: 'entrada', quantity: 24, unit: 'un', previousStock: 0, newStock: 24, costAtTime: 204.00, reason: 'Compra Horta Orgânica', timestamp: new Date(Date.now() - 86400000 * 1).toISOString() },
+    { id: 'demo_entrada_cogumelos_1', itemId: 11, itemName: 'Cogumelos Portobello', type: 'entrada', quantity: 3, unit: 'kg', previousStock: 0, newStock: 3, costAtTime: 114.00, reason: 'Compra Horta Orgânica', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+    { id: 'demo_entrada_cebola_1', itemId: 14, itemName: 'Cebola Roxa', type: 'entrada', quantity: 10, unit: 'kg', previousStock: 0, newStock: 10, costAtTime: 180.00, reason: 'Compra Horta Orgânica', timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
+    { id: 'demo_entrada_sal_1', itemId: 9, itemName: 'Sal Marinho', type: 'entrada', quantity: 10, unit: 'kg', previousStock: 0, newStock: 10, costAtTime: 120.00, reason: 'Compra Distribuidora Central', timestamp: new Date(Date.now() - 86400000 * 5).toISOString() },
+    { id: 'demo_entrada_detergente_1', itemId: 12, itemName: 'Detergente Neutro', type: 'entrada', quantity: 20, unit: 'L', previousStock: 0, newStock: 20, costAtTime: 560.00, reason: 'Compra Distribuidora Central', timestamp: new Date(Date.now() - 86400000 * 7).toISOString() }
+]

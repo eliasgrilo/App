@@ -165,7 +165,7 @@ export default function Suppliers() {
                     <div className="bg-white dark:bg-zinc-950 rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/10 shadow-lg overflow-hidden">
                         {/* Period Filters */}
                         <div className="flex items-center mb-4">
-                            <div className="inline-flex bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg">
+                            <div className="inline-flex gap-0.5 bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg">
                                 {(['today', '7d', '30d', 'all'] as const).map(p => (
                                     <button
                                         key={p}

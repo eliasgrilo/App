@@ -19,6 +19,7 @@ export { InventoryTable } from './components/InventoryTable'
 export { InventoryDashboard } from './components/InventoryDashboard'
 export { InventoryFilters } from './components/InventoryFilters'
 export { InventoryHeader } from './components/InventoryHeader'
+export { InventoryReportPage } from './components/InventoryReportPage'
 export type { StockMovement } from './components/MovementRegistry'
 
 // Hooks - Existing

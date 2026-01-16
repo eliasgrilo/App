@@ -31,7 +31,7 @@ export const MobileCard: React.FC<RowProps> = ({ item, isEditing, taxRate, forma
 
     if (isEditing) {
         return (
-            <motion.div layout className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${stockBorderClass} border-indigo-500/30 shadow-lg shadow-indigo-500/5`}>
+            <motion.div className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${stockBorderClass} border-indigo-500/30 shadow-lg shadow-indigo-500/5`}>
                 <div className="space-y-4">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" /><h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">Editando Item</h4></div>
@@ -59,7 +59,7 @@ export const MobileCard: React.FC<RowProps> = ({ item, isEditing, taxRate, forma
     }
 
     return (
-        <motion.div layout className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${stockBorderClass} border-zinc-200/60 dark:border-white/5 shadow-sm cursor-pointer`} onClick={() => onSelectIngredient?.(item)}>
+        <motion.div className={`bg-white dark:bg-zinc-900 rounded-2xl p-5 border transition-all ${stockBorderClass} border-zinc-200/60 dark:border-white/5 shadow-sm cursor-pointer`} onClick={() => onSelectIngredient?.(item)}>
             <div className="flex items-center justify-between w-full">
                 <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-zinc-900 dark:text-white truncate">{item.name}</h4>

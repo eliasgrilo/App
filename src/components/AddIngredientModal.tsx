@@ -1,15 +1,28 @@
 // ═══════════════════════════════════════════════════════════════════
 // ADD INGREDIENT MODAL — Apple Cupertino Ultimate Edition
-// Inspired by macOS Sonoma, iOS 17, and visionOS Design Language
+// Refactored to use shared primitives library
 // ═══════════════════════════════════════════════════════════════════
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion'
+import { motion, AnimatePresence, useSpring } from 'framer-motion'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { Supplier } from '../types'
 import { NewItemState } from '../inventoryModules/hooks/useNewItemForm'
+
+// Shared UI Primitives
+import {
+    SPRING_BOUNCY,
+    SPRING_SMOOTH,
+    backdropVariants,
+    modalVariants,
+    staggerContainer,
+    staggerItem,
+    GlassCard,
+    SectionHeader,
+    FormRow,
+} from './shared/primitives'
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -37,7 +50,7 @@ const DEFAULT_SUBCATEGORIES: Record<string, string[]> = {
     Outros: ['Geral']
 }
 
-// Apple-style gradients
+// Apple-style gradients (local override with additional options)
 const GRADIENTS = {
     blue: 'from-blue-500 to-blue-600',
     green: 'from-emerald-500 to-emerald-600',
@@ -48,36 +61,8 @@ const GRADIENTS = {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ANIMATION SYSTEM — Apple-quality springs
-// ═══════════════════════════════════════════════════════════════════
-
-const SPRING = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 }
-const SPRING_BOUNCY = { type: 'spring' as const, stiffness: 600, damping: 25, mass: 0.5 }
-const SPRING_SMOOTH = { type: 'spring' as const, stiffness: 300, damping: 35, mass: 1 }
-
-const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.2 } },
-    exit: { opacity: 0, transition: { duration: 0.15 } },
-}
-
-const modalVariants = {
-    hidden: { opacity: 0, scale: 0.92, y: 20 },
-    visible: { opacity: 1, scale: 1, y: 0, transition: SPRING },
-    exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15 } },
-}
-
-const staggerContainer = {
-    visible: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } },
-}
-
-const staggerItem = {
-    hidden: { opacity: 0, y: 12 },
-    visible: { opacity: 1, y: 0, transition: SPRING_SMOOTH },
-}
-
-// ═══════════════════════════════════════════════════════════════════
 // ICONS — SF Symbols Style with Animation Support
+
 // ═══════════════════════════════════════════════════════════════════
 
 const Icons = {
@@ -174,74 +159,8 @@ const GradientOrb: React.FC<{ gradient: string; size?: string }> = ({ gradient, 
     </div>
 )
 
-// ═══════════════════════════════════════════════════════════════════
-// GLASSMORPHIC CARD — Apple premium glass effect
-// ═══════════════════════════════════════════════════════════════════
 
-const GlassCard: React.FC<{
-    children: React.ReactNode
-    className?: string
-    hoverable?: boolean
-}> = ({ children, className = '', hoverable = false }) => (
-    <motion.div
-        whileHover={hoverable ? { scale: 1.01, y: -1 } : undefined}
-        transition={SPRING_BOUNCY}
-        className={`
-            relative overflow-hidden rounded-2xl
-            bg-white/70 dark:bg-zinc-800/50
-            backdrop-blur-xl backdrop-saturate-150
-            border border-white/50 dark:border-zinc-700/50
-            shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),0_4px_16px_-4px_rgba(0,0,0,0.1)]
-            dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.2),0_4px_16px_-4px_rgba(0,0,0,0.3)]
-            ${className}
-        `}
-    >
-        {children}
-    </motion.div>
-)
 
-// ═══════════════════════════════════════════════════════════════════
-// SECTION HEADER — with gradient icon
-// ═══════════════════════════════════════════════════════════════════
-
-const SectionHeader: React.FC<{
-    icon: React.ReactNode
-    title: string
-    gradient: string
-    subtitle?: string
-}> = ({ icon, title, gradient, subtitle }) => (
-    <div className="flex items-center gap-3 px-4 py-3">
-        <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white shadow-lg`}>
-            {icon}
-        </div>
-        <div className="flex-1">
-            <h3 className="text-[14px] font-semibold text-zinc-900 dark:text-white">{title}</h3>
-            {subtitle && <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{subtitle}</p>}
-        </div>
-    </div>
-)
-
-// ═══════════════════════════════════════════════════════════════════
-// FORM ROW — with smooth hover states
-// ═══════════════════════════════════════════════════════════════════
-
-const FormRow: React.FC<{
-    label: string
-    hint?: string
-    children: React.ReactNode
-    last?: boolean
-}> = ({ label, hint, children, last = false }) => (
-    <motion.div
-        whileHover={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
-        className={`flex items-center justify-between gap-4 px-4 py-3 ${!last ? 'border-b border-zinc-100/80 dark:border-zinc-700/30' : ''}`}
-    >
-        <div className="flex-1 min-w-0">
-            <span className="text-[15px] font-medium text-zinc-900 dark:text-white">{label}</span>
-            {hint && <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">{hint}</p>}
-        </div>
-        <div className="shrink-0">{children}</div>
-    </motion.div>
-)
 
 // ═══════════════════════════════════════════════════════════════════
 // INPUT — Apple native style with focus animation
@@ -806,10 +725,10 @@ export function AddIngredientModal({
                             {/* Price */}
                             <motion.div variants={staggerItem}>
                                 <GlassCard>
-                                    <SectionHeader icon={Icons.dollar} title="Preço" subtitle="Em dólares canadenses" gradient={GRADIENTS.green} />
+                                    <SectionHeader icon={Icons.dollar} title="Preço" subtitle="Em reais" gradient={GRADIENTS.green} />
                                     <FormRow label="Preço por Unidade" last>
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[14px] font-medium text-zinc-400">CAD$</span>
+                                            <span className="text-[14px] font-medium text-zinc-400">R$</span>
                                             <AppleInput
                                                 value={newItem.pricePerUnit}
                                                 onChange={(v) => updateField('pricePerUnit', v)}

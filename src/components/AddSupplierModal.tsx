@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
 // ADD SUPPLIER MODAL — Apple Cupertino Ultimate Edition
 // Inspired by macOS Sonoma, iOS 17, and visionOS Design Language
-// Redesigned to match AddIngredientModal premium experience
+// Refactored to use shared primitives library
 // ═══════════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
@@ -12,49 +12,25 @@ import { useFocusTrap } from '../hooks/useFocusTrap'
 import { Icons, LinkedItemsSearch, FileUploadZone } from '../addSupplierModules'
 import { useStockMovements } from '../stores/useAppStore'
 
-// ═══════════════════════════════════════════════════════════════════
-// ANIMATION SYSTEM — Apple-quality springs
-// ═══════════════════════════════════════════════════════════════════
+import { LinkedItem, LocalSupplier, SupplierDocument } from '../suppliersModules/types'
+import { Ingredient } from '../types'
+import {
+    SPRING_BOUNCY,
+    SPRING_SMOOTH,
+    backdropVariants,
+    modalVariants,
+    staggerContainer,
+    staggerItem,
+    GRADIENTS,
+    GlassCard,
+    SectionHeader,
+    FormRow,
+    AppleInput,
+    AppleToggle,
+    AppleTextarea,
+} from './shared/primitives'
 
-const SPRING = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 }
-const SPRING_BOUNCY = { type: 'spring' as const, stiffness: 600, damping: 25, mass: 0.5 }
-const SPRING_SMOOTH = { type: 'spring' as const, stiffness: 300, damping: 35, mass: 1 }
 
-const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.2 } },
-    exit: { opacity: 0, transition: { duration: 0.15 } },
-}
-
-const modalVariants = {
-    hidden: { opacity: 0, scale: 0.92, y: 20 },
-    visible: { opacity: 1, scale: 1, y: 0, transition: SPRING },
-    exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15 } },
-}
-
-const staggerContainer = {
-    visible: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } },
-}
-
-const staggerItem = {
-    hidden: { opacity: 0, y: 12 },
-    visible: { opacity: 1, y: 0, transition: SPRING_SMOOTH },
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// DESIGN TOKENS — Apple-style gradients
-// ═══════════════════════════════════════════════════════════════════
-
-const GRADIENTS = {
-    blue: 'from-blue-500 to-blue-600',
-    green: 'from-emerald-500 to-emerald-600',
-    purple: 'from-violet-500 to-violet-600',
-    orange: 'from-orange-500 to-orange-600',
-    pink: 'from-pink-500 to-pink-600',
-    cyan: 'from-cyan-500 to-cyan-600',
-    indigo: 'from-indigo-500 to-indigo-600',
-    teal: 'from-teal-400 to-teal-500',
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // ICONS — SF Symbols Style
@@ -119,198 +95,13 @@ const ModalIcons = {
     ),
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// GLASSMORPHIC CARD — Apple premium glass effect
-// ═══════════════════════════════════════════════════════════════════
 
-const GlassCard: React.FC<{
-    children: React.ReactNode
-    className?: string
-    hoverable?: boolean
-}> = ({ children, className = '', hoverable = false }) => (
-    <motion.div
-        whileHover={hoverable ? { scale: 1.01, y: -1 } : undefined}
-        transition={SPRING_BOUNCY}
-        className={`
-            relative overflow-visible rounded-2xl
-            bg-white/70 dark:bg-zinc-800/50
-            backdrop-blur-xl backdrop-saturate-150
-            border border-white/50 dark:border-zinc-700/50
-            shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),0_4px_16px_-4px_rgba(0,0,0,0.1)]
-            dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.2),0_4px_16px_-4px_rgba(0,0,0,0.3)]
-            ${className}
-        `}
-    >
-        {children}
-    </motion.div>
-)
 
-// ═══════════════════════════════════════════════════════════════════
-// SECTION HEADER — with gradient icon
-// ═══════════════════════════════════════════════════════════════════
 
-const SectionHeader: React.FC<{
-    icon: React.ReactNode
-    title: string
-    gradient: string
-    subtitle?: string
-}> = ({ icon, title, gradient, subtitle }) => (
-    <div className="flex items-center gap-3 px-4 py-3">
-        <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white shadow-lg`}>
-            {icon}
-        </div>
-        <div className="flex-1">
-            <h3 className="text-[14px] font-semibold text-zinc-900 dark:text-white">{title}</h3>
-            {subtitle && <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{subtitle}</p>}
-        </div>
-    </div>
-)
 
-// ═══════════════════════════════════════════════════════════════════
-// FORM ROW — with smooth hover states
-// ═══════════════════════════════════════════════════════════════════
 
-const FormRow: React.FC<{
-    label: string
-    hint?: string
-    children: React.ReactNode
-    last?: boolean
-}> = ({ label, hint, children, last = false }) => (
-    <motion.div
-        whileHover={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
-        className={`flex items-center justify-between gap-4 px-4 py-3 ${!last ? 'border-b border-zinc-100/80 dark:border-zinc-700/30' : ''}`}
-    >
-        <div className="flex-1 min-w-0">
-            <span className="text-[15px] font-medium text-zinc-900 dark:text-white">{label}</span>
-            {hint && <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">{hint}</p>}
-        </div>
-        <div className="shrink-0">{children}</div>
-    </motion.div>
-)
 
-// ═══════════════════════════════════════════════════════════════════
-// INPUT — Apple native style with focus animation
-// ═══════════════════════════════════════════════════════════════════
 
-const AppleInput: React.FC<{
-    value: string
-    onChange: (v: string) => void
-    placeholder?: string
-    type?: 'text' | 'tel' | 'email'
-    align?: 'left' | 'right'
-    size?: 'sm' | 'md' | 'lg' | 'full'
-    autoFocus?: boolean
-    onAction?: () => void
-    actionIcon?: React.ReactNode
-}> = ({ value, onChange, placeholder, type = 'text', align = 'right', size = 'md', autoFocus, onAction, actionIcon }) => {
-    const [isFocused, setIsFocused] = useState(false)
-
-    const sizeClasses = {
-        sm: 'h-8 px-2.5 text-[14px] min-w-[80px]',
-        md: 'h-9 px-3 text-[15px] min-w-[100px]',
-        lg: 'h-10 px-3.5 text-[16px] min-w-[120px]',
-        full: 'h-11 px-4 text-[15px] w-full',
-    }
-
-    return (
-        <motion.div
-            animate={{ scale: isFocused ? 1.02 : 1 }}
-            transition={SPRING_BOUNCY}
-            className="relative flex items-center gap-2"
-        >
-            <input
-                type={type}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder={placeholder}
-                autoFocus={autoFocus}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                className={`
-                    ${sizeClasses[size]} rounded-lg
-                    bg-zinc-100/80 dark:bg-zinc-700/50
-                    border-0 outline-none
-                    font-medium text-zinc-900 dark:text-white
-                    placeholder:text-zinc-400 dark:placeholder:text-zinc-500
-                    focus:bg-white dark:focus:bg-zinc-700
-                    focus:ring-2 focus:ring-blue-500/40
-                    transition-all duration-200
-                    ${align === 'right' ? 'text-right' : 'text-left'}
-                `}
-            />
-            {onAction && actionIcon && value && (
-                <motion.button
-                    type="button"
-                    onClick={onAction}
-                    whileTap={{ scale: 0.9 }}
-                    className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shadow-lg"
-                >
-                    {actionIcon}
-                </motion.button>
-            )}
-        </motion.div>
-    )
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// TOGGLE — iOS authentic with scale bounce
-// ═══════════════════════════════════════════════════════════════════
-
-const AppleToggle: React.FC<{
-    checked: boolean
-    onChange: (v: boolean) => void
-}> = ({ checked, onChange }) => {
-    const scale = useSpring(1, { stiffness: 500, damping: 30 })
-
-    return (
-        <motion.button
-            type="button"
-            role="switch"
-            aria-checked={checked}
-            onClick={() => onChange(!checked)}
-            onTapStart={() => scale.set(0.95)}
-            onTap={() => scale.set(1)}
-            onTapCancel={() => scale.set(1)}
-            style={{ scale }}
-            className={`relative w-[51px] h-[31px] rounded-full transition-colors duration-300 ${checked ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'
-                }`}
-        >
-            <motion.div
-                animate={{ x: checked ? 20 : 0 }}
-                transition={SPRING_BOUNCY}
-                className="absolute top-[2px] left-[2px] w-[27px] h-[27px] bg-white rounded-full shadow-lg"
-            />
-        </motion.button>
-    )
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// TEXTAREA — Premium style
-// ═══════════════════════════════════════════════════════════════════
-
-const AppleTextarea: React.FC<{
-    value: string
-    onChange: (v: string) => void
-    placeholder?: string
-    rows?: number
-}> = ({ value, onChange, placeholder, rows = 3 }) => (
-    <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className="
-            w-full px-4 py-3 rounded-xl
-            bg-zinc-100/80 dark:bg-zinc-700/50
-            border-0 outline-none resize-none
-            text-[15px] font-medium text-zinc-900 dark:text-white
-            placeholder:text-zinc-400 dark:placeholder:text-zinc-500
-            focus:bg-white dark:focus:bg-zinc-700
-            focus:ring-2 focus:ring-blue-500/40
-            transition-all duration-200
-        "
-    />
-)
 
 // ═══════════════════════════════════════════════════════════════════
 // COLLAPSIBLE — with smooth height animation
@@ -414,13 +205,16 @@ const ActionIcons = {
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 
+// Form data type - partial supplier with flexible additional fields
+type SupplierFormDataType = Partial<LocalSupplier> & Record<string, unknown>
+
 interface AddSupplierModalProps {
     isOpen: boolean
     onClose: () => void
     onSave: () => void
-    formData: any
-    setFormData: React.Dispatch<React.SetStateAction<any>>
-    inventoryItems?: any[]
+    formData: SupplierFormDataType
+    setFormData: React.Dispatch<React.SetStateAction<SupplierFormDataType>>
+    inventoryItems?: Ingredient[]
     isEditing?: boolean
     onFileSelect?: (files: FileList) => void
     uploadingFile?: boolean
@@ -444,31 +238,31 @@ export default function AddSupplierModal({
     useFocusTrap(isOpen, modalRef)
     const stockMovements = useStockMovements()
 
-    const isValid = useMemo(() => formData.name?.trim().length > 0, [formData.name])
+    const isValid = useMemo(() => (formData.name?.trim().length ?? 0) > 0, [formData.name])
 
     // Action handlers
     const handleCall = useCallback((phone: string) => window.open(`tel:${phone.replace(/\D/g, '')}`, '_self'), [])
     const handleEmail = useCallback((email: string) => window.open(`mailto:${email}`, '_self'), [])
     const handleWhatsApp = useCallback((w: string) => window.open(`https://wa.me/55${w.replace(/\D/g, '')}`, '_blank'), [])
 
-    const linkItem = useCallback((item: any) => {
-        if (!formData.linkedItems?.find((i: any) => i.itemId === item.id)) {
-            setFormData((p: any) => ({
+    const linkItem = useCallback((item: Ingredient) => {
+        if (!formData.linkedItems?.find((i: LinkedItem) => i.itemId === Number(item.id))) {
+            setFormData((p: Partial<LocalSupplier>) => ({
                 ...p,
-                linkedItems: [...(p.linkedItems || []), { itemId: item.id, itemName: item.name }]
+                linkedItems: [...(p.linkedItems || []), { itemId: Number(item.id), itemName: item.name }]
             }))
         }
     }, [formData.linkedItems, setFormData])
 
     const unlinkItem = useCallback((id: string) => {
-        setFormData((p: any) => ({
+        setFormData((p: Partial<LocalSupplier>) => ({
             ...p,
-            linkedItems: (p.linkedItems || []).filter((i: any) => i.itemId !== id)
+            linkedItems: (p.linkedItems || []).filter((i: LinkedItem) => i.itemId !== Number(id))
         }))
     }, [setFormData])
 
-    const updateField = useCallback((field: string, value: any) => {
-        setFormData((p: any) => ({ ...p, [field]: value }))
+    const updateField = useCallback(<K extends keyof LocalSupplier>(field: K, value: LocalSupplier[K]) => {
+        setFormData((p: Partial<LocalSupplier>) => ({ ...p, [field]: value }))
     }, [setFormData])
 
     const handleClose = useCallback(() => {
@@ -604,19 +398,68 @@ export default function AddSupplierModal({
                             animate="visible"
                             className="px-4 py-4 space-y-3 max-h-[70vh] overflow-y-auto overscroll-contain"
                         >
-                            {/* Name Input - Hero Field */}
+                            {/* Name Input - Hero Field with Photo */}
                             <motion.div variants={staggerItem}>
                                 <GlassCard className="group">
-                                    <div className="px-4 py-4">
-                                        <input
-                                            type="text"
-                                            value={formData.name || ''}
-                                            onChange={(e) => updateField('name', e.target.value)}
-                                            placeholder="Nome do contato"
-                                            autoFocus
-                                            className="w-full text-[20px] font-semibold text-zinc-900 dark:text-white bg-transparent border-0 outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-                                        />
-                                        <p className="text-[12px] text-zinc-400 mt-1">Campo obrigatório</p>
+                                    <div className="px-4 py-4 flex items-start gap-4">
+                                        {/* Discreet Image Upload - Apple Style */}
+                                        <label className="relative cursor-pointer shrink-0">
+                                            {formData.image ? (
+                                                <div className="relative group">
+                                                    <img src={formData.image} alt="Foto" className="w-16 h-16 rounded-2xl object-cover shadow-md" />
+                                                    <div className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        </svg>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateField('image', undefined) }}
+                                                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-white shadow-md hover:bg-red-600 transition-colors"
+                                                    >
+                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-shadow">
+                                                    {formData.name ? (
+                                                        <span className="text-xl font-bold">{formData.name.charAt(0).toUpperCase()}</span>
+                                                    ) : (
+                                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0]
+                                                    if (file) {
+                                                        const reader = new FileReader()
+                                                        reader.onloadend = () => updateField('image', reader.result as string)
+                                                        reader.readAsDataURL(file)
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                        <div className="flex-1 min-w-0">
+                                            <input
+                                                type="text"
+                                                value={formData.name || ''}
+                                                onChange={(e) => updateField('name', e.target.value)}
+                                                placeholder="Nome do contato"
+                                                autoFocus
+                                                className="w-full text-[20px] font-semibold text-zinc-900 dark:text-white bg-transparent border-0 outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                                            />
+                                            <p className="text-[12px] text-zinc-400 mt-1">Toque na foto para alterar</p>
+                                        </div>
                                     </div>
                                     <div className="border-t border-zinc-100/80 dark:border-zinc-700/30">
                                         <FormRow label="Empresa" last>
@@ -640,7 +483,7 @@ export default function AddSupplierModal({
                                             onChange={(v) => updateField('phone', v)}
                                             placeholder="(00) 00000-0000"
                                             type="tel"
-                                            onAction={() => handleCall(formData.phone)}
+                                            onAction={() => formData.phone && handleCall(formData.phone)}
                                             actionIcon={ActionIcons.call}
                                         />
                                     </FormRow>
@@ -650,7 +493,7 @@ export default function AddSupplierModal({
                                             onChange={(v) => updateField('email', v)}
                                             placeholder="email@exemplo.com"
                                             type="email"
-                                            onAction={() => handleEmail(formData.email)}
+                                            onAction={() => formData.email && handleEmail(formData.email)}
                                             actionIcon={ActionIcons.email}
                                         />
                                     </FormRow>
@@ -674,7 +517,7 @@ export default function AddSupplierModal({
                                                         onChange={(v) => updateField('whatsapp', v)}
                                                         placeholder="(00) 00000-0000"
                                                         type="tel"
-                                                        onAction={() => handleWhatsApp(formData.whatsapp || formData.phone)}
+                                                        onAction={() => (formData.whatsapp || formData.phone) && handleWhatsApp(formData.whatsapp || formData.phone || '')}
                                                         actionIcon={ActionIcons.whatsapp}
                                                     />
                                                 </FormRow>
@@ -786,7 +629,7 @@ export default function AddSupplierModal({
                                         <AppleInput
                                             value={formData.minimumOrder || ''}
                                             onChange={(v) => updateField('minimumOrder', v)}
-                                            placeholder="CAD $500"
+                                            placeholder="R$ 500"
                                         />
                                     </FormRow>
 
@@ -846,7 +689,7 @@ export default function AddSupplierModal({
                                                 animate={{ opacity: 1, y: 0 }}
                                                 className="text-[12px] text-indigo-500 dark:text-indigo-400 mt-2"
                                             >
-                                                {formData.deliveryDays.length} day{formData.deliveryDays.length > 1 ? 's' : ''} selected
+                                                {(formData.deliveryDays?.length ?? 0)} day{(formData.deliveryDays?.length ?? 0) > 1 ? 's' : ''} selected
                                             </motion.p>
                                         )}
                                     </div>
@@ -859,7 +702,7 @@ export default function AddSupplierModal({
                                     icon={ModalIcons.paperclip}
                                     title="Anexos"
                                     gradient={GRADIENTS.pink}
-                                    defaultOpen={formData.documents?.length > 0}
+                                    defaultOpen={(formData.documents?.length ?? 0) > 0}
                                 >
                                     <div className="p-4">
                                         <FileUploadZone

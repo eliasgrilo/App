@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import SettingsPanel from './components/SettingsPanel'
 import CommandPalette, { useCommandPalette } from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
-import { GlobalUIComponents } from './stores'
+import { GlobalUIComponents, initTheme } from './stores'
 import {
   AppHeader,
   AmbientBackground,
@@ -28,7 +28,7 @@ const Kanban = lazy(() => import('./Kanban'))
 const Suppliers = lazy(() => import('./Suppliers'))
 const Products = lazy(() => import('./Products'))
 const AI = lazy(() => import('./AI'))
-
+const ReportsPage = lazy(() => import('./reportsModules/ReportsPage'))
 export default function App() {
   const [inputMode, setInputMode] = useState<UnitMode>('pct')
   const [view, setView] = useState<string>('ai')
@@ -37,7 +37,12 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const commandPalette = useCommandPalette()
 
-  useEffect(() => { setIsLoaded(true) }, [])
+  useEffect(() => {
+    setIsLoaded(true)
+    // Initialize theme and set up system preference listener
+    const cleanupTheme = initTheme()
+    return cleanupTheme
+  }, [])
 
   const handleViewChange = (newView: string): void => {
     if (newView !== view) setView(newView)
@@ -60,8 +65,11 @@ export default function App() {
         />
 
         {/* Page Content */}
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.main key={view} layout initial="initial" animate="enter" exit="exit"
+        {/* CRITICAL: Do NOT use layout prop on motion.main! */}
+        {/* Layout animations apply transforms that create stacking contexts, */}
+        {/* which breaks position: sticky for all child elements. */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.main key={view} initial="initial" animate="enter" exit="exit"
             variants={pageVariants} transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             className="relative z-10">
             <ErrorBoundary>
@@ -71,10 +79,11 @@ export default function App() {
                     : view === 'recipes' ? <Recipes />
                       : view === 'products' ? <Products />
                         : view === 'inventory' ? <Inventory />
-                          : view === 'suppliers' ? <Suppliers />
-                            : view === 'costs' ? <Costs />
-                              : view === 'ficha' ? <FichaTecnica />
-                                : <Production inputMode={inputMode === "pct" ? "percent" : "grams"} setInputMode={(m) => setInputMode(m === "percent" ? "pct" : "grams")} />}
+                          : view === 'reports' ? <ReportsPage />
+                            : view === 'suppliers' ? <Suppliers />
+                              : view === 'costs' ? <Costs />
+                                : view === 'ficha' ? <FichaTecnica />
+                                  : <Production inputMode={inputMode === "pct" ? "percent" : "grams"} setInputMode={(m) => setInputMode(m === "percent" ? "pct" : "grams")} />}
               </Suspense>
             </ErrorBoundary>
           </motion.main>

@@ -46,19 +46,13 @@ export function CostsDashboardCards({
                             </div>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <span className="text-[9px] font-bold text-indigo-500/60 uppercase tracking-widest ml-1">Total com Impostos</span>
-                            <div className="text-4xl md:text-7xl font-semibold text-zinc-900 dark:text-white tracking-tighter">{formatCurrency(totals.grandTotal)}</div>
+                            <span className="text-[9px] font-bold text-indigo-500/60 uppercase tracking-widest ml-1">Total</span>
+                            <div className="text-4xl md:text-7xl font-semibold text-zinc-900 dark:text-white tracking-tighter">{formatCurrency(totals.total)}</div>
                         </div>
                     </div>
-                    <div className="relative flex flex-col sm:flex-row gap-6 md:gap-12 mt-12 md:mt-20 pt-8 md:pt-10 border-t border-zinc-100/80 dark:border-white/5">
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[9px] font-bold text-zinc-400 dark:text-white/30 uppercase tracking-widest">Subtotal</span>
-                            <span className="text-2xl md:text-3xl font-semibold text-zinc-800 dark:text-white/90 tracking-tight tabular-nums">{formatCurrency(totals.total)}</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest" title={`${provinceName} (${taxDisplay})`}>Impostos ({taxDisplay})</span>
-                            <span className="text-2xl md:text-3xl font-semibold text-indigo-600 dark:text-indigo-400 tracking-tight tabular-nums">{formatCurrency(totals.tax)}</span>
-                        </div>
+                    {/* Spacer to maintain original card height */}
+                    <div className="relative mt-12 md:mt-20 pt-8 md:pt-10 border-t border-zinc-100/80 dark:border-white/5">
+                        <div className="h-[40px] md:h-[44px]"></div>
                     </div>
                 </div>
             </div>

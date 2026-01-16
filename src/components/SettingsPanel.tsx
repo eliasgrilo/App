@@ -9,38 +9,31 @@ import { createPortal } from 'react-dom'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useCurrency } from '../stores/useCurrencyStore'
-import { CurrencyCode, ProvinceCode } from '../currencyModules/types'
+import { useTheme } from '../stores/useThemeStore'
 import { MODAL_ANIMATIONS } from '../utils/animations'
-import { Icons, MainView, TerritoryView } from '../settingsModules'
+import { Icons, MainView } from '../settingsModules'
 
 interface SettingsPanelProps { isOpen: boolean; onClose: () => void }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
     const modalRef = useRef<HTMLDivElement>(null)
-    const { currency, setCurrency, province, setProvince, taxDisplay, provinceName } = useCurrency()
-    const [view, setView] = useState<'main' | 'territory'>('main')
-    const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('auto')
+    const { currency, formatCurrency } = useCurrency()
+    const { theme, setTheme } = useTheme()
+    const [view, setView] = useState<'main'>('main')
     const [showClearConfirm, setShowClearConfirm] = useState(false)
     const [isClearing, setIsClearing] = useState(false)
 
     useScrollLock(isOpen); useFocusTrap(isOpen, modalRef)
 
-    useEffect(() => { if (isOpen) { setTheme('auto'); setView('main'); setShowClearConfirm(false) } }, [isOpen])
-
-    const updateTheme = useCallback((newTheme: 'light' | 'dark' | 'auto') => {
-        setTheme(newTheme)
-        if (newTheme === 'dark') document.documentElement.classList.add('dark')
-        else if (newTheme === 'light') document.documentElement.classList.remove('dark')
-        else { if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark') }
-    }, [])
+    useEffect(() => { if (isOpen) { setView('main'); setShowClearConfirm(false) } }, [isOpen])
 
     const exportAllData = useCallback(() => {
         try {
-            const data = { version: '2.0', exportDate: new Date().toISOString(), settings: { currency, province, theme }, costs: [], categories: [] }
+            const data = { version: '2.0', exportDate: new Date().toISOString(), settings: { currency, theme }, costs: [], categories: [] }
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob)
             const a = document.createElement('a'); a.href = url; a.download = `padoca_backup_${new Date().toISOString().split('T')[0]}.json`; a.click()
         } catch (e) { console.error('Export failed:', e) }
-    }, [currency, province, theme])
+    }, [currency, theme])
 
     const clearQuotations = useCallback(async () => { setIsClearing(true); localStorage.removeItem('padoca-storage'); setTimeout(() => window.location.reload(), 500) }, [])
 
@@ -55,13 +48,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
                 style={{ boxShadow: '0 -12px 100px rgba(0,0,0,0.5)' }}>
                 <div className="flex items-center justify-between h-[56px] px-5 border-b border-[#c6c6c8]/20 dark:border-[#38383a]/50" style={{ background: 'rgba(242,242,247,0.9)', backdropFilter: 'blur(20px)' }}>
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-[5px] rounded-full bg-[#78788c]/40 md:hidden" />
-                    <div className="w-16" /><span className="text-[17px] font-bold text-[#1d1d1f] dark:text-white">Settings</span>
-                    <button onClick={onClose} className="w-16 text-right text-[17px] font-semibold text-[#007aff]">Done</button>
+                    <div className="w-16" /><span className="text-[17px] font-bold text-[#1d1d1f] dark:text-white">Configurações</span>
+                    <button onClick={onClose} className="w-16 text-right text-[17px] font-semibold text-[#007aff]">OK</button>
                 </div>
                 <AnimatePresence mode="wait">
-                    {view === 'main' && <MainView provinceName={provinceName} taxDisplay={taxDisplay} currency={currency} theme={theme}
-                        setView={setView} setCurrency={setCurrency} updateTheme={updateTheme} exportAllData={exportAllData} setShowClearConfirm={setShowClearConfirm} />}
-                    {view === 'territory' && <TerritoryView province={province} setProvince={setProvince} setView={setView} />}
+                    {view === 'main' && <MainView theme={theme} updateTheme={setTheme} exportAllData={exportAllData} setShowClearConfirm={setShowClearConfirm} />}
                 </AnimatePresence>
                 <AnimatePresence>
                     {showClearConfirm && (
@@ -69,12 +60,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
                             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="w-full max-w-[280px] bg-white dark:bg-[#1c1c1e] rounded-[20px] overflow-hidden">
                                 <div className="p-5 text-center">
                                     <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#ff3b30]/10 flex items-center justify-center"><span className="text-[#ff3b30]">{Icons.trash}</span></div>
-                                    <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-white">Clear Quotations?</h3>
-                                    <p className="mt-2 text-[14px] text-[#8e8e93]">This will permanently remove all quotation data. The app will reload.</p>
+                                    <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-white">Limpar Cotações?</h3>
+                                    <p className="mt-2 text-[14px] text-[#8e8e93]">Isso removerá permanentemente todos os dados de cotação. O app será recarregado.</p>
                                 </div>
                                 <div className="border-t border-[#e5e5ea] dark:border-[#38383a]">
-                                    <button onClick={() => setShowClearConfirm(false)} className="w-full py-3.5 text-[17px] text-[#007aff] font-medium border-b border-[#e5e5ea] dark:border-[#38383a]">Cancel</button>
-                                    <button onClick={clearQuotations} disabled={isClearing} className="w-full py-3.5 text-[17px] text-[#ff3b30] font-bold disabled:opacity-50">{isClearing ? 'Clearing...' : 'Clear All'}</button>
+                                    <button onClick={() => setShowClearConfirm(false)} className="w-full py-3.5 text-[17px] text-[#007aff] font-medium border-b border-[#e5e5ea] dark:border-[#38383a]">Cancelar</button>
+                                    <button onClick={clearQuotations} disabled={isClearing} className="w-full py-3.5 text-[17px] text-[#ff3b30] font-bold disabled:opacity-50">{isClearing ? 'Limpando...' : 'Limpar Tudo'}</button>
                                 </div>
                             </motion.div>
                         </motion.div>

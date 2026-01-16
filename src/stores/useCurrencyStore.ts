@@ -2,37 +2,28 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import {
     CurrencyCode,
-    ProvinceCode,
     CurrencyConfig,
-    ProvinceData,
-    CANADA_PROVINCES,
     CURRENCY_CONFIG
 } from '../currencyModules'
 
 /**
  * ═══════════════════════════════════════════════════════════════════
  * CURRENCY STORE — Zustand-based Currency Management
- * Migrated from CurrencyContext with full persistence
+ * Simplified for Brazilian Real (BRL) only
  * ═══════════════════════════════════════════════════════════════════
  */
 
 // ═══ STATE INTERFACE ═══
 interface CurrencyState {
     currency: CurrencyCode
-    province: ProvinceCode
 }
 
 interface CurrencyActions {
     setCurrency: (currency: CurrencyCode) => void
-    setProvince: (province: ProvinceCode) => void
     formatCurrency: (value: number | string | null | undefined) => string
 }
 
 interface CurrencyComputed {
-    taxRate: number
-    taxDisplay: string
-    provinceName: string
-    provinces: Record<ProvinceCode, ProvinceData>
     currencies: Record<CurrencyCode, CurrencyConfig>
 }
 
@@ -40,8 +31,7 @@ type CurrencyStore = CurrencyState & CurrencyActions
 
 // ═══ INITIAL STATE ═══
 const initialState: CurrencyState = {
-    currency: 'CAD',
-    province: 'ON'
+    currency: 'BRL'
 }
 
 // ═══ STORE ═══
@@ -56,14 +46,10 @@ export const useCurrencyStore = create<CurrencyStore>()(
                 }
             },
 
-            setProvince: (province) => {
-                if (CANADA_PROVINCES[province]) {
-                    set({ province })
-                }
-            },
-
             formatCurrency: (value) => {
-                const config = CURRENCY_CONFIG[get().currency]
+                const storedCurrency = get().currency
+                // Fallback to BRL if stored currency is not in config (handles migration from old currencies)
+                const config = CURRENCY_CONFIG[storedCurrency] || CURRENCY_CONFIG['BRL']
                 const numValue = typeof value === 'string' ? parseFloat(value) : value
                 return new Intl.NumberFormat(config.locale, {
                     style: 'currency',
@@ -76,23 +62,21 @@ export const useCurrencyStore = create<CurrencyStore>()(
             name: 'padoca-currency',
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
-                currency: state.currency,
-                province: state.province
-            })
+                currency: state.currency
+            }),
+            onRehydrateStorage: () => (state) => {
+                // Migrate old CAD/USD currencies to BRL
+                if (state && !CURRENCY_CONFIG[state.currency]) {
+                    state.currency = 'BRL'
+                }
+            }
         }
     )
 )
 
 // ═══ COMPUTED SELECTORS ═══
 export const useCurrencyComputed = (): CurrencyComputed => {
-    const province = useCurrencyStore((state) => state.province)
-    const provinceData = CANADA_PROVINCES[province]
-
     return {
-        taxRate: provinceData?.total || 0.13,
-        taxDisplay: provinceData?.display || '13% HST',
-        provinceName: provinceData?.name || 'Ontario',
-        provinces: CANADA_PROVINCES,
         currencies: CURRENCY_CONFIG
     }
 }
@@ -100,17 +84,13 @@ export const useCurrencyComputed = (): CurrencyComputed => {
 // ═══ CONVENIENCE HOOK (backward compatibility) ═══
 export const useCurrency = () => {
     const currency = useCurrencyStore((state) => state.currency)
-    const province = useCurrencyStore((state) => state.province)
     const setCurrency = useCurrencyStore((state) => state.setCurrency)
-    const setProvince = useCurrencyStore((state) => state.setProvince)
     const formatCurrency = useCurrencyStore((state) => state.formatCurrency)
     const computed = useCurrencyComputed()
 
     return {
         currency,
-        province,
         setCurrency,
-        setProvince,
         formatCurrency,
         ...computed
     }

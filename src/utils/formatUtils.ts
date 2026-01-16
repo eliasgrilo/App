@@ -1,15 +1,15 @@
 /**
  * Format Utilities - Padoca Pizza
- * Canadian Dollar (CAD) formatting and Calgary timezone
+ * Brazilian Real (BRL) formatting and São Paulo timezone
  */
 
-// Calgary timezone (Mountain Time)
-const TIMEZONE = 'America/Edmonton'
-const LOCALE = 'en-CA'
-const CURRENCY = 'CAD'
+// São Paulo timezone (Brazil)
+const TIMEZONE = 'America/Sao_Paulo'
+const LOCALE = 'pt-BR'
+const CURRENCY = 'BRL'
 
 /**
- * Format currency in Canadian Dollars
+ * Format currency in Brazilian Reais
  */
 export const formatCurrency = (value: number | string): string => {
     const num = Number(value) || 0
@@ -33,7 +33,7 @@ export const formatNumber = (value: number | string): string => {
 }
 
 /**
- * Format date in Calgary timezone
+ * Format date in São Paulo timezone
  */
 export const formatDate = (
     date: string | Date | null | undefined,
@@ -57,7 +57,7 @@ export const formatDate = (
 }
 
 /**
- * Format date and time in Calgary timezone
+ * Format date and time in São Paulo timezone
  */
 export const formatDateTime = (date: string | Date | null | undefined): string => {
     if (!date) return '—'
@@ -102,14 +102,14 @@ export const formatRelativeTime = (date: string | Date | null | undefined): stri
 }
 
 /**
- * Get current Calgary time
+ * Get current São Paulo time
  */
-export const getCalgaryTime = (): string => {
+export const getBrazilTime = (): string => {
     return new Date().toLocaleString(LOCALE, { timeZone: TIMEZONE })
 }
 
 /**
- * Format time only in Calgary timezone
+ * Format time only in São Paulo timezone
  */
 export const formatTime = (date: string | Date | null | undefined): string => {
     if (!date) return '—'
@@ -132,7 +132,7 @@ export default {
     formatDateTime,
     formatRelativeTime,
     formatTime,
-    getCalgaryTime,
+    getBrazilTime,
     TIMEZONE,
     LOCALE,
     CURRENCY

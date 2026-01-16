@@ -26,7 +26,7 @@ export function useCrudHandlers({ addSupplier, updateSupplier, removeSupplier, f
     }, [setFormData, setEditingSupplier, setSelectedSupplier, setIsModalOpen])
 
     const handleSave = useCallback(() => {
-        if (!formData.name.trim()) { showToast('Nome é obrigatório', 'error'); return }
+        if (!formData.name?.trim()) { showToast('Nome é obrigatório', 'error'); return }
         if (editingSupplier) { updateSupplier(editingSupplier.id, { ...formData, updatedAt: new Date().toISOString() }); showToast('Fornecedor atualizado!') }
         else { const newSupplier = { id: Date.now().toString(), ...formData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; addSupplier(newSupplier); showToast('Fornecedor adicionado!') }
         setIsModalOpen(false); setEditingSupplier(null)
@@ -37,11 +37,11 @@ export function useCrudHandlers({ addSupplier, updateSupplier, removeSupplier, f
     }, [modal, removeSupplier, setSelectedSupplier, showToast])
 
     const linkItem = useCallback((item: Ingredient) => {
-        if (formData.linkedItems.find(i => i.itemId === item.id)) return
-        setFormData(prev => ({ ...prev, linkedItems: [...prev.linkedItems, { itemId: item.id, itemName: item.name }] })); setItemSearchQuery('')
-    }, [formData.linkedItems, setFormData, setItemSearchQuery])
+        if ((formData.linkedItems ?? []).find(i => i.itemId === item.id)) return
+        setFormData(prev => ({ ...prev, linkedItems: [...(prev.linkedItems ?? []), { itemId: item.id, itemName: item.name }] })); setItemSearchQuery('')
+    }, [(formData.linkedItems ?? []), setFormData, setItemSearchQuery])
 
-    const unlinkItem = useCallback((itemId: ID) => { setFormData(prev => ({ ...prev, linkedItems: prev.linkedItems.filter(i => i.itemId !== itemId) })) }, [setFormData])
+    const unlinkItem = useCallback((itemId: ID) => { setFormData(prev => ({ ...prev, linkedItems: (prev.linkedItems ?? []).filter(i => i.itemId !== itemId) })) }, [setFormData])
 
     const handleCall = useCallback((phone: string) => { window.open(`tel:${phone}`, '_self') }, [])
     const handleEmail = useCallback((email: string) => { window.open(`mailto:${email}`, '_self') }, [])

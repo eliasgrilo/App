@@ -211,7 +211,7 @@ export function IngredientDetailModal({
                                         // Remove leading zeros: "000012345" -> "12345"
                                         const notesText = m.notes || ''
                                         const invoiceMatch = notesText.match(/nNF[:\s]*([0-9]+)/i) || notesText.match(/^([0-9]+)$/)
-                                        const invoiceNumber = invoiceMatch
+                                        const invoiceNumber = invoiceMatch && invoiceMatch[1]
                                             ? invoiceMatch[1].replace(/^0+/, '') || '0'
                                             : null
 
@@ -483,7 +483,7 @@ export function IngredientDetailModal({
                                                                             {(() => {
                                                                                 const notesText = m.notes || ''
                                                                                 const invoiceMatch = notesText.match(/nNF[:\s]*([0-9]+)/i) || notesText.match(/^([0-9]+)$/)
-                                                                                const invoiceNumber = invoiceMatch ? invoiceMatch[1].replace(/^0+/, '') || '0' : null
+                                                                                const invoiceNumber = invoiceMatch && invoiceMatch[1] ? invoiceMatch[1].replace(/^0+/, '') || '0' : null
                                                                                 return (
                                                                                     <button
                                                                                         onClick={(e) => {

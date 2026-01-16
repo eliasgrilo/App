@@ -270,7 +270,7 @@ export type ProductUpdate = Partial<Omit<Product, 'id'>>
 // ═══════════════════════════════════════════════════════════════════
 
 export interface AppSettings {
-    currency: 'BRL' | 'CAD' | 'USD'
+    currency: 'BRL'
     darkMode: boolean
     notifications: boolean
 }

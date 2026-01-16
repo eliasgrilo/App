@@ -500,24 +500,29 @@ html {
   overscroll-behavior-y: none;
   /* Prevent layout shift when scrollbar appears/disappears */
   scrollbar-gutter: stable;
-  height: 100%;
+  /* Use min-height instead of height to prevent content clipping */
+  min-height: 100%;
 }
 
 body {
   @apply bg-zinc-50 text-zinc-900 antialiased;
   @apply dark:bg-black dark:text-zinc-100;
-  /* Ensure body takes full height */
-  min-height: 100%;
-  height: 100%;
+  /* Use min-height instead of fixed height - prevents content from disappearing */
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* Dynamic viewport height for mobile */
   /* Disable pull-to-refresh on mobile */
   overscroll-behavior-y: none;
-  overflow-y: auto;
+  /* Remove overflow-y: auto - let content flow naturally */
+  overflow-x: hidden;
 }
 
 #root {
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  /* Ensure root can grow with content */
+  flex: 1;
 }
 
 .badge.default {
@@ -764,6 +769,7 @@ body {
 
 /* Violet glow pulse for subcategory selection - Apple style */
 @keyframes glow-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.35), 0 0 40px rgba(139, 92, 246, 0.15);
@@ -822,6 +828,34 @@ body {
 
 .animate-glow {
   animation: glow 2s ease-in-out infinite;
+}
+
+/* ============================================
+   GPU ACCELERATION — Performance Classes
+   ============================================ */
+
+.transform-gpu {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Shake Animation for Validation Errors */
@@ -1165,19 +1199,208 @@ body {
    ============================================ */
 
 @media print {
-  .no-print {
+
+  /* Hide screen-only elements */
+  .no-print,
+  .screen-only,
+  nav,
+  header:not(.print-header),
+  footer:not(.print-footer),
+  button:not(.print-button),
+  [role="navigation"] {
     display: none !important;
   }
 
-  body {
-    @apply bg-white text-black;
+  /* Show print-only elements */
+  .print-layout {
+    display: block !important;
   }
 
+  /* Reset page */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm 1.5cm 2cm 1.5cm;
+  }
+
+  /* Print page container */
+  .print-page {
+    page-break-after: auto;
+    page-break-inside: avoid;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-page-break {
+    page-break-before: always !important;
+  }
+
+  /* Print header - formal bank statement style */
+  .print-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid black !important;
+  }
+
+  .print-header h1 {
+    font-size: 24pt !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  /* Print footer */
+  .print-footer {
+    display: flex !important;
+    justify-content: space-between;
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e5e5;
+    font-size: 9pt;
+    color: #666;
+  }
+
+  /* Tables - bank statement precision */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+
+  th,
+  td {
+    padding: 8px 6px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: 600;
+    border-bottom: 2px solid black;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f9f9f9 !important;
+  }
+
+  /* Tabular numbers for financial data */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Summary boxes */
+  .print-page .bg-zinc-50,
+  .print-page [class*="bg-"] {
+    background: #f5f5f5 !important;
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* Hide shadows and borders on cards */
   .card {
-    @apply shadow-none border;
+    box-shadow: none !important;
+    border: 1px solid #e5e5e5 !important;
     page-break-inside: avoid;
   }
+
+  /* Links - show URL in print */
+  a[href]:after {
+    content: none;
+    /* Don't show URLs in this app */
+  }
+
+  /* Ensure text is readable */
+  h2 {
+    font-size: 14pt !important;
+    font-weight: 700 !important;
+    margin-bottom: 12px;
+  }
+
+  p,
+  span,
+  td,
+  th {
+    color: black !important;
+  }
+
+  /* Risk indicators for print */
+  .text-red-600 {
+    color: #dc2626 !important;
+    font-weight: 600;
+  }
+
+  .text-amber-600 {
+    color: #d97706 !important;
+  }
+
+  /* Ensure charts don't break across pages */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+  }
+
+  /* Signature block styling */
+  .print-signature-block {
+    page-break-inside: avoid;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 2px solid black;
+  }
+
+  .print-signature-line {
+    border-bottom: 1px solid black;
+    height: 48px;
+    margin-bottom: 8px;
+  }
+
+  /* Row break prevention */
+  tbody tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Executive summary box */
+  .print-executive-summary {
+    background: #f5f5f5 !important;
+    padding: 16px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+    page-break-inside: avoid;
+  }
+
+  /* Hide dark mode backgrounds completely */
+  .dark {
+    background: white !important;
+    color: black !important;
+  }
 }
+
 
 /* ============================================
    LAYOUT UTILITIES

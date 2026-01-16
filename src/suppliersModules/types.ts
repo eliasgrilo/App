@@ -19,18 +19,28 @@ export interface SupplierDocument {
     category: string
 }
 
-export interface SupplierFormData {
+export interface SupplierFormData extends Record<string, unknown> {
     id?: ID
-    name: string
-    company: string
-    email: string
-    phone: string
-    whatsapp: string
-    address: string
-    notes: string
-    linkedItems: LinkedItem[]
-    documents: SupplierDocument[]
-    autoOrderEnabled: boolean
+    name?: string
+    company?: string
+    email?: string
+    phone?: string
+    whatsapp?: string
+    hasWhatsApp?: boolean
+    address?: string
+    addressStreet?: string
+    addressUnit?: string
+    addressCity?: string
+    addressProvince?: string
+    addressPostalCode?: string
+    notes?: string
+    linkedItems?: LinkedItem[]
+    documents?: SupplierDocument[]
+    autoOrderEnabled?: boolean
+    paymentTerms?: string
+    minimumOrder?: string
+    deliveryDays?: string[]
+    image?: string
 }
 
 export interface LocalSupplier {
@@ -40,7 +50,13 @@ export interface LocalSupplier {
     email?: string
     phone?: string
     whatsapp?: string
+    hasWhatsApp?: boolean
     address?: string
+    addressStreet?: string
+    addressUnit?: string
+    addressCity?: string
+    addressProvince?: string
+    addressPostalCode?: string
     notes?: string
     linkedItems?: LinkedItem[]
     documents?: SupplierDocument[]
@@ -48,6 +64,7 @@ export interface LocalSupplier {
     paymentTerms?: string
     minimumOrder?: string
     deliveryDays?: string[]
+    image?: string
     createdAt?: string
     updatedAt?: string
 }

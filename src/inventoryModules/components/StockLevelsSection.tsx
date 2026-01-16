@@ -144,17 +144,16 @@ export function StockLevelsSection({ items, getStockStatus, getTotalQuantity, on
 
                         {/* Items List - Compact */}
                         <div className="px-7 pb-7">
-                            <AnimatePresence mode="popLayout">
+                            <AnimatePresence mode="wait">
                                 {filteredItems.length > 0 && (
-                                    <motion.div className="space-y-2" layout>
+                                    <motion.div className="space-y-2">
                                         {filteredItems.map((item, i) => (
                                             <motion.div
                                                 key={item.id}
-                                                layout
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, scale: 0.95 }}
-                                                transition={{ delay: i * 0.02, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                transition={{ delay: i * 0.02, duration: 0.25 }}
                                             >
                                                 <StockItemRow
                                                     item={item}

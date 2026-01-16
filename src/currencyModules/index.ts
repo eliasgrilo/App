@@ -1,5 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════
 // CURRENCY MODULES — Barrel Export
+// Brazilian Real (BRL) only
 // ═══════════════════════════════════════════════════════════════════
 
-export { type CurrencyCode, type ProvinceCode, type ProvinceData, type CurrencyConfig, type CurrencyContextValue, type CurrencyProviderProps, CANADA_PROVINCES, CURRENCY_CONFIG } from './types'
+export { type CurrencyCode, type CurrencyConfig, type CurrencyContextValue, type CurrencyProviderProps, CURRENCY_CONFIG } from './types'

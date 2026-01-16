@@ -3,10 +3,11 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import type { ComponentType } from 'react'
+import type { Variants } from 'framer-motion'
 import type { IconProps } from './components/NavIcons'
 import {
     AIIcon, KanbanIcon, ProductsIcon,
-    InventoryIcon, SuppliersIcon, CostsIcon, ProductionIcon
+    InventoryIcon, SuppliersIcon, CostsIcon, ProductionIcon, ReportsIcon
 } from './components/NavIcons'
 
 export type UnitMode = 'pct' | 'grams'
@@ -22,10 +23,12 @@ export const NAV_ITEMS: NavItem[] = [
     { key: 'kanban', label: 'Vendas', icon: KanbanIcon },
     { key: 'calculator', label: 'Produção', icon: ProductionIcon },
     { key: 'inventory', label: 'Inventário', icon: InventoryIcon },
+    { key: 'reports', label: 'Relatórios', icon: ReportsIcon },
     { key: 'products', label: 'Compras', icon: ProductsIcon },
     { key: 'costs', label: 'Financeiro', icon: CostsIcon },
     { key: 'suppliers', label: 'Fornecedores', icon: SuppliersIcon }
 ]
+
 
 // Spring animation configuration
 export const spring = {
@@ -36,14 +39,17 @@ export const spring = {
 }
 
 // Page transition variants
-export const pageVariants = {
-    initial: { opacity: 0, x: 20 },
+// CRITICAL: Only use opacity transitions, NOT transform (x/y)!
+// Transform animations create new stacking contexts which break
+// position: sticky for child elements (like headers).
+export const pageVariants: Variants = {
+    initial: { opacity: 0 },
     enter: {
-        opacity: 1, x: 0,
-        transition: { type: 'spring' as const, stiffness: 300, damping: 30 }
+        opacity: 1,
+        transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] as const }
     },
     exit: {
-        opacity: 0, x: -20,
+        opacity: 0,
         transition: { duration: 0.15 }
     }
 }

@@ -625,9 +625,13 @@ export function SuppliersGrid({ suppliers, onSupplierClick, onEditClick, onAddCl
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                     </svg>
                                 </button>
-                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-500/25">
-                                    {supplier.name?.charAt(0)?.toUpperCase() || '?'}
-                                </div>
+                                {supplier.image ? (
+                                    <img src={supplier.image} alt={supplier.name} className="w-14 h-14 rounded-2xl object-cover shadow-lg" />
+                                ) : (
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-500/25">
+                                        {supplier.name?.charAt(0)?.toUpperCase() || '?'}
+                                    </div>
+                                )}
                                 <div className="flex-1 min-w-0 pr-12">
                                     <h3 className="text-lg font-bold text-zinc-900 dark:text-white truncate">{supplier.name}</h3>
                                     {supplier.company && <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{supplier.company}</p>}

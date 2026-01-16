@@ -11,6 +11,11 @@ import type { Expense } from '../../types'
 import { ExpenseFormData } from '../../components/AddExpenseModal'
 import { DEFAULT_CATEGORIES, DEFAULT_FORM_DATA, type CostTotals, type GroupedCosts } from '../types'
 
+// Default tax values for Brazil
+const DEFAULT_TAX_RATE = 0
+const DEFAULT_TAX_DISPLAY = '0%'
+const DEFAULT_PROVINCE_NAME = 'Brasil'
+
 export interface CostsStateReturn {
     // Data from Zustand
     costs: Expense[]
@@ -43,8 +48,13 @@ export interface CostsStateReturn {
 }
 
 export function useCostsState(): CostsStateReturn {
-    // Currency from Context
-    const { formatCurrency, taxRate, taxDisplay, provinceName } = useCurrency()
+    // Currency from Store (simplified - no longer has tax properties)
+    const { formatCurrency } = useCurrency()
+
+    // Use default values for removed tax properties
+    const taxRate = DEFAULT_TAX_RATE
+    const taxDisplay = DEFAULT_TAX_DISPLAY
+    const provinceName = DEFAULT_PROVINCE_NAME
 
     // Zustand Store
     const costs = useExpenses()
@@ -103,3 +113,4 @@ export function useCostsState(): CostsStateReturn {
         showToast
     }
 }
+
