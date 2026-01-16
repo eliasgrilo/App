@@ -5,14 +5,18 @@
 import React, { useState } from 'react'
 import { Reorder, useDragControls } from 'framer-motion'
 
+import type { RecipeSectionItem } from '../../types'
+
+type IconProps = React.SVGProps<SVGSVGElement>
+
 const Icons = {
-    Check: (props: any) => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
+    Check: (props: IconProps) => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
 }
 
 interface InstructionItemProps {
-    item: any
+    item: RecipeSectionItem
     index: number
-    onUpdate: (item: any) => void
+    onUpdate: (item: RecipeSectionItem) => void
     onDelete: () => void
     onNext?: () => void
     isEditing: boolean
@@ -35,7 +39,7 @@ export const InstructionItem = React.memo(({ item, index, onUpdate, onDelete, on
                 {isEditing && (
                     <div
                         className="cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-[250ms] mt-1"
-                        onPointerDown={(e: any) => dragControls.start(e)}
+                        onPointerDown={(e: React.PointerEvent<HTMLDivElement>) => dragControls.start(e)}
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
                             <circle cx="4" cy="4" r="1.5" /><circle cx="4" cy="12" r="1.5" /><circle cx="12" cy="4" r="1.5" /><circle cx="12" cy="12" r="1.5" />
@@ -67,7 +71,7 @@ export const InstructionItem = React.memo(({ item, index, onUpdate, onDelete, on
                         placeholder="Descreva este passo..."
                         rows={1}
                         onInput={e => { (e.target as HTMLElement).style.height = 'auto'; (e.target as HTMLElement).style.height = (e.target as HTMLElement).scrollHeight + 'px' }}
-                        onBlur={() => { if (!item.text.trim()) onDelete() }}
+                        onBlur={() => { if (!item.text?.trim()) onDelete() }}
                     />
                 ) : (
                     <p className={`flex-1 text-[15px] font-medium leading-[1.6] text-zinc-800 dark:text-zinc-200 ${checked ? 'line-through text-zinc-400 dark:text-zinc-500' : ''}`}>

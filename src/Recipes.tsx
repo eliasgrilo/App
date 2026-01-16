@@ -77,7 +77,7 @@ export default function Recipes() {
                             setIsEditing={state.setIsEditing} setZoomedImage={state.setZoomedImage}
                             updateRecipe={handlers.updateRecipe} handleImageUpload={handlers.handleImageUpload}
                             finishEditing={handlers.finishEditing}
-                            onDeleteRecipe={() => handlers.handleDeleteRecipe(state.selectedId)} modal={modal} />
+                            onDeleteRecipe={() => handlers.handleDeleteRecipe(state.selectedId as number)} modal={modal} />
                     )}
                 </AnimatePresence>,
                 document.body

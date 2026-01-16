@@ -5,13 +5,17 @@
 import React, { useState } from 'react'
 import { Reorder, useDragControls } from 'framer-motion'
 
+import type { RecipeSectionItem } from '../../types'
+
+type IconProps = React.SVGProps<SVGSVGElement>
+
 const Icons = {
-    Check: (props: any) => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
+    Check: (props: IconProps) => <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
 }
 
 interface IngredientItemProps {
-    item: any
-    onUpdate: (item: any) => void
+    item: RecipeSectionItem
+    onUpdate: (item: RecipeSectionItem) => void
     onDelete: () => void
     onNext?: () => void
     isEditing: boolean
@@ -34,7 +38,7 @@ export const IngredientItem = React.memo(({ item, onUpdate, onDelete, onNext, is
                 {isEditing && (
                     <div
                         className="cursor-grab active:cursor-grabbing text-zinc-300 dark:text-zinc-700 hover:text-zinc-400 dark:hover:text-zinc-600 transition-colors duration-[250ms]"
-                        onPointerDown={(e: any) => dragControls.start(e)}
+                        onPointerDown={(e: React.PointerEvent<HTMLDivElement>) => dragControls.start(e)}
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
                             <circle cx="4" cy="4" r="1.5" /><circle cx="4" cy="12" r="1.5" /><circle cx="12" cy="4" r="1.5" /><circle cx="12" cy="12" r="1.5" />
@@ -65,7 +69,7 @@ export const IngredientItem = React.memo(({ item, onUpdate, onDelete, onNext, is
                         }}
                         className="flex-1 bg-transparent outline-none font-medium text-[15px] leading-[1.4] tracking-[-0.011em] text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 transition-colors duration-[250ms] min-w-0"
                         placeholder="Ingrediente"
-                        onBlur={() => { if (!item.name.trim() && !item.quantity.trim()) onDelete() }}
+                        onBlur={() => { if (!item.name?.trim() && !item.quantity?.trim()) onDelete() }}
                     />
                 ) : (
                     <span className={`flex-1 font-medium text-[15px] leading-[1.4] tracking-tight text-zinc-800 dark:text-zinc-200 ${checked ? 'line-through text-zinc-400 dark:text-zinc-500' : ''}`}>
@@ -92,7 +96,7 @@ export const IngredientItem = React.memo(({ item, onUpdate, onDelete, onNext, is
                                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onNext?.() } }}
                                     className="w-full text-right bg-transparent outline-none font-semibold text-[15px] text-zinc-900 dark:text-white tabular-nums"
                                     placeholder="0"
-                                    onBlur={() => { if (!item.name.trim() && !item.quantity.trim()) onDelete() }}
+                                    onBlur={() => { if (!item.name?.trim() && !item.quantity?.trim()) onDelete() }}
                                 />
                             </div>
                             <select

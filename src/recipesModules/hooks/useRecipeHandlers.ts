@@ -7,7 +7,7 @@
 
 import { useMemo, useCallback } from 'react'
 import { compressImage } from '../utils/recipeUtils'
-import type { Recipe, RecipeSection } from '../../types'
+import type { Recipe, RecipeSection, ID, RecipeSectionItem } from '../../types'
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
@@ -40,16 +40,16 @@ export interface UseRecipeHandlersProps {
     setSyncError: (v: boolean) => void
     setIsUploading: (v: boolean) => void
     setImageToCrop: (v: string | null) => void
-    storeUpdateRecipe: (id: any, changes: any) => void
-    storeRemoveRecipe: (id: any) => void
+    storeUpdateRecipe: (id: ID, changes: Partial<Recipe>) => void
+    storeRemoveRecipe: (id: ID) => void
     recipes: Recipe[]
     toast: ToastContextType
     modal: ModalContextType
 }
 
 export interface RecipeHandlersReturn {
-    updateRecipe: (id: any, changes: any) => void
-    handleDeleteRecipe: (id: any) => void
+    updateRecipe: (id: ID | null, changes: Partial<Recipe>) => void
+    handleDeleteRecipe: (id: ID) => void
     handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
     onCropComplete: (croppedImage: string) => Promise<void>
     finishEditing: () => void
@@ -91,11 +91,11 @@ export function useRecipeHandlers({
     /**
      * Update recipe - syncs to Zustand store
      */
-    const updateRecipe = useCallback((id: any, changes: any) => {
+    const updateRecipe = useCallback((id: ID | null, changes: Partial<Recipe>) => {
         setSyncing(true)
         setSyncError(false)
 
-        storeUpdateRecipe(id, { ...changes, updatedAt: new Date().toISOString() })
+        storeUpdateRecipe(id as ID, { ...changes, updatedAt: new Date().toISOString() })
 
         // Simulate brief sync indicator
         setTimeout(() => setSyncing(false), 300)
@@ -104,7 +104,7 @@ export function useRecipeHandlers({
     /**
      * Delete recipe
      */
-    const handleDeleteRecipe = useCallback((id: any) => {
+    const handleDeleteRecipe = useCallback((id: ID) => {
         modal.close()
         storeRemoveRecipe(id)
 
@@ -145,7 +145,7 @@ export function useRecipeHandlers({
 
             // Compress the cropped image result
             const compressed = await compressImage(croppedImage)
-            updateRecipe(selectedId, { image: compressed })
+            updateRecipe(selectedId as ID, { image: compressed })
 
             toast.success('Imagem atualizada!')
         } catch (err) {
@@ -165,7 +165,7 @@ export function useRecipeHandlers({
                 if (section.type === 'ingredients') {
                     return {
                         ...section,
-                        items: (section.items || []).filter((item: any) =>
+                        items: (section.items || []).filter((item: RecipeSectionItem) =>
                             item.name?.trim() || item.quantity?.trim()
                         )
                     }
@@ -173,14 +173,14 @@ export function useRecipeHandlers({
                 if (section.type === 'instructions') {
                     return {
                         ...section,
-                        items: (section.items || []).filter((item: any) =>
+                        items: (section.items || []).filter((item: RecipeSectionItem) =>
                             item.text?.trim()
                         )
                     }
                 }
                 return section
             })
-            updateRecipe(selectedId, { sections: cleanedSections })
+            updateRecipe(selectedId as ID, { sections: cleanedSections })
         }
         setIsEditing(false)
     }, [selected, selectedId, updateRecipe, setIsEditing])
