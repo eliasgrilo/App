@@ -39,7 +39,7 @@ interface UseReportsStateReturn {
 
 const ALL_REPORTS: ReportType[] = [
     'abc', 'breakage', 'velocity', 'margin',
-    'forecast', 'efficiency', 'suppliers', 'cashflow'
+    'forecast', 'efficiency', 'suppliers', 'cashflow', 'heatmap'
 ]
 
 const getDefaultDateRange = (): DateRange => {
@@ -82,7 +82,7 @@ export function useReportsState(): UseReportsStateReturn {
     const printButtonLabel = selectedReports.length === 0
         ? 'Selecione relatórios'
         : selectedReports.length === ALL_REPORTS.length
-            ? 'Imprimir Todos (8)'
+            ? 'Imprimir Todos (9)'
             : `Imprimir (${selectedReports.length})`
 
     // Computed: Has selected reports

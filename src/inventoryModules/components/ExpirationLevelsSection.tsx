@@ -151,7 +151,21 @@ export function ExpirationLevelsSection({ items, getTotalQuantity, onConfigureIt
         if (filter === 'noDate') return status === 'noDate'
         if (filter === 'expired') return status === 'expired'
         return true
-    }).filter(item => !searchQuery.trim() || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }).filter(item => {
+        if (!searchQuery.trim() || searchQuery.trim().length < 3) return true
+        const normalizedQuery = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+        const normalizedName = item.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+        // Split into words
+        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0)
+        const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+        // Query words must be <= name words (allows partial matching)
+        if (queryWords.length > nameWords.length) return false
+
+        // Each query word must START the corresponding name word in sequence
+        return queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)
+    })
         .sort((a, b) => {
             if (!a.expiryDate) return 1
             if (!b.expiryDate) return -1

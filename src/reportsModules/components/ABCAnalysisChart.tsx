@@ -209,7 +209,7 @@ const InsightsPanel: React.FC<{ data: ABCAnalysis }> = ({ data }) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const ABCAnalysisChart: React.FC<{ data: ABCAnalysis; showTitle?: boolean }> = ({ data, showTitle = true }) => {
-    const [showDetails, setShowDetails] = useState(true)
+    const [showDetails, setShowDetails] = useState(false)
 
     const chartData = useMemo(() =>
         data.items.slice(0, 12).map(item => ({

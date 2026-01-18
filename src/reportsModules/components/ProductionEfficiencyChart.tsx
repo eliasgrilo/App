@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Clock, AlertCircle, CheckCircle2, TrendingUp, ChevronDown, Target } from 'lucide-react'
 import type { ProductionEfficiency } from '../types'
 import { formatPercent } from '../mockReportsData'
-import { GlassCard, AnimatedPercent, AnimatedNumber, ProgressRing, HeroMetricCard, GlowHoverCard, BlurTransition, WaveBackground, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration, PulseRing } from './PremiumComponents'
+import { GlassCard, AnimatedPercent, AnimatedNumber, ProgressRing, HeroMetricCard, GlowHoverCard, BlurTransition, WaveBackground, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration, PulseRing, ChartToggle } from './PremiumComponents'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COLORS
@@ -221,44 +221,46 @@ export const ProductionEfficiencyChart: React.FC<{ data: ProductionEfficiency; s
                 </div>
 
                 {/* Efficiency Chart */}
-                <div className="h-[280px] print:hidden mb-6">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                            <defs>
-                                <linearGradient id="optimalGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
-                                    <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
-                                </linearGradient>
-                                <linearGradient id="goodGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#007AFF" stopOpacity={0.9} />
-                                    <stop offset="100%" stopColor="#007AFF" stopOpacity={0.6} />
-                                </linearGradient>
-                                <linearGradient id="improvementGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#FF9500" stopOpacity={0.9} />
-                                    <stop offset="100%" stopColor="#FF9500" stopOpacity={0.6} />
-                                </linearGradient>
-                                <linearGradient id="criticalEffGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
-                                    <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
-                            <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
-                            <YAxis domain={[0, 120]} tick={{ fontSize: 10, fill: 'currentColor' }} tickFormatter={(v) => `${v}%`} className="text-zinc-500" />
-                            <ReferenceLine y={100} stroke="#34C759" strokeDasharray="5 5" strokeWidth={2} label={{ value: '100% Meta', position: 'right', fill: '#34C759', fontSize: 10 }} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                            <Bar dataKey="efficiency" radius={[6, 6, 0, 0]} maxBarSize={40}>
-                                {chartData.map((entry, index) => {
-                                    const gradient = entry.efficiencyLevel === 'optimal' ? 'url(#optimalGradient)'
-                                        : entry.efficiencyLevel === 'good' ? 'url(#goodGradient)'
-                                            : entry.efficiencyLevel === 'needs_improvement' ? 'url(#improvementGradient)'
-                                                : 'url(#criticalEffGradient)'
-                                    return <Cell key={`cell-${index}`} fill={gradient} />
-                                })}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+                <ChartToggle label="Gráfico de Eficiência">
+                    <div className="h-[280px] print:hidden">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                                <defs>
+                                    <linearGradient id="optimalGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
+                                    </linearGradient>
+                                    <linearGradient id="goodGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#007AFF" stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor="#007AFF" stopOpacity={0.6} />
+                                    </linearGradient>
+                                    <linearGradient id="improvementGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#FF9500" stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor="#FF9500" stopOpacity={0.6} />
+                                    </linearGradient>
+                                    <linearGradient id="criticalEffGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
+                                <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
+                                <YAxis domain={[0, 120]} tick={{ fontSize: 10, fill: 'currentColor' }} tickFormatter={(v) => `${v}%`} className="text-zinc-500" />
+                                <ReferenceLine y={100} stroke="#34C759" strokeDasharray="5 5" strokeWidth={2} label={{ value: '100% Meta', position: 'right', fill: '#34C759', fontSize: 10 }} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                                <Bar dataKey="efficiency" radius={[6, 6, 0, 0]} maxBarSize={40}>
+                                    {chartData.map((entry, index) => {
+                                        const gradient = entry.efficiencyLevel === 'optimal' ? 'url(#optimalGradient)'
+                                            : entry.efficiencyLevel === 'good' ? 'url(#goodGradient)'
+                                                : entry.efficiencyLevel === 'needs_improvement' ? 'url(#improvementGradient)'
+                                                    : 'url(#criticalEffGradient)'
+                                        return <Cell key={`cell-${index}`} fill={gradient} />
+                                    })}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartToggle>
 
                 {/* Hourly Output */}
                 <button
@@ -297,6 +299,54 @@ export const ProductionEfficiencyChart: React.FC<{ data: ProductionEfficiency; s
                         </motion.div>
                     )}
                 </AnimatePresence>
+            </div>
+
+            {/* ═══ PRINT-ONLY SECTION ═══ */}
+            <div className="hidden print:block mt-6">
+                <div className="grid grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-black">{data.summary.avgEfficiency.toFixed(1)}%</p>
+                        <p className="text-xs text-gray-600">Eficiência Média</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-black">{data.summary.totalUnitsProduced}</p>
+                        <p className="text-xs text-gray-600">Unidades Produzidas</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-red-600">{data.summary.avgDefectRate.toFixed(1)}%</p>
+                        <p className="text-xs text-gray-600">Taxa Defeitos</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-green-600">{data.summary.optimalCount}</p>
+                        <p className="text-xs text-gray-600">Ótima Performance</p>
+                    </div>
+                </div>
+                <table className="w-full text-xs border-collapse">
+                    <thead>
+                        <tr className="bg-gray-100">
+                            <th className="text-left p-2 border border-gray-200 font-semibold">Produto</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">T. Padrão</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">T. Real</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Eficiência</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Unidades</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Defeitos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.map(item => (
+                            <tr key={item.id} className={item.efficiencyLevel === 'critical' ? 'bg-red-50' : item.efficiencyLevel === 'needs_improvement' ? 'bg-amber-50' : ''}>
+                                <td className="p-2 border border-gray-200 font-medium text-black">{item.name}</td>
+                                <td className="p-2 border border-gray-200 text-right">{item.standardTime}min</td>
+                                <td className="p-2 border border-gray-200 text-right">{item.actualTime}min</td>
+                                <td className={`p-2 border border-gray-200 text-right font-semibold ${item.efficiency >= 95 ? 'text-green-600' : item.efficiency < 80 ? 'text-red-600' : 'text-amber-600'}`}>
+                                    {item.efficiency.toFixed(1)}%
+                                </td>
+                                <td className="p-2 border border-gray-200 text-right">{item.unitsProduced}</td>
+                                <td className="p-2 border border-gray-200 text-right text-red-600">{item.defectRate.toFixed(1)}%</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </BlurTransition>
     )

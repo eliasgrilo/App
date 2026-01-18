@@ -237,6 +237,7 @@ export interface SupplierItem {
     priceCompetitiveness: number // percentage vs market avg
     dependencyRisk: number // percentage of category from this supplier
     overallRating: SupplierRating
+    image?: string // supplier photo/logo
 }
 
 export interface SupplierAnalysis {
@@ -296,10 +297,43 @@ export interface CashFlowAnalysis {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SALES HEATMAP TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export type DayOfWeekFull = 'Seg' | 'Ter' | 'Qua' | 'Qui' | 'Sex' | 'Sáb' | 'Dom'
+
+export interface HeatmapCell {
+    day: DayOfWeekFull
+    hour: number
+    value: number
+    intensity: number // 0-1 normalized
+    orders: number
+    avgTicket: number
+}
+
+export interface SalesHeatmapData {
+    cells: HeatmapCell[]
+    summary: {
+        peakDay: DayOfWeekFull
+        peakHour: number
+        peakValue: number
+        slowestDay: DayOfWeekFull
+        slowestHour: number
+        totalSales: number
+        avgHourlySales: number
+    }
+    patterns: {
+        type: 'peak' | 'slow' | 'opportunity'
+        description: string
+        recommendation: string
+    }[]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // REPORT CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export type ReportType = 'abc' | 'breakage' | 'velocity' | 'margin' | 'forecast' | 'efficiency' | 'suppliers' | 'cashflow'
+export type ReportType = 'abc' | 'breakage' | 'velocity' | 'margin' | 'forecast' | 'efficiency' | 'suppliers' | 'cashflow' | 'heatmap' | 'inventory'
 
 export interface ReportConfig {
     id: ReportType
@@ -334,6 +368,7 @@ export interface PrintOptions {
     includeEfficiency: boolean
     includeSuppliers: boolean
     includeCashflow: boolean
+    includeHeatmap: boolean
     printedBy: string
 }
 

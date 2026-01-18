@@ -11,7 +11,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import {
     TrendingUp, Zap, Trash2, DollarSign, Target, Clock, Truck, Wallet,
-    Printer, ChevronDown, Check
+    Printer, ChevronDown, Check, Flame, Package
 } from 'lucide-react'
 
 // Hooks
@@ -35,6 +35,8 @@ import { DemandForecastChart } from './components/DemandForecastChart'
 import { ProductionEfficiencyChart } from './components/ProductionEfficiencyChart'
 import { SupplierAnalysisChart } from './components/SupplierAnalysisChart'
 import { CashFlowChart } from './components/CashFlowChart'
+import { SalesHeatmapChart, MOCK_SALES_HEATMAP } from './components/SalesHeatmapChart'
+import { InventoryPulseChart } from './components/InventoryPulseChart'
 
 // Premium Components
 import { GradientText, PageEntrance } from './components/premium'
@@ -68,6 +70,8 @@ const REPORTS_CONFIG = [
     { id: 'efficiency' as ReportType, title: 'Eficiência', desc: 'Performance', icon: <Clock className="w-7 h-7" />, gradient: 'from-[#5AC8FA] to-[#64D2FF]', component: ProductionEfficiencyChart, data: MOCK_PRODUCTION_EFFICIENCY },
     { id: 'suppliers' as ReportType, title: 'Fornecedores', desc: 'Avaliação', icon: <Truck className="w-7 h-7" />, gradient: 'from-[#636366] to-[#8E8E93]', component: SupplierAnalysisChart, data: MOCK_SUPPLIER_ANALYSIS },
     { id: 'cashflow' as ReportType, title: 'Fluxo de Caixa', desc: 'Financeiro', icon: <Wallet className="w-7 h-7" />, gradient: 'from-[#5856D6] to-[#007AFF]', component: CashFlowChart, data: MOCK_CASHFLOW_ANALYSIS },
+    { id: 'heatmap' as ReportType, title: 'Horários de Pico', desc: 'Vendas por hora', icon: <Flame className="w-7 h-7" />, gradient: 'from-[#FF9500] to-[#FF3B30]', component: SalesHeatmapChart, data: MOCK_SALES_HEATMAP },
+    { id: 'inventory' as ReportType, title: 'Pulse do Estoque', desc: 'Visão holística', icon: <Package className="w-7 h-7" />, gradient: 'from-[#00C7BE] to-[#007AFF]', component: InventoryPulseChart, data: null },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -135,7 +139,13 @@ export const ReportsPage: React.FC = () => {
         { title: 'Eficiência', value: formatPercent(MOCK_PRODUCTION_EFFICIENCY.summary.avgEfficiency), change: comparisonData?.kpis.eficiencia.change ?? 5.8, previousValue: comparisonData ? formatPercent(comparisonData.kpis.eficiencia.previous) : null, icon: <Zap className="w-6 h-6 text-white" />, color: 'from-[#AF52DE] to-[#FF2D55]' },
     ]
 
-    const [reportOrder, setReportOrder] = useState<ReportType[]>(preferences.reportOrder as ReportType[] || REPORTS_CONFIG.map(r => r.id))
+    // Ensure new reports are included even if not in saved preferences
+    const savedOrder = preferences.reportOrder as ReportType[] || []
+    const allReportIds = REPORTS_CONFIG.map(r => r.id)
+    const missingReports = allReportIds.filter(id => !savedOrder.includes(id))
+    const initialOrder = savedOrder.length > 0 ? [...savedOrder, ...missingReports] : allReportIds
+
+    const [reportOrder, setReportOrder] = useState<ReportType[]>(initialOrder)
     const orderedReports = reportOrder.map(id => REPORTS_CONFIG.find(r => r.id === id)).filter((r): r is typeof REPORTS_CONFIG[0] => r !== undefined)
 
     const handleReorder = (newOrder: ReportType[]) => {

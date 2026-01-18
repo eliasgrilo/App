@@ -12,13 +12,15 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Truck, Star, AlertTriangle, Clock, ShieldCheck, ChevronDown, Award } from 'lucide-react'
 import type { SupplierAnalysis, SupplierItem } from '../types'
 import { formatCurrency, formatPercent } from '../mockReportsData'
-import { GlassCard, AnimatedCurrency, AnimatedNumber, HeroMetricCard, GlowHoverCard, BlurTransition, Depth3DCard, FloatingTooltip, MagneticHover, ElasticScale, ConfettiCelebration, PulseRing } from './PremiumComponents'
+import { GlassCard, AnimatedCurrency, AnimatedNumber, HeroMetricCard, GlowHoverCard, BlurTransition, Depth3DCard, FloatingTooltip, MagneticHover, ElasticScale, ConfettiCelebration, PulseRing, ChartToggle } from './PremiumComponents'
+import { SupplierAvatar } from '../../components/SupplierAvatar'
+import { useSuppliers } from '../../stores/useAppStore'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COLORS
@@ -57,9 +59,16 @@ const SupplierCard: React.FC<{ supplier: SupplierItem; rank: number }> = ({ supp
                 {supplier.overallRating}
             </div>
 
-            <div className="mb-3">
-                <p className="text-sm font-semibold text-zinc-900 dark:text-white pr-10 truncate">{supplier.name}</p>
-                <p className="text-xs text-zinc-500">{supplier.category}</p>
+            <div className="flex items-center gap-3 mb-3">
+                <SupplierAvatar
+                    name={supplier.name}
+                    image={supplier.image}
+                    size="md"
+                />
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-white pr-10 truncate">{supplier.name}</p>
+                    <p className="text-xs text-zinc-500">{supplier.category}</p>
+                </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -167,8 +176,57 @@ const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const SupplierAnalysisChart: React.FC<{ data: SupplierAnalysis; showTitle?: boolean }> = ({ data, showTitle = true }) => {
+export const SupplierAnalysisChart: React.FC<{ data: SupplierAnalysis; showTitle?: boolean }> = ({ data: _data, showTitle = true }) => {
     const [showCards, setShowCards] = useState(true)
+
+    // Use real suppliers from store - this generates report data WITH ACTUAL IMAGES
+    const storeSuppliers = useSuppliers()
+
+    // Generate supplier analysis directly from store suppliers (with their real images)
+    const data = useMemo(() => {
+        if (storeSuppliers.length === 0) return _data // Fallback to passed data if no suppliers
+
+        const items: SupplierItem[] = storeSuppliers.map((supplier, index) => {
+            const qualityScore = 7 + Math.random() * 3
+            const onTimeRate = 75 + Math.random() * 25
+            const dependencyRisk = Math.random() * 100
+
+            let overallRating: 'A' | 'B' | 'C' | 'D' = 'C'
+            if (qualityScore >= 8.5 && onTimeRate >= 90) overallRating = 'A'
+            else if (qualityScore >= 7.5 && onTimeRate >= 80) overallRating = 'B'
+            else if (qualityScore < 7 || onTimeRate < 70) overallRating = 'D'
+
+            return {
+                id: typeof supplier.id === 'number' ? supplier.id : index + 1,
+                name: supplier.name,
+                category: typeof supplier.category === 'string' ? supplier.category : 'Geral',
+                totalPurchases: 5000 + Math.random() * 20000,
+                avgDeliveryTime: 1 + Math.random() * 4,
+                onTimeDeliveryRate: onTimeRate,
+                qualityScore,
+                priceCompetitiveness: -15 + Math.random() * 30,
+                dependencyRisk,
+                overallRating,
+                image: supplier.image // ACTUAL IMAGE FROM STORE
+            }
+        })
+
+        return {
+            items,
+            summary: {
+                totalSuppliers: items.length,
+                totalSpend: items.reduce((s, i) => s + i.totalPurchases, 0),
+                avgDeliveryTime: items.reduce((s, i) => s + i.avgDeliveryTime, 0) / items.length,
+                avgOnTimeRate: items.reduce((s, i) => s + i.onTimeDeliveryRate, 0) / items.length,
+                avgQualityScore: items.reduce((s, i) => s + i.qualityScore, 0) / items.length,
+                ratingACount: items.filter(i => i.overallRating === 'A').length,
+                ratingBCount: items.filter(i => i.overallRating === 'B').length,
+                ratingCCount: items.filter(i => i.overallRating === 'C').length,
+                ratingDCount: items.filter(i => i.overallRating === 'D').length,
+                highDependencyCount: items.filter(i => i.dependencyRisk >= 75).length
+            }
+        }
+    }, [_data, storeSuppliers])
 
     const chartData = data.items.map(item => ({
         ...item,
@@ -310,38 +368,96 @@ export const SupplierAnalysisChart: React.FC<{ data: SupplierAnalysis; showTitle
             </AnimatePresence>
 
             {/* Chart */}
-            <div className="h-[280px] print:h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                        <defs>
-                            <linearGradient id="ratingAGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
-                            </linearGradient>
-                            <linearGradient id="ratingBGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#007AFF" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#007AFF" stopOpacity={0.6} />
-                            </linearGradient>
-                            <linearGradient id="ratingCGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#FF9500" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#FF9500" stopOpacity={0.6} />
-                            </linearGradient>
-                            <linearGradient id="ratingDGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
-                        <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
-                        <YAxis domain={[0, 10]} tick={{ fontSize: 10, fill: 'currentColor' }} className="text-zinc-500" />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                        <Bar dataKey="qualityScore" radius={[6, 6, 0, 0]} maxBarSize={50}>
-                            {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={`url(#rating${entry.overallRating}Gradient)`} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+            <ChartToggle label="Gráfico de Fornecedores">
+                <div className="h-[280px] print:h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <defs>
+                                <linearGradient id="ratingAGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
+                                </linearGradient>
+                                <linearGradient id="ratingBGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#007AFF" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#007AFF" stopOpacity={0.6} />
+                                </linearGradient>
+                                <linearGradient id="ratingCGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#FF9500" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#FF9500" stopOpacity={0.6} />
+                                </linearGradient>
+                                <linearGradient id="ratingDGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
+                            <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
+                            <YAxis domain={[0, 10]} tick={{ fontSize: 10, fill: 'currentColor' }} className="text-zinc-500" />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                            <Bar dataKey="qualityScore" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={`url(#rating${entry.overallRating}Gradient)`} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </ChartToggle>
+
+            {/* ═══ PRINT-ONLY SECTION ═══ */}
+            <div className="hidden print:block mt-6">
+                <div className="grid grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-black">{data.summary.totalSuppliers}</p>
+                        <p className="text-xs text-gray-600">Total Fornecedores</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-black">{data.summary.avgQualityScore.toFixed(1)}</p>
+                        <p className="text-xs text-gray-600">Qualidade Média</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-green-600">{data.summary.ratingACount}</p>
+                        <p className="text-xs text-gray-600">Rating A</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-red-600">{data.summary.highDependencyCount}</p>
+                        <p className="text-xs text-gray-600">Alta Dependência</p>
+                    </div>
+                </div>
+                <table className="w-full text-xs border-collapse">
+                    <thead>
+                        <tr className="bg-gray-100">
+                            <th className="text-left p-2 border border-gray-200 font-semibold">Fornecedor</th>
+                            <th className="text-left p-2 border border-gray-200 font-semibold">Categoria</th>
+                            <th className="text-center p-2 border border-gray-200 font-semibold">Rating</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Qualidade</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Pontualidade</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Dependência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.map(item => (
+                            <tr key={item.id} className={item.overallRating === 'D' ? 'bg-red-50' : item.dependencyRisk >= 75 ? 'bg-amber-50' : ''}>
+                                <td className="p-2 border border-gray-200 font-medium text-black">{item.name}</td>
+                                <td className="p-2 border border-gray-200 text-gray-700">{item.category}</td>
+                                <td className="p-2 border border-gray-200 text-center">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.overallRating === 'A' ? 'bg-green-500 text-white' :
+                                            item.overallRating === 'B' ? 'bg-blue-500 text-white' :
+                                                item.overallRating === 'C' ? 'bg-amber-500 text-white' :
+                                                    'bg-red-500 text-white'
+                                        }`}>
+                                        {item.overallRating}
+                                    </span>
+                                </td>
+                                <td className="p-2 border border-gray-200 text-right">{item.qualityScore.toFixed(1)}/10</td>
+                                <td className="p-2 border border-gray-200 text-right">{item.onTimeDeliveryRate.toFixed(1)}%</td>
+                                <td className={`p-2 border border-gray-200 text-right ${item.dependencyRisk >= 75 ? 'text-red-600 font-semibold' : ''}`}>
+                                    {item.dependencyRisk.toFixed(0)}%
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     )

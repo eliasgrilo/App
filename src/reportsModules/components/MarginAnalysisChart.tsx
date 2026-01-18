@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Trophy, Medal, Award, ChevronDown } from 'lucide-react'
 import type { MarginAnalysis, MarginItem } from '../types'
 import { formatCurrency, formatPercent } from '../mockReportsData'
-import { GlassCard, AnimatedCurrency, AnimatedPercent, Sparkline, HeroMetricCard, GlowHoverCard, ConfettiCelebration, PulseRing, BlurTransition, Depth3DCard, MagneticHover, LiveDataIndicator, GradientText, ElasticScale, RevealOnScroll } from './PremiumComponents'
+import { GlassCard, AnimatedCurrency, AnimatedPercent, Sparkline, HeroMetricCard, GlowHoverCard, ConfettiCelebration, PulseRing, BlurTransition, Depth3DCard, MagneticHover, LiveDataIndicator, GradientText, ElasticScale, RevealOnScroll, ChartToggle } from './PremiumComponents'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -420,72 +420,74 @@ export const MarginAnalysisChart: React.FC<MarginAnalysisChartProps> = ({ data, 
                 </button>
 
                 {/* Chart */}
-                <div className="h-[320px] print:hidden">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
-                            data={chartData}
-                            margin={{ top: 20, right: 40, left: 20, bottom: 60 }}
-                        >
-                            <defs>
-                                <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#8E8E93" stopOpacity={0.9} />
-                                    <stop offset="100%" stopColor="#8E8E93" stopOpacity={0.6} />
-                                </linearGradient>
-                                <linearGradient id="marginGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
-                                    <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
-                            <XAxis
-                                dataKey="shortName"
-                                tick={{ fontSize: 10, fill: 'currentColor' }}
-                                angle={-45}
-                                textAnchor="end"
-                                height={60}
-                                interval={0}
-                                className="text-zinc-500"
-                            />
-                            <YAxis
-                                yAxisId="left"
-                                tick={{ fontSize: 10, fill: 'currentColor' }}
-                                tickFormatter={(v) => `R$${v}`}
-                                className="text-zinc-500"
-                            />
-                            <YAxis
-                                yAxisId="right"
-                                orientation="right"
-                                domain={[0, 100]}
-                                tick={{ fontSize: 10, fill: 'currentColor' }}
-                                tickFormatter={(v) => `${v}%`}
-                                className="text-zinc-500"
-                            />
-                            <ReferenceLine yAxisId="right" y={30} stroke="#FF9500" strokeDasharray="5 5" strokeWidth={1.5} />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                            <Legend
-                                verticalAlign="top"
-                                height={36}
-                                formatter={(value) => (
-                                    <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                                        {value === 'unitCost' ? 'Custo' : value === 'marginValue' ? 'Margem' : 'Margem %'}
-                                    </span>
-                                )}
-                            />
-                            <Bar yAxisId="left" dataKey="unitCost" stackId="price" fill="url(#costGradient)" radius={[0, 0, 0, 0]} maxBarSize={40} name="unitCost" />
-                            <Bar yAxisId="left" dataKey="marginValue" stackId="price" fill="url(#marginGradient)" radius={[6, 6, 0, 0]} maxBarSize={40} name="marginValue" />
-                            <Line
-                                yAxisId="right"
-                                type="monotone"
-                                dataKey="marginPercent"
-                                stroke="#007AFF"
-                                strokeWidth={2.5}
-                                dot={{ fill: '#007AFF', strokeWidth: 2, r: 4, stroke: '#fff' }}
-                                activeDot={{ r: 6, strokeWidth: 0 }}
-                                name="marginPercent"
-                            />
-                        </ComposedChart>
-                    </ResponsiveContainer>
-                </div>
+                <ChartToggle label="Gráfico de Margem">
+                    <div className="h-[320px] print:hidden">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart
+                                data={chartData}
+                                margin={{ top: 20, right: 40, left: 20, bottom: 60 }}
+                            >
+                                <defs>
+                                    <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#8E8E93" stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor="#8E8E93" stopOpacity={0.6} />
+                                    </linearGradient>
+                                    <linearGradient id="marginGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
+                                        <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
+                                <XAxis
+                                    dataKey="shortName"
+                                    tick={{ fontSize: 10, fill: 'currentColor' }}
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={60}
+                                    interval={0}
+                                    className="text-zinc-500"
+                                />
+                                <YAxis
+                                    yAxisId="left"
+                                    tick={{ fontSize: 10, fill: 'currentColor' }}
+                                    tickFormatter={(v) => `R$${v}`}
+                                    className="text-zinc-500"
+                                />
+                                <YAxis
+                                    yAxisId="right"
+                                    orientation="right"
+                                    domain={[0, 100]}
+                                    tick={{ fontSize: 10, fill: 'currentColor' }}
+                                    tickFormatter={(v) => `${v}%`}
+                                    className="text-zinc-500"
+                                />
+                                <ReferenceLine yAxisId="right" y={30} stroke="#FF9500" strokeDasharray="5 5" strokeWidth={1.5} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                                <Legend
+                                    verticalAlign="top"
+                                    height={36}
+                                    formatter={(value) => (
+                                        <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                                            {value === 'unitCost' ? 'Custo' : value === 'marginValue' ? 'Margem' : 'Margem %'}
+                                        </span>
+                                    )}
+                                />
+                                <Bar yAxisId="left" dataKey="unitCost" stackId="price" fill="url(#costGradient)" radius={[0, 0, 0, 0]} maxBarSize={40} name="unitCost" />
+                                <Bar yAxisId="left" dataKey="marginValue" stackId="price" fill="url(#marginGradient)" radius={[6, 6, 0, 0]} maxBarSize={40} name="marginValue" />
+                                <Line
+                                    yAxisId="right"
+                                    type="monotone"
+                                    dataKey="marginPercent"
+                                    stroke="#007AFF"
+                                    strokeWidth={2.5}
+                                    dot={{ fill: '#007AFF', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                                    activeDot={{ r: 6, strokeWidth: 0 }}
+                                    name="marginPercent"
+                                />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    </div>
+                </ChartToggle>
 
                 {/* Print Table */}
                 <div className="hidden print:block mt-4">

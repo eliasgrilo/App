@@ -41,3 +41,5 @@ export { DragGhost } from './components/DragGhost'
 export { CardDetailsModal } from './components/CardDetailsModal'
 export { AddColumnModal } from './components/AddColumnModal'
 export { AddCardModal } from './components/AddCardModal'
+export { KanbanView } from './components/KanbanView'
+

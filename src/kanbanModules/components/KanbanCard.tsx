@@ -33,16 +33,17 @@ export const KanbanCard = React.memo(({ card, colId, dragState, zoomLevel, handl
 
     return (
         <motion.div
-            layout
+            layout="position"
             layoutId={card.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            whileHover={{ y: -2 }}
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96, y: -5 }}
+            whileHover={{ y: -3, scale: 1.01, transition: { duration: 0.2, ease: [0.32, 0.72, 0, 1] } }}
+            whileTap={{ scale: 0.98 }}
             transition={spring.shift}
             data-card-id={card.id}
             onPointerDown={e => handleCardPointerDown(e, card, colId)}
-            className={`relative bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-white/[0.06] rounded-2xl ${ZOOM_CONFIG[zoomLevel]!.cardPadding} shadow-sm hover:shadow-xl dark:shadow-black/10 cursor-grab active:cursor-grabbing touch-none select-none hover:border-zinc-300 dark:hover:border-white/10 group/card`}
+            className={`relative bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-white/[0.06] rounded-2xl ${ZOOM_CONFIG[zoomLevel]!.cardPadding} shadow-sm hover:shadow-lg dark:shadow-black/10 cursor-grab active:cursor-grabbing touch-none select-none hover:border-zinc-300 dark:hover:border-white/10 group/card will-change-transform`}
             style={{ touchAction: 'none' }}
         >
             {/* Labels */}

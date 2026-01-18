@@ -32,7 +32,21 @@ export function StockLevelsSection({ items, getStockStatus, getTotalQuantity, on
         if (stockFilter === 'minStock') return status === 'warning'
         if (stockFilter === 'maxStock') return status === 'high'
         return true
-    }).filter(item => !stockSearchQuery.trim() || item.name.toLowerCase().includes(stockSearchQuery.toLowerCase())).slice(0, 10)
+    }).filter(item => {
+        if (!stockSearchQuery.trim() || stockSearchQuery.trim().length < 3) return true
+        const normalizedQuery = stockSearchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+        const normalizedName = item.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+        // Split into words
+        const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0)
+        const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+        // Query words must be <= name words (allows partial matching)
+        if (queryWords.length > nameWords.length) return false
+
+        // Each query word must START the corresponding name word in sequence
+        return queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)
+    }).slice(0, 10)
 
     return (
         <section className="relative z-10 mb-10">

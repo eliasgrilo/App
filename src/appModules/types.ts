@@ -6,7 +6,7 @@ import type { ComponentType } from 'react'
 import type { Variants } from 'framer-motion'
 import type { IconProps } from './components/NavIcons'
 import {
-    AIIcon, KanbanIcon, ProductsIcon,
+    AIIcon, ProductsIcon, SalesIcon,
     InventoryIcon, SuppliersIcon, CostsIcon, ProductionIcon, ReportsIcon
 } from './components/NavIcons'
 
@@ -20,7 +20,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
     { key: 'ai', label: 'Dashboard', icon: AIIcon },
-    { key: 'kanban', label: 'Vendas', icon: KanbanIcon },
+    { key: 'sales', label: 'Vendas', icon: SalesIcon },
     { key: 'calculator', label: 'Produção', icon: ProductionIcon },
     { key: 'inventory', label: 'Inventário', icon: InventoryIcon },
     { key: 'reports', label: 'Relatórios', icon: ReportsIcon },

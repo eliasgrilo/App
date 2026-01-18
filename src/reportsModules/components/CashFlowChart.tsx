@@ -127,7 +127,7 @@ const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const CashFlowChart: React.FC<{ data: CashFlowAnalysis; showTitle?: boolean }> = ({ data, showTitle = true }) => {
-    const [showDetails, setShowDetails] = useState(true)
+    const [showDetails, setShowDetails] = useState(false)
 
     const netFlow = data.summary.totalInflows - data.summary.totalOutflows
     const flowRatio = (data.summary.totalInflows / data.summary.totalOutflows) * 100
@@ -300,6 +300,91 @@ export const CashFlowChart: React.FC<{ data: CashFlowAnalysis; showTitle?: boole
                     </div>
                 </div>
             )}
+            {/* ═══ PRINT-ONLY SECTION — Full cash flow for printing ═══ */}
+            <div className="hidden print:block mt-6">
+                {/* Print Summary */}
+                <div className="grid grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-green-600">R$ {(data.summary.totalInflows / 1000).toFixed(1)}k</p>
+                        <p className="text-xs text-gray-600">Total Entradas</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-red-600">R$ {(data.summary.totalOutflows / 1000).toFixed(1)}k</p>
+                        <p className="text-xs text-gray-600">Total Saídas</p>
+                    </div>
+                    <div className="text-center">
+                        <p className={`text-xl font-bold ${data.summary.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            R$ {(data.summary.netCashFlow / 1000).toFixed(1)}k
+                        </p>
+                        <p className="text-xs text-gray-600">Fluxo Líquido</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-blue-600">R$ {(data.summary.currentBalance / 1000).toFixed(1)}k</p>
+                        <p className="text-xs text-gray-600">Saldo Atual</p>
+                    </div>
+                </div>
+
+                {/* Print Periods Table */}
+                <div className="mb-4">
+                    <h4 className="text-sm font-bold text-black mb-2 uppercase">Fluxo por Período</h4>
+                    <table className="w-full text-xs border-collapse">
+                        <thead>
+                            <tr className="bg-gray-100">
+                                <th className="text-left p-2 border border-gray-200 font-semibold">Período</th>
+                                <th className="text-right p-2 border border-gray-200 font-semibold">Entradas</th>
+                                <th className="text-right p-2 border border-gray-200 font-semibold">Saídas</th>
+                                <th className="text-right p-2 border border-gray-200 font-semibold">Fluxo Líq.</th>
+                                <th className="text-right p-2 border border-gray-200 font-semibold">Saldo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.periods.map((period, idx) => (
+                                <tr key={idx} className={period.netFlow < 0 ? 'bg-red-50' : ''}>
+                                    <td className="p-2 border border-gray-200 font-medium text-black">{period.period}</td>
+                                    <td className="p-2 border border-gray-200 text-right text-green-600 font-semibold">R$ {(period.inflows / 1000).toFixed(1)}k</td>
+                                    <td className="p-2 border border-gray-200 text-right text-red-600">R$ {(period.outflows / 1000).toFixed(1)}k</td>
+                                    <td className={`p-2 border border-gray-200 text-right font-semibold ${period.netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {period.netFlow >= 0 ? '+' : ''}R$ {(period.netFlow / 1000).toFixed(1)}k
+                                    </td>
+                                    <td className="p-2 border border-gray-200 text-right text-blue-600 font-semibold">R$ {(period.balance / 1000).toFixed(1)}k</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Print Categories */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <h4 className="text-sm font-bold text-green-700 mb-2 uppercase">Composição Entradas</h4>
+                        <table className="w-full text-xs border-collapse">
+                            <tbody>
+                                {data.categories.inflows.map((cat, idx) => (
+                                    <tr key={idx}>
+                                        <td className="p-1 border border-gray-200">{cat.category}</td>
+                                        <td className="p-1 border border-gray-200 text-right font-semibold">R$ {(cat.amount / 1000).toFixed(1)}k</td>
+                                        <td className="p-1 border border-gray-200 text-right text-gray-600">{cat.percentage.toFixed(1)}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-red-700 mb-2 uppercase">Composição Saídas</h4>
+                        <table className="w-full text-xs border-collapse">
+                            <tbody>
+                                {data.categories.outflows.map((cat, idx) => (
+                                    <tr key={idx}>
+                                        <td className="p-1 border border-gray-200">{cat.category}</td>
+                                        <td className="p-1 border border-gray-200 text-right font-semibold">R$ {(cat.amount / 1000).toFixed(1)}k</td>
+                                        <td className="p-1 border border-gray-200 text-right text-gray-600">{cat.percentage.toFixed(1)}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }

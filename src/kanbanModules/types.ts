@@ -122,15 +122,17 @@ export const DEFAULT_KANBAN: KanbanBoard = {
 
 export const STORAGE_KEY = 'padoca_kanban_pro_max'
 
-// Premium Spring Configurations
+// Premium Spring Configurations — Apple HIG Fluidity
+// Lower stiffness + higher damping = buttery smooth motion like iOS
 export const spring = {
-    layout: { type: "spring", stiffness: 500, damping: 40, mass: 1 },
-    enter: { type: "spring", stiffness: 450, damping: 35, mass: 0.8 },
-    placeholder: { type: "spring", stiffness: 600, damping: 45, mass: 0.7 },
-    ghost: { type: "spring", stiffness: 500, damping: 40, mass: 1 },
-    shift: { type: "spring", stiffness: 450, damping: 35, mass: 1 },
-    modal: { type: "spring", stiffness: 400, damping: 30, mass: 1 }
-} as const satisfies SpringConfigs
+    layout: { type: "spring", stiffness: 350, damping: 35, mass: 0.8 },
+    enter: { type: "spring", stiffness: 300, damping: 28, mass: 0.6 },
+    placeholder: { type: "spring", stiffness: 400, damping: 38, mass: 0.6 },
+    ghost: { type: "spring", stiffness: 280, damping: 32, mass: 0.5 },
+    shift: { type: "spring", stiffness: 320, damping: 30, mass: 0.7 },
+    modal: { type: "spring", stiffness: 350, damping: 32, mass: 0.8 },
+    ultraSmooth: { type: "spring", stiffness: 200, damping: 25, mass: 0.4 }
+} as const satisfies SpringConfigs & { ultraSmooth: Transition }
 
 export const LABELS = [
     { id: 'emerald', name: 'Concluído', color: '#10b981' },
@@ -149,4 +151,4 @@ export const ZOOM_CONFIG: ZoomConfig[] = [
 
 export const VIRTUALIZATION_THRESHOLD = 15
 export const CARD_HEIGHT = 100
-export const DRAG_THRESHOLD = 4
+export const DRAG_THRESHOLD = 3  // Lower threshold for quicker drag response

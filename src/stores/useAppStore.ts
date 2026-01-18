@@ -435,11 +435,17 @@ export const useAppStore = create<AppStore>()(
                 }
             },
             version: 1,
-            migrate: (persistedState, version) => {
-                if (version === 0) {
-                    return { ...initialState, ...(persistedState as object) }
+            migrate: (persistedState: any, version) => {
+                const state = persistedState as AppStoreState
+
+                // Fix empty suppliers or suppliers with empty names
+                if (!state.suppliers || state.suppliers.length === 0 ||
+                    state.suppliers.some((s: any) => !s.name || s.name.trim() === '')) {
+                    console.log('🔧 Fixing empty suppliers - loading from MOCK_SUPPLIERS')
+                    state.suppliers = MOCK_SUPPLIERS as Supplier[]
                 }
-                return persistedState as AppStoreState
+
+                return state
             }
         }
     )

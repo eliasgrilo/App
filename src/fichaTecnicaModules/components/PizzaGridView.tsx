@@ -28,7 +28,7 @@ interface PizzaGridViewProps {
 // ═══════════════════════════════════════════════════════════════════
 
 export function PizzaGridView({
-    pizzas,
+    pizzas = [],
     setSelectedPizzaId,
     setIsCreatingPizza,
     handleRenamePizza,
@@ -42,10 +42,13 @@ export function PizzaGridView({
         return ingredients.reduce((sum, ing) => sum + getItemCost(ing), 0)
     }
 
+    const safePizzas = Array.isArray(pizzas) ? pizzas : []
+
     return (
         <section className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {pizzas.map((pizza) => {
-                const totalCost = calculateTotals(pizza.ingredients)
+            {safePizzas.map((pizza) => {
+                const ingredients = pizza.ingredients || []
+                const totalCost = calculateTotals(ingredients)
                 return (
                     <button
                         type="button"
@@ -60,7 +63,7 @@ export function PizzaGridView({
                             <div className="flex items-start justify-between mb-6">
                                 <div>
                                     <h3 className="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">{pizza.name}</h3>
-                                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{pizza.ingredients.length} ingrediente{pizza.ingredients.length !== 1 ? 's' : ''}</p>
+                                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{ingredients.length} ingrediente{ingredients.length !== 1 ? 's' : ''}</p>
                                 </div>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button
@@ -98,7 +101,7 @@ export function PizzaGridView({
                                     Ver detalhes
                                 </div>
                                 <div className="px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">{pizza.ingredients.length} itens</span>
+                                    <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">{ingredients.length} itens</span>
                                 </div>
                             </div>
                         </div>
@@ -107,7 +110,7 @@ export function PizzaGridView({
             })}
 
             {/* Empty State */}
-            {pizzas.length === 0 && (
+            {safePizzas.length === 0 && (
                 <div className="col-span-full text-center py-20 rounded-[2.5rem] bg-white dark:bg-zinc-950 border border-zinc-200/50 dark:border-white/10 shadow-xl overflow-hidden relative">
                     <div className="absolute inset-0 bg-zinc-50/50 dark:bg-white/[0.01]"></div>
                     <div className="relative z-10">

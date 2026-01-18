@@ -37,7 +37,21 @@ export function useProductsState() {
 
     const filtered = useMemo(() => {
         let r = movements
-        if (search) r = r.filter(m => m.itemName.toLowerCase().includes(search.toLowerCase()))
+        if (search && search.trim().length >= 3) {
+            const normalizedSearch = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+            const queryWords = normalizedSearch.split(/\s+/).filter(w => w.length > 0)
+
+            r = r.filter(m => {
+                const normalizedName = m.itemName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+                const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+                // Query words must be <= name words (allows partial matching)
+                if (queryWords.length > nameWords.length) return false
+
+                // Each query word must START the corresponding name word in sequence
+                return queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)
+            })
+        }
         if (typeFilter !== 'all') r = r.filter(m => m.type === typeFilter)
         if (period !== 'all') {
             const now = new Date(); now.setHours(0, 0, 0, 0)

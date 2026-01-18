@@ -19,7 +19,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
         { id: 'nav-inventory', type: 'navigate', name: 'Ir para Estoque', view: 'inventory', icon: Icons.ingredient },
         { id: 'nav-suppliers', type: 'navigate', name: 'Ir para Fornecedores', view: 'suppliers', icon: Icons.supplier },
         { id: 'nav-costs', type: 'navigate', name: 'Ir para Financeiro', view: 'costs', icon: Icons.navigate },
-        { id: 'nav-kanban', type: 'navigate', name: 'Ir para Kanban', view: 'kanban', icon: Icons.navigate },
+        { id: 'nav-production', type: 'navigate', name: 'Ir para Produção', view: 'calculator', icon: Icons.navigate },
     ], [])
 
     const quickActions = useMemo<CommandItem[]>(() => [

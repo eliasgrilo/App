@@ -76,10 +76,21 @@ export function LinkedItemsSearch({ inventoryItems, linkedItems, onLink, onUnlin
 
     // Filter items - exclude already linked, only show if user typed enough
     const filtered = hasMinChars
-        ? inventoryItems.filter((item: InventoryItem) =>
-            item.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !linkedItems.find((li: LinkedItem) => li.itemId === item.id)
-        ).slice(0, 6)
+        ? inventoryItems.filter((item: InventoryItem) => {
+            const normalizedQuery = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+            const normalizedName = (item.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+            // Split into words
+            const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 0)
+            const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+            // Query words must be <= name words (allows partial matching)
+            if (queryWords.length > nameWords.length) return false
+
+            // Each query word must START the corresponding name word in sequence
+            const hasMatch = queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)
+            return hasMatch && !linkedItems.find((li: LinkedItem) => li.itemId === item.id)
+        }).slice(0, 6)
         : []
 
     // Check for exact match (same word count and content) - only if typed enough

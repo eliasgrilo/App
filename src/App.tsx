@@ -24,11 +24,12 @@ const FichaTecnica = lazy(() => import('./FichaTecnica'))
 const Inventory = lazy(() => import('./Inventory'))
 const Production = lazy(() => import('./Production'))
 const Recipes = lazy(() => import('./Recipes'))
-const Kanban = lazy(() => import('./Kanban'))
 const Suppliers = lazy(() => import('./Suppliers'))
 const Products = lazy(() => import('./Products'))
 const AI = lazy(() => import('./AI'))
 const ReportsPage = lazy(() => import('./reportsModules/ReportsPage'))
+const SalesPage = lazy(() => import('./salesModules').then(m => ({ default: m.SalesPage })))
+const SearchTest = lazy(() => import('./SearchTest'))
 export default function App() {
   const [inputMode, setInputMode] = useState<UnitMode>('pct')
   const [view, setView] = useState<string>('ai')
@@ -75,7 +76,7 @@ export default function App() {
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 {view === 'ai' ? <AI />
-                  : view === 'kanban' ? <Kanban />
+                  : view === 'sales' ? <SalesPage />
                     : view === 'recipes' ? <Recipes />
                       : view === 'products' ? <Products />
                         : view === 'inventory' ? <Inventory />
@@ -83,7 +84,8 @@ export default function App() {
                             : view === 'suppliers' ? <Suppliers />
                               : view === 'costs' ? <Costs />
                                 : view === 'ficha' ? <FichaTecnica />
-                                  : <Production inputMode={inputMode === "pct" ? "percent" : "grams"} setInputMode={(m) => setInputMode(m === "percent" ? "pct" : "grams")} />}
+                                  : view === 'test' ? <SearchTest />
+                                    : <Production inputMode={inputMode === "pct" ? "percent" : "grams"} setInputMode={(m) => setInputMode(m === "percent" ? "pct" : "grams")} />}
               </Suspense>
             </ErrorBoundary>
           </motion.main>

@@ -12,9 +12,7 @@ import {
     type ProductionProps,
     type ProductionViewType
 } from './productionModules'
-
-// Lazy imports for other views
-import Kanban from './Kanban'
+import { KanbanView } from './kanbanModules'
 import FichaTecnica from './FichaTecnica'
 import Recipes from './Recipes'
 
@@ -45,6 +43,60 @@ export default function Production({ inputMode }: ProductionProps) {
         modal: { confirm: modal.confirm },
         showToast
     })
+
+    // When Kanban is active, render it directly without the Production wrapper
+    // This ensures the same fluidity as the standalone Kanban page
+    if (state.activeView === 'kanban') {
+        return (
+            <div className="relative font-sans">
+                {/* Tab Switcher for Kanban view */}
+                <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-2 px-0">
+                    <div className="flex items-center gap-6">
+                        <div>
+                            <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white mb-1">
+                                Kanban
+                            </h1>
+                            <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-base font-medium">
+                                Gestão visual de tarefas e projetos
+                            </p>
+                        </div>
+                        {/* Segmented Control Tabs */}
+                        <div className="hidden md:inline-flex bg-zinc-100 dark:bg-zinc-800/50 p-1.5 rounded-2xl">
+                            {PRODUCTION_TABS.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => state.setActiveView(tab.key)}
+                                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all touch-manipulation ${state.activeView === tab.key
+                                        ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                                        }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                {/* Mobile tabs */}
+                <div className="md:hidden bg-zinc-100 dark:bg-zinc-800/50 p-1.5 rounded-2xl inline-flex w-full mb-4">
+                    {PRODUCTION_TABS.map((tab) => (
+                        <button
+                            key={tab.key}
+                            onClick={() => state.setActiveView(tab.key)}
+                            className={`flex-1 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all touch-manipulation ${state.activeView === tab.key
+                                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+                {/* Kanban Board - Direct render without extra wrappers */}
+                <KanbanView />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6 md:space-y-8 animate-fade-in pb-16 relative font-sans selection:bg-indigo-500/20">
@@ -111,7 +163,6 @@ export default function Production({ inputMode }: ProductionProps) {
             {state.activeView === 'producao' && (
                 <ProductionContent inputMode={inputMode} state={state} handlers={handlers} />
             )}
-            {state.activeView === 'kanban' && <Kanban />}
             {state.activeView === 'ficha' && <FichaTecnica />}
             {state.activeView === 'receitas' && <Recipes />}
         </div>

@@ -21,8 +21,20 @@ export const SearchInput: React.FC<SearchInputProps> = ({ value, matched, onChan
 interface AutoCompleteProps { items: InventoryItemLocal[]; search: string; matched: boolean; onSelect: (item: InventoryItemLocal) => void }
 
 export const AutoComplete: React.FC<AutoCompleteProps> = ({ items, search, matched, onSelect }) => {
-    if (search.length === 0 || matched) return null
-    const matches = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase())).slice(0, 6)
+    if (search.length < 3 || matched) return null
+    const normalizedSearch = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+    const queryWords = normalizedSearch.split(/\s+/).filter(w => w.length > 0)
+
+    const matches = items.filter(i => {
+        const normalizedName = i.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+        const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+        // Query words must be <= name words (allows partial matching)
+        if (queryWords.length > nameWords.length) return false
+
+        // Each query word must START the corresponding name word in sequence
+        return queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)
+    }).slice(0, 6)
     return (
         <div className="mt-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100/80 dark:border-zinc-800 overflow-hidden max-h-[50vh] overflow-y-auto custom-scrollbar animate-fade-in pb-2">
             {matches.length === 0 && search.length > 1 ? (

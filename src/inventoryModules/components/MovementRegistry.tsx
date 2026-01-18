@@ -15,7 +15,20 @@ export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }:
     const filteredMovements = useMemo(() => {
         const now = new Date()
         return movements.filter(m => {
-            if (search && !m.itemName.toLowerCase().includes(search.toLowerCase())) return false
+            if (search && search.trim().length >= 3) {
+                const normalizedSearch = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+                const normalizedName = m.itemName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+                // Split into words
+                const queryWords = normalizedSearch.split(/\s+/).filter(w => w.length > 0)
+                const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+                // Query words must be <= name words (allows partial matching)
+                if (queryWords.length > nameWords.length) return false
+
+                // Each query word must START the corresponding name word in sequence
+                if (!queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)) return false
+            }
             if (typeFilter !== 'all') {
                 if (typeFilter === 'manual') {
                     if (!m.isManual) return false
@@ -67,87 +80,199 @@ export function MovementRegistry({ movements, onRemoveMovement, onAddMovement }:
     }, [grouped])
 
     return (
-        <section className="relative z-10 mb-8">
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1], delay: 0.1 }} className="relative z-10 bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-[2rem] md:rounded-[3rem] border border-zinc-200/50 dark:border-white/10 overflow-hidden shadow-xl">
-                {/* Header */}
-                <div className="p-5 md:p-8 pb-3 md:pb-5">
-                    <div className="flex items-start justify-between">
-                        <div><span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2 block">PROTOCOL LEDGER</span><h2 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight leading-none">Movement Registry</h2></div>
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{filteredMovements.length} items</span>
-                    </div>
-                    {/* Filters */}
-                    <div className="flex flex-wrap items-center gap-3 mt-5">
-                        {/* Search */}
-                        <div className="relative flex-1 min-w-[180px] max-w-sm">
-                            <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="w-full h-11 pl-11 pr-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-[15px] text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-zinc-200 dark:focus:ring-zinc-700" />
+        <section className="relative z-10 mb-12">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                className="
+                    relative 
+                    bg-white/80 dark:bg-zinc-950/80 
+                    backdrop-blur-3xl backdrop-saturate-150
+                    rounded-[48px]
+                    border border-zinc-200/40 dark:border-zinc-700/40
+                    overflow-hidden
+                "
+                style={{
+                    boxShadow: `
+                        0 8px 24px rgba(0,0,0,0.06),
+                        0 24px 48px rgba(0,0,0,0.08),
+                        0 48px 96px rgba(0,0,0,0.1)
+                    `
+                }}
+            >
+                {/* Ambient Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/[0.02] via-transparent to-indigo-500/[0.02]" />
+
+                {/* Header - BREATHING ROOM */}
+                <div className="relative p-10 md:p-12 pb-6 md:pb-8">
+                    <div className="flex items-start justify-between mb-8">
+                        <div className="space-y-2">
+                            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-[0.2em]">
+                                PROTOCOL LEDGER
+                            </span>
+                            <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight">
+                                Movement Registry
+                            </h2>
                         </div>
-                        {/* Period Pills */}
-                        <div className="inline-flex gap-0.5 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl">
+                        <div className="px-4 py-2 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50 backdrop-blur-xl border border-zinc-200/30 dark:border-zinc-700/30">
+                            <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                {filteredMovements.length} {filteredMovements.length === 1 ? 'item' : 'itens'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Filters - LARGER TOUCH TARGETS */}
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* Search */}
+                        <div className="relative flex-1 min-w-[240px] max-w-lg">
+                            <svg className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder="Buscar movimentação..."
+                                className="
+                                    w-full h-14 pl-14 pr-5 
+                                    rounded-2xl 
+                                    bg-white/80 dark:bg-zinc-900/80 
+                                    backdrop-blur-xl
+                                    border-2 border-zinc-200/50 dark:border-zinc-700/50
+                                    text-[16px] text-zinc-900 dark:text-zinc-100 
+                                    placeholder:text-zinc-400 
+                                    outline-none 
+                                    focus:border-violet-500/50
+                                    transition-all duration-200
+                                    shadow-sm
+                                "
+                            />
+                        </div>
+
+                        {/* Period Pills - BIGGER */}
+                        <div className="inline-flex gap-1.5 bg-zinc-100/80 dark:bg-zinc-800/50 p-2 rounded-2xl border border-zinc-200/30 dark:border-zinc-700/30 backdrop-blur-xl">
                             {(['today', '7d', '30d', 'all'] as const).map(p => (
-                                <motion.button key={p} onClick={() => setPeriod(p)} whileTap={{ scale: 0.97 }}
-                                    className={`relative px-4 py-2 rounded-xl text-[13px] font-medium transition-colors ${period === p ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700'}`}>
+                                <motion.button
+                                    key={p}
+                                    onClick={() => setPeriod(p)}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className={`
+                                        relative px-6 py-3 rounded-xl 
+                                        text-[14px] font-bold 
+                                        transition-all duration-200
+                                        ${period === p
+                                            ? 'text-zinc-900 dark:text-white'
+                                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                        }
+                                    `}
+                                >
                                     {period === p && (
-                                        <motion.div layoutId="movementPeriodPill" className="absolute inset-0 bg-white dark:bg-zinc-700 rounded-xl shadow-sm"
-                                            transition={{ type: 'spring', stiffness: 500, damping: 35 }} />
+                                        <motion.div
+                                            layoutId="periodIndicator"
+                                            className="absolute inset-0 bg-white dark:bg-zinc-700 rounded-xl shadow-lg"
+                                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                        />
                                     )}
-                                    <span className="relative z-10">{p === 'all' ? 'Todos' : p === 'today' ? 'Hoje' : p === '7d' ? '7 dias' : '30 dias'}</span>
+                                    <span className="relative z-10">
+                                        {p === 'all' ? 'Todos' : p === 'today' ? 'Hoje' : p === '7d' ? '7d' : '30d'}
+                                    </span>
                                 </motion.button>
                             ))}
                         </div>
-                        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as 'all' | 'entrada' | 'saida' | 'manual')}
-                            className="h-11 px-4 pr-10 bg-zinc-100 dark:bg-zinc-800 rounded-2xl text-[13px] font-medium text-zinc-700 dark:text-zinc-200 cursor-pointer outline-none appearance-none"
-                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}>
-                            <option value="all">Todos os tipos</option>
+
+                        <select
+                            value={typeFilter}
+                            onChange={e => setTypeFilter(e.target.value as 'all' | 'entrada' | 'saida' | 'manual')}
+                            className="
+                                h-14 px-6 pr-12 
+                                bg-white/80 dark:bg-zinc-900/80 
+                                backdrop-blur-xl
+                                border-2 border-zinc-200/50 dark:border-zinc-700/50
+                                rounded-2xl 
+                                text-[14px] font-bold 
+                                text-zinc-700 dark:text-zinc-200 
+                                cursor-pointer 
+                                outline-none 
+                                appearance-none
+                                shadow-sm
+                                hover:border-zinc-300 dark:hover:border-zinc-600
+                                transition-all duration-200
+                            "
+                            style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 16px center',
+                                backgroundSize: '20px'
+                            }}
+                        >
+                            <option value="all">Todos</option>
                             <option value="entrada">Entrada</option>
                             <option value="saida">Saída</option>
                             <option value="manual">Manual</option>
                         </select>
-                        {/* Settings Button */}
-                        <button onClick={onAddMovement}
-                            className="ml-auto w-11 h-11 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-2xl text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+
+                        {/* Add Button - PROMINENT */}
+                        <motion.button
+                            onClick={onAddMovement}
+                            whileHover={{ scale: 1.08, rotate: 90 }}
+                            whileTap={{ scale: 0.92 }}
+                            className="
+                                ml-auto w-14 h-14 
+                                flex items-center justify-center 
+                                bg-gradient-to-br from-violet-500 to-indigo-600
+                                rounded-2xl 
+                                text-white
+                                transition-all duration-200
+                            "
+                            style={{
+                                boxShadow: `
+                                    0 8px 16px rgba(139, 92, 246, 0.3),
+                                    0 4px 8px rgba(0,0,0,0.1)
+                                `
+                            }}
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                             </svg>
-                        </button>
+                        </motion.button>
                     </div>
                 </div>
-                {/* Column Headers - Apple Style */}
-                <div className="hidden md:grid grid-cols-12 gap-6 px-10 py-2.5 border-b border-zinc-100 dark:border-white/5">
-                    <div className="col-span-5 pl-4">
-                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Identity & Description</span>
-                    </div>
-                    <div className="col-span-2 flex justify-center">
-                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Stock Level</span>
-                    </div>
-                    <div className="col-span-2 flex justify-end">
-                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Unit Price</span>
-                    </div>
-                    <div className="col-span-2 flex justify-end">
-                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Total Value</span>
-                    </div>
-                    <div className="col-span-1 flex justify-end pr-1">
-                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Date</span>
-                    </div>
-                </div>
-                {/* Movement List */}
-                <div className="px-4 md:px-6 pb-6 md:pb-8 pt-2">
+
+                {/* Movement List - MASSIVE SPACING */}
+                <div className="px-10 md:px-12 pb-12 pt-4">
                     {filteredMovements.length === 0 ? (
-                        <div className="text-center py-12"><div className="w-12 h-12 mx-auto rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3"><svg className="w-6 h-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></div><p className="text-sm font-medium text-zinc-900 dark:text-white">Nenhuma movimentação</p><p className="text-xs text-zinc-500 mt-1">Movimentações aparecerão aqui</p></div>
+                        <div className="text-center py-20">
+                            <div className="w-20 h-20 mx-auto rounded-3xl bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center mb-6">
+                                <svg className="w-10 h-10 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Nenhuma movimentação</h3>
+                            <p className="text-[15px] text-zinc-500 dark:text-zinc-400">As movimentações aparecerão aqui</p>
+                        </div>
                     ) : (
-                        <div className="space-y-6">
+                        <div className="space-y-10">
                             {sortedDateKeys.map(dateLabel => (
                                 <div key={dateLabel}>
-                                    {/* Date Divider - Apple Style */}
-                                    <div className="flex items-center gap-4 mb-3">
-                                        <span className="text-[10px] font-bold text-violet-500 uppercase tracking-widest whitespace-nowrap">{dateLabel}</span>
-                                        <div className="flex-1 h-px bg-gradient-to-r from-zinc-200 dark:from-zinc-700 to-transparent" />
-                                    </div>
+                                    {/* Date Divider - REFINED */}
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -30 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        className="flex items-center gap-4 mb-6"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600" />
+                                            <span className="text-[13px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-[0.12em]">
+                                                {dateLabel}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1 h-[2px] bg-gradient-to-r from-zinc-200 via-zinc-100 to-transparent dark:from-zinc-700 dark:via-zinc-800 dark:to-transparent rounded-full" />
+                                    </motion.div>
 
-                                    {/* Movements for this date */}
-                                    <AnimatePresence>
-                                        <div className="space-y-1">
+                                    {/* Cards - GENEROUS 24px GAPS */}
+                                    <AnimatePresence mode="popLayout">
+                                        <div className="space-y-6">
                                             {(grouped[dateLabel] ?? []).map(m => <MovementItem key={m.id} movement={m} onRemove={onRemoveMovement} />)}
                                         </div>
                                     </AnimatePresence>

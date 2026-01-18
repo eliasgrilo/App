@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import AddSupplierModal from './components/AddSupplierModal'
 import { useSuppliersState, useSuppliersHandlers, SuppliersGrid, QuotesView } from './suppliersModules'
 import { useCurrency } from './stores/useCurrencyStore'
@@ -204,44 +205,92 @@ export default function Suppliers() {
                                     // Sort dates descending
                                     const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
 
+                                    // Refined Apple Design Cards
                                     return sortedDates.map(dateKey => (
                                         <div key={dateKey}>
-                                            {/* Date Divider - Apple Style */}
-                                            <div className="flex items-center gap-4 mb-3">
-                                                <span className="text-[10px] font-bold text-violet-500 uppercase tracking-widest whitespace-nowrap">{formatDateLabel(dateKey)}</span>
-                                                <div className="flex-1 h-px bg-gradient-to-r from-zinc-200 dark:from-zinc-700 to-transparent" />
+                                            {/* Date Divider - Refined */}
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                                                <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider">{formatDateLabel(dateKey)}</span>
+                                                <div className="flex-1 h-px bg-gradient-to-r from-zinc-200 via-zinc-100 to-transparent dark:from-zinc-700 dark:via-zinc-800 dark:to-transparent" />
                                             </div>
 
-                                            {/* Purchases for this date */}
+                                            {/* Purchases - Refined Cards */}
                                             <div className="space-y-2">
-                                                {(grouped[dateKey] ?? []).map(purchase => (
-                                                    <div key={purchase.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors cursor-pointer group">
-                                                        {/* Avatar */}
-                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-violet-500/20 flex-shrink-0">
-                                                            {purchase.supplierName.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
-                                                        </div>
+                                                {(grouped[dateKey] ?? []).map(purchase => {
+                                                    // Find real supplier to get photo
+                                                    const supplier = state.suppliers.find(s =>
+                                                        s.name.toLowerCase() === purchase.supplierName.toLowerCase() ||
+                                                        s.company?.toLowerCase() === purchase.fantasyName.toLowerCase()
+                                                    )
 
-                                                        {/* Main Info */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="font-semibold text-zinc-900 dark:text-white truncate">{purchase.supplierName}</p>
-                                                                <span className="text-xs text-zinc-400">{purchase.noteNumber}</span>
+                                                    return (
+                                                        <div
+                                                            key={purchase.id}
+                                                            className="
+                                                                bg-white dark:bg-zinc-900 
+                                                                rounded-2xl 
+                                                                border border-zinc-200/60 dark:border-zinc-700/60
+                                                                p-4
+                                                                transition-all duration-200
+                                                                hover:border-zinc-300 dark:hover:border-zinc-600
+                                                                hover:shadow-sm
+                                                                cursor-pointer
+                                                                group
+                                                            "
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                {/* Delicate Avatar */}
+                                                                {supplier?.image ? (
+                                                                    <img
+                                                                        src={supplier.image}
+                                                                        alt={purchase.supplierName}
+                                                                        className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-500 font-semibold text-xs flex-shrink-0">
+                                                                        {purchase.supplierName.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Refined Info */}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-baseline gap-2">
+                                                                        <p className="text-[15px] font-semibold text-zinc-900 dark:text-white truncate leading-tight">
+                                                                            {purchase.supplierName}
+                                                                        </p>
+                                                                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+                                                                            {purchase.noteNumber}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-[13px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                                                                        {purchase.products.join(', ')}
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Elegant Status */}
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className={`
+                                                                        px-2 py-1 rounded-lg text-[11px] font-semibold
+                                                                        ${purchase.status === 'pago'
+                                                                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                                                                            : purchase.status === 'pendente'
+                                                                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400'
+                                                                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                                                        }
+                                                                    `}>
+                                                                        {purchase.status === 'pago' ? 'Pago' : purchase.status === 'pendente' ? 'Pendente' : 'N/A'}
+                                                                    </div>
+
+                                                                    {/* Refined Value */}
+                                                                    <span className="text-[17px] font-semibold tabular-nums text-zinc-900 dark:text-white">
+                                                                        {formatCurrency(purchase.value)}
+                                                                    </span>
+                                                                </div>
                                                             </div>
-                                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{purchase.products.join(', ')}</p>
                                                         </div>
-
-                                                        {/* Status Dot */}
-                                                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${purchase.status === 'pago' ? 'bg-green-500' :
-                                                            purchase.status === 'pendente' ? 'bg-amber-500' :
-                                                                'bg-zinc-300 dark:bg-zinc-600'
-                                                            }`} />
-
-                                                        {/* Value */}
-                                                        <span className="font-medium text-sm tabular-nums text-zinc-900 dark:text-white flex-shrink-0">
-                                                            {formatCurrency(purchase.value)}
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                                    )
+                                                })}
                                             </div>
                                         </div>
                                     ))
@@ -263,7 +312,91 @@ export default function Suppliers() {
             )}
             <AddSupplierModal isOpen={state.isModalOpen} onClose={() => state.setIsModalOpen(false)} onSave={handlers.handleSave} formData={state.formData} setFormData={state.setFormData} inventoryItems={state.inventoryItems} isEditing={!!state.editingSupplier} onFileSelect={handlers.handleFileSelect} uploadingFile={!!state.uploadingFile} uploadProgress={state.uploadProgress} onDeleteDocument={handlers.deleteDocument} />
 
+            {/* Document Preview Modal */}
+            {state.viewingDocument && createPortal(
+                <div
+                    className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                    onClick={() => state.setViewingDocument(null)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
+                    <div
+                        className="relative w-full max-w-4xl h-[85vh] mx-4 bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-zinc-900 dark:text-white">{state.viewingDocument.doc.name}</h3>
+                                    <p className="text-xs text-zinc-500">{(state.viewingDocument.doc.size / 1024).toFixed(1)} KB • {new Date(state.viewingDocument.doc.uploadedAt).toLocaleDateString('pt-BR')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {/* Download Button */}
+                                <button
+                                    onClick={() => handlers.downloadDocument(state.viewingDocument!.doc)}
+                                    className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                    title="Baixar arquivo"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                </button>
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => state.setViewingDocument(null)}
+                                    className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-500/20 dark:hover:text-red-400 transition-colors"
+                                    title="Fechar"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content Preview */}
+                        <div className="flex-1 overflow-auto bg-zinc-100 dark:bg-zinc-950 p-4">
+                            {state.viewingDocument.doc.type.startsWith('image/') ? (
+                                <img
+                                    src={state.viewingDocument.doc.dataUrl}
+                                    alt={state.viewingDocument.doc.name}
+                                    className="max-w-full max-h-full mx-auto rounded-lg shadow-lg object-contain"
+                                />
+                            ) : state.viewingDocument.doc.type === 'application/pdf' ? (
+                                <iframe
+                                    src={state.viewingDocument.doc.dataUrl}
+                                    className="w-full h-full rounded-lg"
+                                    title={state.viewingDocument.doc.name}
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-center">
+                                    <div className="w-20 h-20 rounded-2xl bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center mb-4">
+                                        <svg className="w-10 h-10 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                        </svg>
+                                    </div>
+                                    <h4 className="font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Preview não disponível</h4>
+                                    <p className="text-sm text-zinc-500 mb-4">Este tipo de arquivo não pode ser visualizado diretamente.</p>
+                                    <button
+                                        onClick={() => handlers.downloadDocument(state.viewingDocument!.doc)}
+                                        className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition-colors"
+                                    >
+                                        Baixar arquivo
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
         </div>
     )
 }
-

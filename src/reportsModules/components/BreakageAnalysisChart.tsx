@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, AlertTriangle, TrendingDown, ChevronDown, Target, AlertCircle, CheckCircle } from 'lucide-react'
 import type { BreakageAnalysis, BreakageData } from '../types'
 import { formatCurrency, formatPercent } from '../mockReportsData'
-import { GlassCard, AnimatedCurrency, AnimatedPercent, Sparkline, HeroMetricCard, GlowHoverCard, PulseRing, BlurTransition, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration } from './PremiumComponents'
+import { GlassCard, AnimatedCurrency, AnimatedPercent, Sparkline, HeroMetricCard, GlowHoverCard, PulseRing, BlurTransition, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration, ChartToggle } from './PremiumComponents'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COLORS
@@ -296,33 +296,35 @@ export const BreakageAnalysisChart: React.FC<{ data: BreakageAnalysis; showTitle
             )}
 
             {/* Chart */}
-            <div className="h-[300px] print:h-[220px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                        <defs>
-                            <linearGradient id="soldGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
-                            </linearGradient>
-                            <linearGradient id="wastedGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
-                        <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
-                        <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} className="text-zinc-500" />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                        <Legend verticalAlign="top" height={36} formatter={(value) => (
-                            <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                                {value === 'sold' ? '✓ Vendido' : '✗ Desperdiçado'}
-                            </span>
-                        )} />
-                        <Bar dataKey="sold" stackId="a" fill="url(#soldGradient)" radius={[0, 0, 0, 0]} />
-                        <Bar dataKey="wasted" stackId="a" fill="url(#wastedGradient)" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
+            <ChartToggle label="Gráfico de Quebras">
+                <div className="h-[300px] print:h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <defs>
+                                <linearGradient id="soldGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
+                                </linearGradient>
+                                <linearGradient id="wastedGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
+                            <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
+                            <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} className="text-zinc-500" />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                            <Legend verticalAlign="top" height={36} formatter={(value) => (
+                                <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                                    {value === 'sold' ? '✓ Vendido' : '✗ Desperdiçado'}
+                                </span>
+                            )} />
+                            <Bar dataKey="sold" stackId="a" fill="url(#soldGradient)" radius={[0, 0, 0, 0]} />
+                            <Bar dataKey="wasted" stackId="a" fill="url(#wastedGradient)" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </ChartToggle>
 
             {/* Print Table */}
             <div className="hidden print:block mt-4">

@@ -19,8 +19,55 @@ export * from './premium'
 
 // Additional chart-specific components that remain in this file
 
-import React from 'react'
-import { motion } from 'framer-motion'
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronDown } from 'lucide-react'
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHART TOGGLE — Show/Hide Chart Component (ABC Style)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface ChartToggleProps {
+    children: React.ReactNode
+    label?: string
+    defaultOpen?: boolean
+}
+
+export const ChartToggle: React.FC<ChartToggleProps> = ({
+    children,
+    label = 'Gráfico',
+    defaultOpen = false
+}) => {
+    const [isVisible, setIsVisible] = useState(defaultOpen)
+
+    return (
+        <>
+            <button
+                onClick={() => setIsVisible(!isVisible)}
+                className="w-full flex items-center justify-center gap-2 py-2 mb-4 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors print:hidden"
+            >
+                <motion.div animate={{ rotate: isVisible ? 180 : 0 }}>
+                    <ChevronDown className="w-4 h-4" />
+                </motion.div>
+                {isVisible ? 'Ocultar' : 'Mostrar'} {label}
+            </button>
+
+            <AnimatePresence>
+                {isVisible && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                    >
+                        {children}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
+    )
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ANIMATED BAR — Bar that Animates on Entrance

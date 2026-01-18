@@ -10,7 +10,21 @@ export interface SupplierSearchProps { suppliers: Array<{ id: number | string; n
 
 export function SupplierSearch({ suppliers, selected, onSelect, onClear }: SupplierSearchProps) {
     const [search, setSearch] = useState(''); const [open, setOpen] = useState(false)
-    const filtered = suppliers.filter(s => s.name?.toLowerCase().includes(search.toLowerCase())).slice(0, 5)
+    const filtered = search.trim().length < 3 ? [] : suppliers.filter(s => {
+        const name = s.name || ''
+        const normalizedSearch = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+        const normalizedName = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+        // Split into words
+        const queryWords = normalizedSearch.split(/\s+/).filter(w => w.length > 0)
+        const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+        // Query words must be <= name words (allows partial matching)
+        if (queryWords.length > nameWords.length) return false
+
+        // Each query word must START the corresponding name word in sequence
+        return queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)
+    }).slice(0, 5)
 
     if (selected) return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between min-h-[52px] px-4">

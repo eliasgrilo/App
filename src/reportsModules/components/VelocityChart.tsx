@@ -17,7 +17,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, AlertTriangle, Zap, Archive, ChevronDown, TrendingUp, TrendingDown, Timer } from 'lucide-react'
 import type { VelocityAnalysis, VelocityItem } from '../types'
-import { GlassCard, AnimatedNumber, Sparkline, HeroMetricCard, GlowHoverCard, PulseRing, BlurTransition, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration, StaggeredList, AnimatedGradient } from './PremiumComponents'
+import { GlassCard, AnimatedNumber, Sparkline, HeroMetricCard, GlowHoverCard, PulseRing, BlurTransition, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration, StaggeredList, AnimatedGradient, ChartToggle } from './PremiumComponents'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COLORS
@@ -337,47 +337,87 @@ export const VelocityChart: React.FC<{ data: VelocityAnalysis; showTitle?: boole
             )}
 
             {/* Chart */}
-            <div className="h-[300px] print:h-[220px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                        <defs>
-                            <linearGradient id="criticalGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
-                            </linearGradient>
-                            <linearGradient id="warningGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#FF9500" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#FF9500" stopOpacity={0.6} />
-                            </linearGradient>
-                            <linearGradient id="healthyGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
-                            </linearGradient>
-                            <linearGradient id="slowGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#5856D6" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#5856D6" stopOpacity={0.6} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
-                        <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
-                        <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} tickFormatter={(v) => viewMode === 'expiry' ? `${v}d` : `${v}x`} className="text-zinc-500" />
-                        {viewMode === 'expiry' && <ReferenceLine y={5} stroke="#FF9500" strokeDasharray="5 5" strokeWidth={1.5} />}
-                        {viewMode === 'turnover' && <ReferenceLine y={1} stroke="#5856D6" strokeDasharray="5 5" strokeWidth={1.5} />}
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                        <Bar dataKey="displayValue" radius={[6, 6, 0, 0]} maxBarSize={40}>
-                            {chartData.map((entry, index) => {
-                                let fill = 'url(#healthyGradient)'
-                                if (viewMode === 'expiry') {
-                                    if (entry.daysRemaining <= 2) fill = 'url(#criticalGradient)'
-                                    else if (entry.daysRemaining <= 5) fill = 'url(#warningGradient)'
-                                } else {
-                                    if (entry.turnoverRate < 1) fill = 'url(#slowGradient)'
-                                }
-                                return <Cell key={`cell-${index}`} fill={fill} />
-                            })}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+            <ChartToggle label="Gráfico de Giro">
+                <div className="h-[300px] print:h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <defs>
+                                <linearGradient id="criticalGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#FF3B30" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#FF3B30" stopOpacity={0.6} />
+                                </linearGradient>
+                                <linearGradient id="warningGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#FF9500" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#FF9500" stopOpacity={0.6} />
+                                </linearGradient>
+                                <linearGradient id="healthyGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#34C759" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#34C759" stopOpacity={0.6} />
+                                </linearGradient>
+                                <linearGradient id="slowGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#5856D6" stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor="#5856D6" stopOpacity={0.6} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
+                            <XAxis dataKey="shortName" tick={{ fontSize: 10, fill: 'currentColor' }} angle={-45} textAnchor="end" height={60} interval={0} className="text-zinc-500" />
+                            <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} tickFormatter={(v) => viewMode === 'expiry' ? `${v}d` : `${v}x`} className="text-zinc-500" />
+                            {viewMode === 'expiry' && <ReferenceLine y={5} stroke="#FF9500" strokeDasharray="5 5" strokeWidth={1.5} />}
+                            {viewMode === 'turnover' && <ReferenceLine y={1} stroke="#5856D6" strokeDasharray="5 5" strokeWidth={1.5} />}
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                            <Bar dataKey="displayValue" radius={[6, 6, 0, 0]} maxBarSize={40}>
+                                {chartData.map((entry, index) => {
+                                    let fill = 'url(#healthyGradient)'
+                                    if (viewMode === 'expiry') {
+                                        if (entry.daysRemaining <= 2) fill = 'url(#criticalGradient)'
+                                        else if (entry.daysRemaining <= 5) fill = 'url(#warningGradient)'
+                                    } else {
+                                        if (entry.turnoverRate < 1) fill = 'url(#slowGradient)'
+                                    }
+                                    return <Cell key={`cell-${index}`} fill={fill} />
+                                })}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </ChartToggle>
+
+            {/* ═══ PRINT-ONLY SECTION ═══ */}
+            <div className="hidden print:block mt-6">
+                <table className="w-full text-xs border-collapse">
+                    <thead>
+                        <tr className="bg-gray-100">
+                            <th className="text-left p-2 border border-gray-200 font-semibold">Item</th>
+                            <th className="text-left p-2 border border-gray-200 font-semibold">Categoria</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Estoque</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Dias Rest.</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Giro/Mês</th>
+                            <th className="text-center p-2 border border-gray-200 font-semibold">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.map(item => (
+                            <tr key={item.id} className={item.status === 'critical' ? 'bg-red-50' : item.status === 'warning' ? 'bg-amber-50' : ''}>
+                                <td className="p-2 border border-gray-200 font-medium text-black">{item.name}</td>
+                                <td className="p-2 border border-gray-200 text-gray-700">{item.category}</td>
+                                <td className="p-2 border border-gray-200 text-right">{item.currentStock} {item.unit}</td>
+                                <td className="p-2 border border-gray-200 text-right font-semibold">{item.daysRemaining} dias</td>
+                                <td className="p-2 border border-gray-200 text-right">{item.turnoverRate.toFixed(1)}x</td>
+                                <td className="p-2 border border-gray-200 text-center">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${item.status === 'critical' ? 'bg-red-600 text-white' :
+                                            item.status === 'warning' ? 'bg-amber-500 text-white' :
+                                                item.status === 'slow' ? 'bg-purple-500 text-white' :
+                                                    'bg-green-500 text-white'
+                                        }`}>
+                                        {item.status === 'critical' ? 'CRÍTICO' :
+                                            item.status === 'warning' ? 'ALERTA' :
+                                                item.status === 'slow' ? 'LENTO' : 'OK'}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     )

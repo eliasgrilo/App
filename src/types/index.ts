@@ -153,6 +153,7 @@ export interface Supplier {
     linkedItems?: SupplierLinkedItem[] | ID[]
     documents?: SupplierDocument[] | string[]
     autoOrderEnabled?: boolean
+    image?: string
     createdAt?: ISODateString
     updatedAt?: ISODateString
 }

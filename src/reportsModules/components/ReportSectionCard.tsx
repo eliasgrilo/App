@@ -39,7 +39,7 @@ export const ReportSectionCard: React.FC<ReportSectionCardProps> = ({
     isBookmarked = false,
     onBookmark
 }) => {
-    const [isExpanded, setIsExpanded] = useState(true)
+    const [isExpanded, setIsExpanded] = useState(false)
 
     return (
         <RevealOnScroll direction="up">

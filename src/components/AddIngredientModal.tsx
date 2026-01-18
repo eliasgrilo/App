@@ -379,11 +379,45 @@ const SupplierSearch: React.FC<{
 }> = ({ value, onChange, suppliers, onSelect }) => {
     const [isOpen, setIsOpen] = useState(false)
     const [isFocused, setIsFocused] = useState(false)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
 
     const filtered = useMemo(() => {
-        if (value.trim().length < 2) return []
-        return suppliers.filter(s => s.name?.toLowerCase().includes(value.toLowerCase())).slice(0, 5)
+        if (value.trim().length < 3) {
+            return []
+        }
+
+        const results = suppliers.filter(s => {
+            const name = s.name || ''
+            const normalizedValue = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+            const normalizedName = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+            // Split into words
+            const queryWords = normalizedValue.split(/\s+/).filter(w => w.length > 0)
+            const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 0)
+
+            // Query words must be <= name words (allows partial matching)
+            if (queryWords.length > nameWords.length) return false
+
+            // Each query word must START the corresponding name word in sequence
+            const match = queryWords.every((qWord, idx) => nameWords[idx]?.startsWith(qWord) ?? false)
+            return match
+        }).slice(0, 5)
+
+        return results
     }, [suppliers, value])
+
+    // Update dropdown position when open
+    useEffect(() => {
+        if (isOpen && inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect()
+            setDropdownPos({
+                top: rect.bottom + 8,
+                left: rect.left,
+                width: rect.width
+            })
+        }
+    }, [isOpen, value])
 
     return (
         <div className="relative">
@@ -393,6 +427,7 @@ const SupplierSearch: React.FC<{
                 className="relative"
             >
                 <input
+                    ref={inputRef}
                     type="text"
                     value={value}
                     onChange={(e) => { onChange(e.target.value); setIsOpen(true) }}
@@ -415,14 +450,21 @@ const SupplierSearch: React.FC<{
                 </div>
             </motion.div>
 
-            <AnimatePresence>
-                {isOpen && filtered.length > 0 && (
+            {isOpen && filtered.length > 0 && createPortal(
+                <AnimatePresence>
                     <motion.div
                         initial={{ opacity: 0, y: -8, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.96 }}
                         transition={SPRING_BOUNCY}
-                        className="absolute top-full left-0 right-0 mt-2 z-50 bg-white/90 dark:bg-zinc-800/90 backdrop-blur-xl rounded-xl border border-white/50 dark:border-zinc-700/50 shadow-xl overflow-hidden"
+                        style={{
+                            position: 'fixed',
+                            top: dropdownPos.top,
+                            left: dropdownPos.left,
+                            width: dropdownPos.width,
+                            zIndex: 99999
+                        }}
+                        className="bg-white/95 dark:bg-zinc-800/95 backdrop-blur-xl rounded-xl border border-white/50 dark:border-zinc-700/50 shadow-2xl overflow-hidden"
                     >
                         {filtered.map((s, i) => (
                             <motion.button
@@ -441,8 +483,9 @@ const SupplierSearch: React.FC<{
                             </motion.button>
                         ))}
                     </motion.div>
-                )}
-            </AnimatePresence>
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     )
 }
@@ -763,10 +806,10 @@ export function AddIngredientModal({
                             </motion.div>
 
                             {/* Supplier */}
-                            <motion.div variants={staggerItem}>
-                                <GlassCard>
+                            <motion.div variants={staggerItem} className="relative z-10">
+                                <GlassCard className="overflow-visible">
                                     <SectionHeader icon={Icons.building} title="Fornecedor" gradient={GRADIENTS.orange} />
-                                    <div className="px-4 py-3">
+                                    <div className="px-4 py-3 pb-6 min-h-[80px]">
                                         <SupplierSearch
                                             value={supplierSearch}
                                             onChange={setSupplierSearch}

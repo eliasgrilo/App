@@ -38,7 +38,7 @@ export function SupplierAlertsSection({ alertsBySupplier, openEmailComposer }: S
                 ) : (
                     <div className="space-y-3 md:space-y-1">
                         {alertsBySupplier.map(({ supplier, items }) => (
-                            <button type="button" key={supplier.id} className="w-full flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 md:items-center group hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-4 rounded-2xl md:rounded-[1.5rem] transition-all cursor-pointer border border-zinc-100/80 dark:border-white/5 md:border-transparent text-left"
+                            <div key={supplier.id} className="w-full flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 md:items-center group hover:bg-zinc-50 dark:hover:bg-white/[0.02] px-4 rounded-2xl md:rounded-[1.5rem] transition-all cursor-pointer border border-zinc-100/80 dark:border-white/5 md:border-transparent text-left"
                                 onClick={() => openEmailComposer(supplier, items)}
                             >
                                 <div className="md:col-span-5 flex items-start md:items-center gap-4">
@@ -72,14 +72,20 @@ export function SupplierAlertsSection({ alertsBySupplier, openEmailComposer }: S
                                 </div>
 
                                 <div className="md:col-span-3 flex justify-end">
-                                    <button className="w-full md:w-auto px-5 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                    <button
+                                        className="w-full md:w-auto px-5 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            openEmailComposer(supplier, items)
+                                        }}
+                                    >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                         </svg>
                                         Solicitar
                                     </button>
                                 </div>
-                            </button>
+                            </div>
                         ))}
                     </div>
                 )}

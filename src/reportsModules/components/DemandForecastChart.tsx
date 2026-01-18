@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Target, TrendingUp, TrendingDown, Minus, CheckCircle, ChevronDown, AlertCircle } from 'lucide-react'
 import type { DemandForecast, ForecastItem } from '../types'
 import { formatPercent } from '../mockReportsData'
-import { GlassCard, AnimatedPercent, AnimatedNumber, Sparkline, HeroMetricCard, GlowHoverCard, BlurTransition, GradientBorder, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration } from './PremiumComponents'
+import { GlassCard, AnimatedPercent, AnimatedNumber, Sparkline, HeroMetricCard, GlowHoverCard, BlurTransition, GradientBorder, MagneticHover, ElasticScale, Depth3DCard, ConfettiCelebration, ChartToggle } from './PremiumComponents'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COLORS
@@ -232,33 +232,35 @@ export const DemandForecastChart: React.FC<{ data: DemandForecast; showTitle?: b
             </div>
 
             {/* Weekly Trend Chart */}
-            <div className="h-[280px] mb-6 print:hidden">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data.weeklyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <defs>
-                            <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#007AFF" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#007AFF" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#34C759" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#34C759" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
-                        <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'currentColor' }} className="text-zinc-500" />
-                        <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} className="text-zinc-500" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                        <Legend verticalAlign="top" height={36} formatter={(value) => (
-                            <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                                {value === 'forecast' ? '⋯ Previsão' : '━ Realizado'}
-                            </span>
-                        )} />
-                        <Area type="monotone" dataKey="forecast" stroke="#007AFF" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorForecast)" />
-                        <Area type="monotone" dataKey="actual" stroke="#34C759" strokeWidth={2.5} fillOpacity={1} fill="url(#colorActual)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
+            <ChartToggle label="Gráfico de Previsão">
+                <div className="h-[280px] print:hidden">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data.weeklyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#007AFF" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#007AFF" stopOpacity={0} />
+                                </linearGradient>
+                                <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#34C759" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#34C759" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" vertical={false} />
+                            <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'currentColor' }} className="text-zinc-500" />
+                            <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} className="text-zinc-500" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                            <Legend verticalAlign="top" height={36} formatter={(value) => (
+                                <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                                    {value === 'forecast' ? '⋯ Previsão' : '━ Realizado'}
+                                </span>
+                            )} />
+                            <Area type="monotone" dataKey="forecast" stroke="#007AFF" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorForecast)" />
+                            <Area type="monotone" dataKey="actual" stroke="#34C759" strokeWidth={2.5} fillOpacity={1} fill="url(#colorActual)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </ChartToggle>
 
             {/* Product Accuracy */}
             <button
@@ -306,6 +308,50 @@ export const DemandForecastChart: React.FC<{ data: DemandForecast; showTitle?: b
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* ═══ PRINT-ONLY SECTION ═══ */}
+            <div className="hidden print:block mt-6">
+                <div className="grid grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-black">{data.summary.overallAccuracy.toFixed(1)}%</p>
+                        <p className="text-xs text-gray-600">Precisão Média</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-green-600">{data.summary.highAccuracyCount}</p>
+                        <p className="text-xs text-gray-600">Alta Precisão (&gt;90%)</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xl font-bold text-red-600">{data.summary.lowAccuracyCount}</p>
+                        <p className="text-xs text-gray-600">Baixa Precisão (&lt;80%)</p>
+                    </div>
+                </div>
+                <table className="w-full text-xs border-collapse">
+                    <thead>
+                        <tr className="bg-gray-100">
+                            <th className="text-left p-2 border border-gray-200 font-semibold">Produto</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Previsto</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Real</th>
+                            <th className="text-right p-2 border border-gray-200 font-semibold">Precisão</th>
+                            <th className="text-center p-2 border border-gray-200 font-semibold">Tendência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.items.map(item => (
+                            <tr key={item.id}>
+                                <td className="p-2 border border-gray-200 font-medium text-black">{item.name}</td>
+                                <td className="p-2 border border-gray-200 text-right">{item.forecastedDemand}</td>
+                                <td className="p-2 border border-gray-200 text-right">{item.actualDemand}</td>
+                                <td className={`p-2 border border-gray-200 text-right font-semibold ${item.accuracy >= 90 ? 'text-green-600' : item.accuracy < 80 ? 'text-red-600' : 'text-amber-600'}`}>
+                                    {item.accuracy.toFixed(1)}%
+                                </td>
+                                <td className="p-2 border border-gray-200 text-center">
+                                    {item.trend === 'up' ? '↑' : item.trend === 'down' ? '↓' : '→'}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 }
