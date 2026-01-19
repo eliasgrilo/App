@@ -1,7 +1,11 @@
 // ═════════════════════════════════════════════════════════════════════
-// GMAIL OAUTH SERVICE — Production OAuth 2.0 Flow
+// GMAIL OAUTH SERVICE — Production OAuth 2.0 Flow + DEV MODE
 // Implements Google OAuth with PKCE, state validation, token management
+// DEV_MODE: Works instantly without Google Cloud setup
 // ═════════════════════════════════════════════════════════════════════
+
+// 🔧 DEVELOPMENT MODE - Set to true for instant testing without Google
+const DEV_MODE = true // TODO: Set to false for production
 
 // OAuth Configuration
 const GOOGLE_CLIENT_ID = (import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) || '794336933653-7kq7i95pm6gam34k82vhoflcl95kgjb7.apps.googleusercontent.com'
@@ -35,9 +39,47 @@ function validateState(state: string): boolean {
 }
 
 /**
+ * DEV MODE: Simulate successful OAuth
+ */
+function simulateDevAuth(): Promise<{
+    accessToken: string
+    refreshToken: string
+    expiresIn: number
+    email: string
+}> {
+    return new Promise((resolve) => {
+        // Simulate network delay
+        setTimeout(() => {
+            resolve({
+                accessToken: 'dev_access_token_' + Date.now(),
+                refreshToken: 'dev_refresh_token_' + Date.now(),
+                expiresIn: 3600, // 1 hour
+                email: 'dev@padoca.app' // You can change this to any email
+            })
+        }, 500)
+    })
+}
+
+/**
  * Initiate OAuth flow - Opens Google consent screen
+ * DEV_MODE: Simulates instant success
  */
 export async function initiateGmailOAuth(): Promise<void> {
+    // 🔧 DEV MODE: Bypass Google OAuth
+    if (DEV_MODE) {
+        console.log('🔧 DEV MODE: Simulating OAuth...')
+        const tokens = await simulateDevAuth()
+
+        // Simulate callback by posting message
+        window.postMessage({
+            type: 'gmail-auth-dev-success',
+            tokens
+        }, window.location.origin)
+
+        return
+    }
+
+    // PRODUCTION MODE: Real Google OAuth
     const state = generateState()
     storeState(state)
 
@@ -124,11 +166,25 @@ export async function handleGmailOAuthCallback(code: string, state: string): Pro
 
 /**
  * Refresh access token using refresh token
+ * DEV_MODE: Simulates token refresh
  */
 export async function refreshGmailAccessToken(refreshToken: string): Promise<{
     accessToken: string
     expiresIn: number
 }> {
+    // 🔧 DEV MODE: Simulate refresh
+    if (DEV_MODE && refreshToken.startsWith('dev_refresh_token')) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve({
+                    accessToken: 'dev_access_token_refreshed_' + Date.now(),
+                    expiresIn: 3600
+                })
+            }, 200)
+        })
+    }
+
+    // PRODUCTION MODE: Real token refresh
     const response = await fetch(TOKEN_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -156,8 +212,16 @@ export async function refreshGmailAccessToken(refreshToken: string): Promise<{
 
 /**
  * Revoke Gmail access - Disconnect
+ * DEV_MODE: Simulates revocation
  */
 export async function revokeGmailAccess(token: string): Promise<void> {
+    // 🔧 DEV MODE: Just log
+    if (DEV_MODE && token.startsWith('dev_')) {
+        console.log('🔧 DEV MODE: Simulating token revocation')
+        return
+    }
+
+    // PRODUCTION MODE: Real revocation
     await fetch(REVOKE_ENDPOINT, {
         method: 'POST',
         headers: {

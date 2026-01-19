@@ -33,6 +33,28 @@ export function useGmailAuth() {
     }, [store])
 
     /**
+     * DEV_MODE: Listen for simulated auth success
+     */
+    useEffect(() => {
+        const handleDevAuth = (event: MessageEvent) => {
+            if (event.data?.type === 'gmail-auth-dev-success' && event.data?.tokens) {
+                const { tokens } = event.data
+                store.setTokens({
+                    accessToken: tokens.accessToken,
+                    refreshToken: tokens.refreshToken,
+                    expiresIn: tokens.expiresIn,
+                    email: tokens.email
+                })
+                setIsConnecting(false)
+                setError(null)
+            }
+        }
+
+        window.addEventListener('message', handleDevAuth)
+        return () => window.removeEventListener('message', handleDevAuth)
+    }, [store])
+
+    /**
      * Connect to Gmail - Start OAuth flow
      */
     const connect = useCallback(async () => {
