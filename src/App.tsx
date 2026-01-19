@@ -30,6 +30,7 @@ const AI = lazy(() => import('./AI'))
 const ReportsPage = lazy(() => import('./reportsModules/ReportsPage'))
 const SalesPage = lazy(() => import('./salesModules').then(m => ({ default: m.SalesPage })))
 const SearchTest = lazy(() => import('./SearchTest'))
+const GmailOAuthCallback = lazy(() => import('./components/GmailOAuthCallback').then(m => ({ default: m.GmailOAuthCallback })))
 export default function App() {
   const [inputMode, setInputMode] = useState<UnitMode>('pct')
   const [view, setView] = useState<string>('ai')
@@ -44,6 +45,11 @@ export default function App() {
     const cleanupTheme = initTheme()
     return cleanupTheme
   }, [])
+
+  // Handle Gmail OAuth callback
+  if (window.location.pathname === '/auth/gmail/callback') {
+    return <Suspense fallback={<PageLoader />}><GmailOAuthCallback /></Suspense>
+  }
 
   const handleViewChange = (newView: string): void => {
     if (newView !== view) setView(newView)
