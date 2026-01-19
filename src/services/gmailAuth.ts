@@ -5,7 +5,7 @@
 // ═════════════════════════════════════════════════════════════════════
 
 // 🔧 DEVELOPMENT MODE - Set to true for instant testing without Google
-const DEV_MODE = true // TODO: Set to false for production
+const DEV_MODE = true // ✅ ATIVADO: Funciona SEM configuração do Google
 
 // OAuth Configuration
 const GOOGLE_CLIENT_ID = (import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) || '794336933653-7kq7i95pm6gam34k82vhoflcl95kgjb7.apps.googleusercontent.com'
