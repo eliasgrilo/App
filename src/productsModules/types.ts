@@ -38,7 +38,7 @@ export const DEFAULT_FORM: MovementForm = {
     reasonLabel: 'Sobra de Produção', reasonNote: '', code: 'other'
 }
 
-export type PeriodFilter = 'all' | 'today' | '7d' | '30d'
+export type PeriodFilter = 'all' | 'today' | '7d' | '30d' | 'custom'
 
 export const getDateLabel = (ts: string): string => {
     const d = new Date(ts), now = new Date()

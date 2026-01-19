@@ -63,12 +63,25 @@ export default function Costs() {
 
             {/* Ledger */}
             <CostsLedgerSection
-                costs={state.costs}
+                costs={state.filteredCosts}
                 groupedCosts={state.groupedCosts}
                 formatCurrency={state.formatCurrency}
                 taxRate={state.taxRate}
                 onEdit={handlers.openEdit}
                 onDelete={handlers.deleteCost}
+                search={state.search}
+                setSearch={state.setSearch}
+                period={state.period}
+                setPeriod={state.setPeriod}
+                customStartDate={state.customStartDate}
+                setCustomStartDate={state.setCustomStartDate}
+                customEndDate={state.customEndDate}
+                setCustomEndDate={state.setCustomEndDate}
+                categoryFilter={state.categoryFilter}
+                setCategoryFilter={state.setCategoryFilter}
+                typeFilter={state.typeFilter}
+                setTypeFilter={state.setTypeFilter}
+                categories={state.categories}
             />
 
             {/* Tools */}

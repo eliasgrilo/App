@@ -25,6 +25,8 @@ export function useProductsState() {
     const [period, setPeriod] = useState<PeriodFilter>('all')
     const [typeFilter, setTypeFilter] = useState<MovementType | 'all'>('all')
     const [form, setForm] = useState<MovementForm>(DEFAULT_FORM)
+    const [customStartDate, setCustomStartDate] = useState('')
+    const [customEndDate, setCustomEndDate] = useState('')
 
     const filteredItems = useMemo(() => {
         if (!itemSearch.trim() || itemSearch.trim().length < 2) return []
@@ -53,14 +55,24 @@ export function useProductsState() {
             })
         }
         if (typeFilter !== 'all') r = r.filter(m => m.type === typeFilter)
-        if (period !== 'all') {
+
+        // Period filtering
+        if (period === 'custom' && customStartDate && customEndDate) {
+            const start = new Date(customStartDate)
+            const end = new Date(customEndDate)
+            end.setHours(23, 59, 59, 999) // Include full end day
+            r = r.filter(m => {
+                const date = new Date(m.timestamp)
+                return date >= start && date <= end
+            })
+        } else if (period !== 'all') {
             const now = new Date(); now.setHours(0, 0, 0, 0)
             const days = period === 'today' ? 0 : period === '7d' ? 7 : 30
             const cut = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
             r = r.filter(m => new Date(m.timestamp) >= cut)
         }
         return r
-    }, [movements, search, typeFilter, period])
+    }, [movements, search, typeFilter, period, customStartDate, customEndDate])
 
     const grouped = useMemo(() => {
         const g: Record<string, StockMovement[]> = {}
@@ -90,6 +102,7 @@ export function useProductsState() {
         open, setOpen, search, setSearch, itemSearch, setItemSearch,
         showItemResults, setShowItemResults, period, setPeriod,
         typeFilter, setTypeFilter, form, setForm,
+        customStartDate, customEndDate, setCustomStartDate, setCustomEndDate,
         filteredItems, filtered, grouped, totals, selectedItem,
         resetForm, getStock
     }

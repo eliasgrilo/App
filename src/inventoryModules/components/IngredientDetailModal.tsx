@@ -433,6 +433,22 @@ export function IngredientDetailModal({
                                         </div>
                                     ) : (
                                         <div className="max-h-[280px] overflow-y-auto -mx-1 px-1">
+                                            {/* Apple-Style Column Headers */}
+                                            <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-2 py-2 mb-2 border-b border-zinc-200/40 dark:border-zinc-800/40 sticky top-0 bg-white dark:bg-zinc-900 z-10">
+                                                <div className="w-10" /> {/* Icon spacer */}
+                                                <div className="flex items-baseline gap-4">
+                                                    <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.1em] select-none">
+                                                        Movimentação
+                                                    </span>
+                                                    <span className="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.08em] select-none">
+                                                        Estoque
+                                                    </span>
+                                                </div>
+                                                <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.1em] select-none text-right">
+                                                    Data
+                                                </span>
+                                            </div>
+
                                             <div className="relative">
                                                 {/* Timeline connector line */}
                                                 <div className="absolute left-[19px] top-3 bottom-3 w-[2px] bg-gradient-to-b from-zinc-200 via-zinc-200 to-transparent dark:from-zinc-700 dark:via-zinc-700" />

@@ -4,7 +4,7 @@
 
 export interface StockMovement { id: number | string; itemId: number; itemName: string; type: string; quantity: number; unit?: string; previousStock?: number; newStock?: number; costAtTime?: number; reason?: string; notes?: string; timestamp: string; isManual?: boolean }
 export interface MovementRegistryProps { movements: StockMovement[]; onRemoveMovement: (movement: StockMovement) => void; onAddMovement: () => void }
-export type Period = 'all' | 'today' | '7d' | '30d'
+export type Period = 'all' | 'today' | '7d' | '30d' | 'custom'
 export const MOVEMENT_TYPES = {
     entrada: { label: 'Entrada', isOut: false },
     saida: { label: 'Saída', isOut: true },

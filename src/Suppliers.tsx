@@ -1,11 +1,11 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * Suppliers — Apple-Quality Supplier Management
- * Refactored: ~140 lines (lean orchestrator)
+ * SUPPLIERS PAGE — Apple Design Excellence
  * ═══════════════════════════════════════════════════════════════════
  */
 
 import React, { useState, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import AddSupplierModal from './components/AddSupplierModal'
 import { useSuppliersState, useSuppliersHandlers, SuppliersGrid, QuotesView } from './suppliersModules'
@@ -33,15 +33,25 @@ export default function Suppliers() {
     // Purchases state (aba Compras)
     const [purchaseSearchQuery, setPurchaseSearchQuery] = useState('')
     const [purchaseFilter, setPurchaseFilter] = useState<string>('Todos')
-    const [purchasePeriod, setPurchasePeriod] = useState<'today' | '7d' | '30d' | 'all'>('all')
+    const [purchasePeriod, setPurchasePeriod] = useState<'today' | '7d' | '30d' | 'all' | 'custom'>('all')
+    const [customStartDate, setCustomStartDate] = useState('')
+    const [customEndDate, setCustomEndDate] = useState('')
 
     // Filtered purchases with smart search
     const filteredPurchases = useMemo(() => {
         let purchases = MOCK_PURCHASES
         const now = new Date()
 
-        // Period filter
-        if (purchasePeriod !== 'all') {
+        // Period filter with custom support
+        if (purchasePeriod === 'custom' && customStartDate && customEndDate) {
+            const start = new Date(customStartDate)
+            const end = new Date(customEndDate)
+            end.setHours(23, 59, 59, 999)
+            purchases = purchases.filter(p => {
+                const date = new Date(p.date)
+                return date >= start && date <= end
+            })
+        } else if (purchasePeriod !== 'all') {
             purchases = purchases.filter(p => {
                 const diff = (now.getTime() - new Date(p.date).getTime()) / (1000 * 60 * 60 * 24)
                 if (purchasePeriod === 'today') return diff <= 1
@@ -77,7 +87,7 @@ export default function Suppliers() {
         // "Todos" shows all
 
         return purchases
-    }, [purchaseSearchQuery, purchaseFilter, purchasePeriod])
+    }, [purchaseSearchQuery, purchaseFilter, purchasePeriod, customStartDate, customEndDate])
 
     return (
         <div className="space-y-6 md:space-y-8 animate-fade-in pb-16 relative font-sans selection:bg-violet-500/20">
@@ -164,19 +174,117 @@ export default function Suppliers() {
             {state.activeView === 'clients' && (
                 <section className="relative z-10">
                     <div className="bg-white dark:bg-zinc-950 rounded-[2rem] p-6 border border-zinc-200/50 dark:border-white/10 shadow-lg overflow-hidden">
-                        {/* Period Filters */}
-                        <div className="flex items-center mb-4">
-                            <div className="inline-flex gap-0.5 bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg">
-                                {(['today', '7d', '30d', 'all'] as const).map(p => (
-                                    <button
-                                        key={p}
-                                        onClick={() => setPurchasePeriod(p)}
-                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${purchasePeriod === p ? 'text-zinc-900 dark:text-white bg-white dark:bg-zinc-700 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
-                                    >
-                                        {p === 'all' ? 'Todos' : p === 'today' ? 'Hoje' : p === '7d' ? '7 dias' : '30 dias'}
-                                    </button>
-                                ))}
+                        {/* Period Filters - Apple Style */}
+                        <div className="mb-4 space-y-3">
+                            <div className="flex items-center">
+                                <div className="inline-flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl">
+                                    {(['today', '7d', '30d', 'all', 'custom'] as const).map(p => (
+                                        <motion.button
+                                            key={p}
+                                            onClick={() => setPurchasePeriod(p)}
+                                            whileTap={{ scale: 0.97 }}
+                                            className={`relative px-4 py-2 rounded-xl text-[13px] font-medium transition-colors ${purchasePeriod === p ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700'}`}
+                                        >
+                                            {purchasePeriod === p && (
+                                                <motion.div
+                                                    layoutId="suppliersPeriodPill"
+                                                    className="absolute inset-0 bg-white dark:bg-zinc-700 rounded-xl shadow-sm"
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                                                />
+                                            )}
+                                            <span className="relative z-10">
+                                                {p === 'all' ? 'Todos' : p === 'today' ? 'Hoje' : p === '7d' ? '7 dias' : p === '30d' ? '30 dias' : 'Personalizado'}
+                                            </span>
+                                        </motion.button>
+                                    ))}
+                                </div>
                             </div>
+
+                            {/* Custom Date Filter - Premium Apple Design */}
+                            <AnimatePresence>
+                                {purchasePeriod === 'custom' && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="bg-gradient-to-br from-zinc-50 to-zinc-100/50 dark:from-zinc-900/50 dark:to-zinc-800/30 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-700/40 shadow-sm">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 uppercase tracking-[0.08em]">
+                                                    Período Personalizado
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {/* Start Date */}
+                                                <div className="group">
+                                                    <label className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.1em] mb-2 select-none">
+                                                        Data Inicial
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="date"
+                                                            value={customStartDate}
+                                                            onChange={e => setCustomStartDate(e.target.value)}
+                                                            className="
+                                                                w-full h-11 px-4 pr-10
+                                                                rounded-xl
+                                                                bg-white dark:bg-zinc-900
+                                                                border-2 border-zinc-200 dark:border-zinc-700
+                                                                text-[14px] font-medium text-zinc-800 dark:text-zinc-200
+                                                                outline-none
+                                                                transition-all duration-200
+                                                                focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10
+                                                                hover:border-zinc-300 dark:hover:border-zinc-600
+                                                                shadow-sm
+                                                            "
+                                                            style={{ colorScheme: 'light dark' }}
+                                                        />
+                                                        <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+
+                                                {/* End Date */}
+                                                <div className="group">
+                                                    <label className="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.1em] mb-2 select-none">
+                                                        Data Final
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="date"
+                                                            value={customEndDate}
+                                                            onChange={e => setCustomEndDate(e.target.value)}
+                                                            className="
+                                                                w-full h-11 px-4 pr-10
+                                                                rounded-xl
+                                                                bg-white dark:bg-zinc-900
+                                                                border-2 border-zinc-200 dark:border-zinc-700
+                                                                text-[14px] font-medium text-zinc-800 dark:text-zinc-200
+                                                                outline-none
+                                                                transition-all duration-200
+                                                                focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10
+                                                                hover:border-zinc-300 dark:hover:border-zinc-600
+                                                                shadow-sm
+                                                            "
+                                                            style={{ colorScheme: 'light dark' }}
+                                                        />
+                                                        <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {filteredPurchases.length > 0 ? (
@@ -205,7 +313,7 @@ export default function Suppliers() {
                                     // Sort dates descending
                                     const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
 
-                                    // Refined Apple Design Cards
+                                    // Refined Apple Design Table
                                     return sortedDates.map(dateKey => (
                                         <div key={dateKey}>
                                             {/* Date Divider - Refined */}
@@ -215,82 +323,103 @@ export default function Suppliers() {
                                                 <div className="flex-1 h-px bg-gradient-to-r from-zinc-200 via-zinc-100 to-transparent dark:from-zinc-700 dark:via-zinc-800 dark:to-transparent" />
                                             </div>
 
-                                            {/* Purchases - Refined Cards */}
-                                            <div className="space-y-2">
-                                                {(grouped[dateKey] ?? []).map(purchase => {
-                                                    // Find real supplier to get photo
-                                                    const supplier = state.suppliers.find(s =>
-                                                        s.name.toLowerCase() === purchase.supplierName.toLowerCase() ||
-                                                        s.company?.toLowerCase() === purchase.fantasyName.toLowerCase()
-                                                    )
+                                            {/* Table with Apple-style Headers */}
+                                            <div className="overflow-hidden">
+                                                {/* Column Headers - Apple Style */}
+                                                <div className="grid grid-cols-[auto_1fr_auto_auto] gap-3 px-4 py-3 mb-2 border-b border-zinc-200/40 dark:border-zinc-800/40">
+                                                    <div className="w-9" /> {/* Avatar spacer */}
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.1em] select-none">
+                                                            Fornecedor
+                                                        </span>
+                                                        <span className="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.08em] select-none">
+                                                            Produtos
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.1em] select-none text-right">
+                                                        Status
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.1em] select-none text-right min-w-[100px]">
+                                                        Valor
+                                                    </span>
+                                                </div>
 
-                                                    return (
-                                                        <div
-                                                            key={purchase.id}
-                                                            className="
-                                                                bg-white dark:bg-zinc-900 
-                                                                rounded-2xl 
-                                                                border border-zinc-200/60 dark:border-zinc-700/60
-                                                                p-4
-                                                                transition-all duration-200
-                                                                hover:border-zinc-300 dark:hover:border-zinc-600
-                                                                hover:shadow-sm
-                                                                cursor-pointer
-                                                                group
-                                                            "
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                {/* Delicate Avatar */}
-                                                                {supplier?.image ? (
-                                                                    <img
-                                                                        src={supplier.image}
-                                                                        alt={purchase.supplierName}
-                                                                        className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-500 font-semibold text-xs flex-shrink-0">
-                                                                        {purchase.supplierName.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
-                                                                    </div>
-                                                                )}
+                                                {/* Purchases - Refined Rows */}
+                                                <div className="space-y-1">
+                                                    {(grouped[dateKey] ?? []).map(purchase => {
+                                                        // Find real supplier to get photo
+                                                        const supplier = state.suppliers.find(s =>
+                                                            s.name.toLowerCase() === purchase.supplierName.toLowerCase() ||
+                                                            s.company?.toLowerCase() === purchase.fantasyName.toLowerCase()
+                                                        )
 
-                                                                {/* Refined Info */}
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-baseline gap-2">
-                                                                        <p className="text-[15px] font-semibold text-zinc-900 dark:text-white truncate leading-tight">
-                                                                            {purchase.supplierName}
+                                                        return (
+                                                            <div
+                                                                key={purchase.id}
+                                                                className="
+                                                                    bg-white dark:bg-zinc-900 
+                                                                    rounded-2xl 
+                                                                    border border-zinc-200/60 dark:border-zinc-700/60
+                                                                    transition-all duration-200
+                                                                    hover:border-zinc-300 dark:hover:border-zinc-600
+                                                                    hover:shadow-sm
+                                                                    cursor-pointer
+                                                                    group
+                                                                "
+                                                            >
+                                                                <div className="grid grid-cols-[auto_1fr_auto_auto] gap-3 items-center px-4 py-3.5">
+                                                                    {/* Delicate Avatar */}
+                                                                    {supplier?.image ? (
+                                                                        <img
+                                                                            src={supplier.image}
+                                                                            alt={purchase.supplierName}
+                                                                            className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-500 font-semibold text-xs flex-shrink-0">
+                                                                            {purchase.supplierName.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Refined Info */}
+                                                                    <div className="min-w-0">
+                                                                        <div className="flex items-baseline gap-2">
+                                                                            <p className="text-[15px] font-semibold text-zinc-900 dark:text-white truncate leading-tight">
+                                                                                {purchase.supplierName}
+                                                                            </p>
+                                                                            <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+                                                                                {purchase.noteNumber}
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                                                                            {purchase.products.join(', ')}
                                                                         </p>
-                                                                        <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
-                                                                            {purchase.noteNumber}
-                                                                        </span>
                                                                     </div>
-                                                                    <p className="text-[13px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-                                                                        {purchase.products.join(', ')}
-                                                                    </p>
-                                                                </div>
 
-                                                                {/* Elegant Status */}
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`
-                                                                        px-2 py-1 rounded-lg text-[11px] font-semibold
-                                                                        ${purchase.status === 'pago'
-                                                                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
-                                                                            : purchase.status === 'pendente'
-                                                                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400'
-                                                                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                                                        }
-                                                                    `}>
-                                                                        {purchase.status === 'pago' ? 'Pago' : purchase.status === 'pendente' ? 'Pendente' : 'N/A'}
+                                                                    {/* Elegant Status */}
+                                                                    <div className="flex items-center justify-end">
+                                                                        <div className={`
+                                                                            px-2.5 py-1 rounded-lg text-[11px] font-semibold
+                                                                            ${purchase.status === 'pago'
+                                                                                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                                                                                : purchase.status === 'pendente'
+                                                                                    ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400'
+                                                                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                                                            }
+                                                                        `}>
+                                                                            {purchase.status === 'pago' ? 'Pago' : purchase.status === 'pendente' ? 'Pendente' : 'N/A'}
+                                                                        </div>
                                                                     </div>
 
                                                                     {/* Refined Value */}
-                                                                    <span className="text-[17px] font-semibold tabular-nums text-zinc-900 dark:text-white">
+                                                                    <span className="text-[17px] font-semibold tabular-nums text-zinc-900 dark:text-white text-right min-w-[100px]">
                                                                         {formatCurrency(purchase.value)}
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    )
-                                                })}
+                                                        )
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                     ))

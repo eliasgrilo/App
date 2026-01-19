@@ -4,6 +4,7 @@
 
 import type { Expense } from '../../types'
 import type { GroupedCosts } from '../types'
+import { CostsFilters } from './CostsFilters'
 
 interface CostsLedgerSectionProps {
     costs: Expense[]
@@ -12,16 +13,57 @@ interface CostsLedgerSectionProps {
     taxRate: number
     onEdit: (cost: Expense) => void
     onDelete: (id: number) => void
+    // Filter props
+    search: string
+    setSearch: (val: string) => void
+    period: 'today' | '7d' | '30d' | 'all' | 'custom'
+    setPeriod: (val: 'today' | '7d' | '30d' | 'all' | 'custom') => void
+    customStartDate: string
+    setCustomStartDate: (val: string) => void
+    customEndDate: string
+    setCustomEndDate: (val: string) => void
+    categoryFilter: string
+    setCategoryFilter: (val: string) => void
+    typeFilter: 'all' | 'Fixo' | 'Variável'
+    setTypeFilter: (val: 'all' | 'Fixo' | 'Variável') => void
+    categories: string[]
 }
 
-export function CostsLedgerSection({ costs, groupedCosts, formatCurrency, taxRate, onEdit, onDelete }: CostsLedgerSectionProps) {
+export function CostsLedgerSection({
+    costs, groupedCosts, formatCurrency, taxRate, onEdit, onDelete,
+    search, setSearch, period, setPeriod,
+    customStartDate, setCustomStartDate, customEndDate, setCustomEndDate,
+    categoryFilter, setCategoryFilter, typeFilter, setTypeFilter,
+    categories
+}: CostsLedgerSectionProps) {
     return (
         <section className="relative z-10 bg-white dark:bg-zinc-950 rounded-[2rem] md:rounded-[3rem] border border-zinc-200/50 dark:border-white/10 overflow-hidden shadow-xl">
-            <div className="p-6 md:p-10 pb-4 md:pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-0">
-                <div>
-                    <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Histórico</h2>
-                    <h3 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight leading-none">Despesas Registradas</h3>
+            <div className="p-6 md:p-10 pb-4 md:pb-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-0 mb-6">
+                    <div>
+                        <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Histórico</h2>
+                        <h3 className="text-xl md:text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight leading-none">Despesas Registradas</h3>
+                    </div>
                 </div>
+
+                {/* Filters */}
+                <CostsFilters
+                    search={search}
+                    setSearch={setSearch}
+                    period={period}
+                    setPeriod={setPeriod}
+                    customStartDate={customStartDate}
+                    customEndDate={customEndDate}
+                    onCustomDateChange={(start, end) => {
+                        setCustomStartDate(start)
+                        setCustomEndDate(end)
+                    }}
+                    categoryFilter={categoryFilter}
+                    setCategoryFilter={setCategoryFilter}
+                    typeFilter={typeFilter}
+                    setTypeFilter={setTypeFilter}
+                    categories={categories}
+                />
             </div>
 
             <div className="px-6 md:px-10 pb-6 md:pb-10">

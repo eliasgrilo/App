@@ -40,9 +40,23 @@ export interface CostsStateReturn {
     setDashboardTitle: (title: string) => void
     isEditingTitle: boolean
     setIsEditingTitle: (editing: boolean) => void
+    // Filter State
+    search: string
+    setSearch: (search: string) => void
+    period: 'today' | '7d' | '30d' | 'all' | 'custom'
+    setPeriod: (period: 'today' | '7d' | '30d' | 'all' | 'custom') => void
+    customStartDate: string
+    setCustomStartDate: (date: string) => void
+    customEndDate: string
+    setCustomEndDate: (date: string) => void
+    categoryFilter: string
+    setCategoryFilter: (category: string) => void
+    typeFilter: 'all' | 'Fixo' | 'Variável'
+    setTypeFilter: (type: 'all' | 'Fixo' | 'Variável') => void
     // Computed
     totals: CostTotals
     groupedCosts: GroupedCosts
+    filteredCosts: Expense[]
     // Toast
     showToast: (message: string, type?: 'success' | 'error' | 'info') => void
 }
@@ -68,6 +82,14 @@ export function useCostsState(): CostsStateReturn {
     const [dashboardTitle, setDashboardTitle] = useState('Investment Matrix')
     const [isEditingTitle, setIsEditingTitle] = useState(false)
 
+    // Filter State
+    const [search, setSearch] = useState('')
+    const [period, setPeriod] = useState<'today' | '7d' | '30d' | 'all' | 'custom'>('all')
+    const [customStartDate, setCustomStartDate] = useState('')
+    const [customEndDate, setCustomEndDate] = useState('')
+    const [categoryFilter, setCategoryFilter] = useState('all')
+    const [typeFilter, setTypeFilter] = useState<'all' | 'Fixo' | 'Variável'>('all')
+
     // Toast
     const { toast } = useToast()
     const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success'): void => {
@@ -76,9 +98,57 @@ export function useCostsState(): CostsStateReturn {
         else toast.info(message)
     }, [toast])
 
+    // Filtered costs
+    const filteredCosts = useMemo(() => {
+        let result = costs
+        const now = new Date()
+
+        // Search filter
+        if (search.trim()) {
+            const query = search.toLowerCase()
+            result = result.filter(c =>
+                c.description.toLowerCase().includes(query) ||
+                c.category.toLowerCase().includes(query) ||
+                c.type.toLowerCase().includes(query) ||
+                c.date.includes(query)
+            )
+        }
+
+        // Period filter with custom support
+        if (period === 'custom' && customStartDate && customEndDate) {
+            const start = new Date(customStartDate)
+            const end = new Date(customEndDate)
+            end.setHours(23, 59, 59, 999)
+            result = result.filter(c => {
+                const date = new Date(c.date)
+                return date >= start && date <= end
+            })
+        } else if (period !== 'all') {
+            result = result.filter(c => {
+                const diff = (now.getTime() - new Date(c.date).getTime()) / (1000 * 60 * 60 * 24)
+                if (period === 'today') return diff <= 1
+                if (period === '7d') return diff <= 7
+                if (period === '30d') return diff <= 30
+                return true
+            })
+        }
+
+        // Category filter
+        if (categoryFilter !== 'all') {
+            result = result.filter(c => c.category === categoryFilter)
+        }
+
+        // Type filter
+        if (typeFilter !== 'all') {
+            result = result.filter(c => c.type === typeFilter)
+        }
+
+        return result
+    }, [costs, search, period, customStartDate, customEndDate, categoryFilter, typeFilter])
+
     // Computed totals
     const totals = useMemo((): CostTotals => {
-        const subtotal = costs.reduce((acc, curr) => {
+        const subtotal = filteredCosts.reduce((acc, curr) => {
             const qty = Number(curr.quantity) || 1
             const val = (Number(curr.amount) || 0) * qty
             acc.total += val
@@ -89,16 +159,16 @@ export function useCostsState(): CostsStateReturn {
 
         const tax = subtotal.total * taxRate
         return { ...subtotal, tax, grandTotal: subtotal.total + tax }
-    }, [costs, taxRate])
+    }, [filteredCosts, taxRate])
 
     // Group costs by category
     const groupedCosts = useMemo((): GroupedCosts => {
         return categories.reduce((acc: GroupedCosts, cat) => {
-            const items = costs.filter((c: Expense) => c.category === cat)
+            const items = filteredCosts.filter((c: Expense) => c.category === cat)
             if (items.length > 0) acc[cat] = items
             return acc
         }, {})
-    }, [costs, categories])
+    }, [filteredCosts, categories])
 
     return {
         costs, addExpense, updateExpense, removeExpense,
@@ -109,7 +179,13 @@ export function useCostsState(): CostsStateReturn {
         formData, setFormData,
         dashboardTitle, setDashboardTitle,
         isEditingTitle, setIsEditingTitle,
-        totals, groupedCosts,
+        search, setSearch,
+        period, setPeriod,
+        customStartDate, setCustomStartDate,
+        customEndDate, setCustomEndDate,
+        categoryFilter, setCategoryFilter,
+        typeFilter, setTypeFilter,
+        totals, groupedCosts, filteredCosts,
         showToast
     }
 }
