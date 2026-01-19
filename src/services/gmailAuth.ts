@@ -21,6 +21,36 @@ const SCOPES = [
     'https://www.googleapis.com/auth/userinfo.email'
 ].join(' ')
 
+// PKCE: Generate code verifier and challenge
+function generateCodeVerifier(): string {
+    const array = new Uint8Array(32)
+    crypto.getRandomValues(array)
+    return base64URLEncode(array)
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(verifier)
+    const hash = await crypto.subtle.digest('SHA-256', data)
+    return base64URLEncode(new Uint8Array(hash))
+}
+
+function base64URLEncode(buffer: Uint8Array): string {
+    const base64 = btoa(String.fromCharCode(...buffer))
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+// Store code verifier for validation
+function storeCodeVerifier(verifier: string) {
+    sessionStorage.setItem('gmail_code_verifier', verifier)
+}
+
+function getCodeVerifier(): string | null {
+    const verifier = sessionStorage.getItem('gmail_code_verifier')
+    sessionStorage.removeItem('gmail_code_verifier')
+    return verifier
+}
+
 // Generate CSRF state token
 function generateState(): string {
     return crypto.randomUUID()
@@ -79,9 +109,14 @@ export async function initiateGmailOAuth(): Promise<void> {
         return
     }
 
-    // PRODUCTION MODE: Real Google OAuth
+    // PRODUCTION MODE: Real Google OAuth with PKCE
     const state = generateState()
     storeState(state)
+
+    // Generate PKCE parameters
+    const codeVerifier = generateCodeVerifier()
+    const codeChallenge = await generateCodeChallenge(codeVerifier)
+    storeCodeVerifier(codeVerifier)
 
     const params = new URLSearchParams({
         client_id: GOOGLE_CLIENT_ID,
@@ -90,30 +125,19 @@ export async function initiateGmailOAuth(): Promise<void> {
         scope: SCOPES,
         state,
         access_type: 'offline', // Get refresh token
-        prompt: 'consent' // Force consent to get refresh token
+        prompt: 'consent', // Force consent to get refresh token
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256'
     })
 
     const authUrl = `${AUTH_ENDPOINT}?${params.toString()}`
 
-    // Open in popup (better UX than redirect)
-    const width = 500
-    const height = 600
-    const left = window.screenX + (window.outerWidth - width) / 2
-    const top = window.screenY + (window.outerHeight - height) / 2
-
-    const popup = window.open(
-        authUrl,
-        'Gmail OAuth',
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
-    )
-
-    if (!popup) {
-        throw new Error('Popup bloqueado! Por favor, permita popups para este site.')
-    }
+    // Use redirect instead of popup (preserves sessionStorage)
+    window.location.href = authUrl
 }
 
 /**
- * Handle OAuth callback - Exchange code for tokens
+ * Handle OAuth callback - Exchange code for tokens (with PKCE)
  */
 export async function handleGmailOAuthCallback(code: string, state: string): Promise<{
     accessToken: string
@@ -126,7 +150,13 @@ export async function handleGmailOAuthCallback(code: string, state: string): Pro
         throw new Error('Invalid state parameter - possible CSRF attack')
     }
 
-    // Exchange authorization code for tokens
+    // Get code verifier from storage
+    const codeVerifier = getCodeVerifier()
+    if (!codeVerifier) {
+        throw new Error('Code verifier not found - possible session expired')
+    }
+
+    // Exchange authorization code for tokens (PKCE flow)
     const response = await fetch(TOKEN_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -136,7 +166,8 @@ export async function handleGmailOAuthCallback(code: string, state: string): Pro
             code,
             client_id: GOOGLE_CLIENT_ID,
             redirect_uri: REDIRECT_URI,
-            grant_type: 'authorization_code'
+            grant_type: 'authorization_code',
+            code_verifier: codeVerifier // PKCE parameter instead of client_secret
         })
     })
 
